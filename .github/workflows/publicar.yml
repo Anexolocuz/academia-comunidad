@@ -36,7 +36,7 @@ jobs:
           awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notas.md
       - name: ZIP para descargar sin Git
         run: git archive --format=zip --prefix=academia/ -o academia-${{ github.ref_name }}.zip HEAD
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body_path: notas.md
           files: academia-${{ github.ref_name }}.zip
