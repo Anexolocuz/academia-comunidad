@@ -1,5 +1,5 @@
 # Academia — imagen mínima: Python estándar, sin dependencias. La IA va en otro contenedor (Ollama) o en tu PC.
-FROM python:3.12-slim
+FROM python:3.14-slim
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="Academia" \
       org.opencontainers.image.description="Escuela personal con IA local" \
