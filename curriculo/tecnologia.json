@@ -1,0 +1,40 @@
+{
+  "id": "tecnologia", "nombre": "Tecnología y sociedad", "icono": "🛰", "grupo": "Ingenierías", "color": "#74b9ff",
+  "descripcion": "Visión de conjunto de las tecnologías que están cambiando el mundo, su historia y cómo evaluarlas.",
+  "recursos": [
+    {"t": "Our World in Data — datos verificados sobre tecnología y desarrollo", "u": "https://ourworldindata.org"},
+    {"t": "IEEE Spectrum", "u": "https://spectrum.ieee.org"},
+    {"t": "MIT Technology Review", "u": "https://www.technologyreview.com"},
+    {"t": "arXiv — preprints de investigación", "u": "https://arxiv.org"}
+  ],
+  "modulos": [
+    {"id": "historia", "t": "Historia de la tecnología", "nivel": 1, "pre": [], "temas": [
+      "Revoluciones industriales|vapor, electricidad, informática, 4.0",
+      "Historia de la computación|de Babbage a la nube",
+      "Historia de internet",
+      "Curvas de adopción y ley de Moore"]},
+    {"id": "panorama", "t": "Panorama de tecnologías clave", "nivel": 2, "pre": ["historia"], "temas": [
+      "Semiconductores y la industria de chips",
+      "Energías renovables y redes eléctricas inteligentes",
+      "Internet de las cosas",
+      "Telecomunicaciones|5G, 6G, satélites",
+      "Biotecnología",
+      "Espacio|NewSpace, satélites, exploración"]},
+    {"id": "innovacion", "t": "Innovación y emprendimiento tecnológico", "nivel": 2, "pre": ["historia"], "temas": [
+      "Ciclo de hype y madurez tecnológica (TRL)",
+      "Innovación disruptiva|Christensen",
+      "Propiedad intelectual|patentes, secretos industriales",
+      "Del laboratorio al mercado|prototipo, MVP, escalado"]},
+    {"id": "evaluacion", "t": "Evaluar tecnologías", "nivel": 3, "pre": ["panorama"], "temas": [
+      "Análisis de ciclo de vida e impacto ambiental",
+      "Prospectiva tecnológica|escenarios, Delphi",
+      "Leer papers científicos y separar hype de evidencia",
+      "Geopolítica de la tecnología|cadenas de suministro, soberanía"]},
+    {"id": "horizonte", "t": "Horizonte tecnológico", "nivel": 5, "pre": ["evaluacion"], "temas": [
+      "IA general: estado y debates",
+      "Energía: fusión, almacenamiento, hidrógeno",
+      "Computación cuántica y neuromórfica",
+      "Interfaces cerebro-máquina",
+      "Tendencias del año|lo que cambia el mundo ahora"]}
+  ]
+}

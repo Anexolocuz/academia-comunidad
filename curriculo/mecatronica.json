@@ -1,0 +1,114 @@
+{
+  "id": "mecatronica", "nombre": "Ingeniería Mecatrónica", "icono": "⚙", "grupo": "Ingenierías", "color": "#e17055",
+  "descripcion": "Mecánica + electrónica + control + software: la carrera que quieres. Ruta completa, de circuitos a robots autónomos.",
+  "recursos": [
+    {"t": "Control Tutorials for MATLAB & Simulink (U. Michigan)", "u": "https://ctms.engin.umich.edu"},
+    {"t": "Modern Robotics — libro y curso gratis (Lynch & Park)", "u": "https://modernrobotics.northwestern.edu"},
+    {"t": "All About Circuits — libro de electrónica gratis", "u": "https://www.allaboutcircuits.com/textbook/"},
+    {"t": "Documentación ROS 2", "u": "https://docs.ros.org"},
+    {"t": "Documentación de Espressif (ESP32)", "u": "https://docs.espressif.com"},
+    {"t": "Documentación de Arduino", "u": "https://docs.arduino.cc"},
+    {"t": "MIT OCW — Ingeniería mecánica", "u": "https://ocw.mit.edu/search/?d=Mechanical%20Engineering"}
+  ],
+  "modulos": [
+    {"id": "dibujo", "t": "Dibujo técnico y CAD", "nivel": 1, "pre": ["matematicas.geometria"], "temas": [
+      "Normas de dibujo técnico|vistas, proyecciones, cortes",
+      "Acotado y tolerancias|ajustes, GD&T básico",
+      "Modelado 3D paramétrico|bocetos, operaciones, ensambles (FreeCAD/Fusion/Blender)",
+      "Planos de fabricación|listas de materiales, especificaciones"]},
+    {"id": "circuitos", "t": "Circuitos eléctricos", "nivel": 1, "pre": ["fisica.electromagnetismo"], "temas": [
+      "Magnitudes eléctricas|voltaje, corriente, potencia, energía",
+      "Ley de Ohm y leyes de Kirchhoff|nodos y mallas",
+      "Teoremas de redes|Thévenin, Norton, superposición",
+      "Capacitores e inductores|transitorios RC, RL, RLC",
+      "Corriente alterna|fasores, impedancia, potencia en AC",
+      "Instrumentación de laboratorio|multímetro, osciloscopio, fuente"]},
+    {"id": "estatica", "t": "Mecánica para ingenieros", "nivel": 2, "pre": ["fisica.mecanica", "matematicas.calculo1"], "temas": [
+      "Estática|equilibrio de partículas y cuerpos rígidos",
+      "Estructuras y armaduras|nodos, secciones",
+      "Fricción|aplicaciones en mecanismos",
+      "Dinámica de cuerpos rígidos|cinemática, Newton-Euler",
+      "Trabajo, energía e impulso en sistemas mecánicos"]},
+    {"id": "electronica", "t": "Electrónica analógica", "nivel": 2, "pre": ["circuitos"], "temas": [
+      "Semiconductores y diodos|rectificación, Zener",
+      "Transistores BJT y MOSFET|conmutación y amplificación",
+      "Amplificadores operacionales|configuraciones, filtros activos",
+      "Fuentes de alimentación|reguladores lineales y conmutados",
+      "Diseño de PCB|esquemático, ruteo, KiCad"]},
+    {"id": "digital", "t": "Electrónica digital y microcontroladores", "nivel": 2, "pre": ["circuitos", "sistemas.arquitectura"], "temas": [
+      "Lógica digital aplicada|familias lógicas, niveles de voltaje",
+      "Arquitectura de microcontroladores|registros, memoria, periféricos",
+      "Programación embebida en C|GPIO, interrupciones, temporizadores",
+      "Comunicación serial|UART, I2C, SPI, CAN",
+      "ADC, DAC y PWM|lectura de sensores y control de potencia",
+      "ESP32 y sistemas conectados|Wi-Fi, BLE, FreeRTOS"]},
+    {"id": "materiales", "t": "Materiales y resistencia", "nivel": 2, "pre": ["estatica", "quimica.materia"], "temas": [
+      "Ciencia de materiales|metales, polímeros, cerámicos, compuestos",
+      "Esfuerzo y deformación|ley de Hooke, diagramas",
+      "Carga axial, torsión y flexión|vigas, ejes",
+      "Fatiga y falla|criterios de falla, concentradores",
+      "Selección de materiales|diagramas de Ashby"]},
+    {"id": "sensores", "t": "Sensores y actuadores", "nivel": 3, "pre": ["electronica", "digital"], "temas": [
+      "Sensores de posición y movimiento|encoders, IMU, potenciómetros",
+      "Sensores de distancia y visión|ToF, ultrasonido, LiDAR, cámaras",
+      "Sensores de fuerza, temperatura y presión|galgas, termopares",
+      "Acondicionamiento de señal|amplificación, filtrado, aislamiento",
+      "Motores DC, paso a paso y servos|características y drivers",
+      "Actuadores neumáticos e hidráulicos|válvulas, cilindros"]},
+    {"id": "control", "t": "Sistemas de control", "nivel": 3, "pre": ["matematicas.edo", "circuitos"], "temas": [
+      "Modelado de sistemas dinámicos|mecánicos, eléctricos, electromecánicos",
+      "Función de transferencia y diagramas de bloques",
+      "Respuesta transitoria y estabilidad|polos, Routh-Hurwitz",
+      "Control PID|sintonización, Ziegler-Nichols, antiwindup",
+      "Lugar de las raíces y respuesta en frecuencia|Bode, Nyquist, márgenes",
+      "Espacio de estados|controlabilidad, observabilidad, realimentación de estados",
+      "Control digital|discretización, implementación en microcontrolador"]},
+    {"id": "mecanismos", "t": "Diseño de máquinas y mecanismos", "nivel": 3, "pre": ["materiales", "dibujo"], "temas": [
+      "Cinemática de mecanismos|eslabonamientos, levas",
+      "Engranajes y transmisiones|relaciones, poleas, tornillos",
+      "Rodamientos, ejes y uniones|selección",
+      "Diseño para manufactura|tolerancias, costos",
+      "Manufactura|mecanizado, CNC, impresión 3D, inyección"]},
+    {"id": "potencia", "t": "Electrónica de potencia y máquinas eléctricas", "nivel": 3, "pre": ["electronica"], "temas": [
+      "Conversores DC-DC|buck, boost",
+      "Inversores y control de motores|puente H, PWM, FOC",
+      "Máquinas eléctricas|motores de inducción y BLDC",
+      "Baterías y gestión de energía|BMS, eficiencia"]},
+    {"id": "automatizacion", "t": "Automatización industrial", "nivel": 3, "pre": ["sensores", "control"], "temas": [
+      "PLC y lenguajes IEC 61131-3|escalera, texto estructurado",
+      "Neumática y electroneumática|secuencias",
+      "Redes industriales|Modbus, Profinet, OPC UA",
+      "SCADA y HMI|supervisión",
+      "Seguridad funcional|normas, paros de emergencia"]},
+    {"id": "robotica", "t": "Robótica", "nivel": 4, "pre": ["control", "matematicas.algebra_lineal", "mecanismos"], "temas": [
+      "Transformaciones homogéneas|rotaciones, cuaterniones",
+      "Cinemática directa e inversa|Denavit-Hartenberg",
+      "Dinámica de manipuladores|Lagrange",
+      "Planeación de trayectorias|espacio articular y cartesiano",
+      "Robots móviles|odometría, SLAM, navegación",
+      "ROS 2|nodos, tópicos, simulación con Gazebo"]},
+    {"id": "vision", "t": "Visión artificial y percepción", "nivel": 4, "pre": ["robotica", "sistemas.ia"], "temas": [
+      "Procesamiento de imágenes|filtros, bordes, OpenCV",
+      "Geometría de cámara|calibración, estéreo",
+      "Detección y segmentación con deep learning",
+      "Fusión de sensores|filtro de Kalman, EKF"]},
+    {"id": "control_avanzado", "t": "Control avanzado", "nivel": 4, "pre": ["control"], "temas": [
+      "Control óptimo|LQR, LQG",
+      "Control predictivo (MPC)",
+      "Control robusto y adaptativo",
+      "Control no lineal|Lyapunov, linealización por realimentación"]},
+    {"id": "diseno", "t": "Diseño mecatrónico integrado", "nivel": 4, "pre": ["automatizacion", "robotica"], "temas": [
+      "Metodología V (VDI 2206)|diseño de sistemas mecatrónicos",
+      "Modelado y simulación multidominio|Simulink, Modelica",
+      "Gemelos digitales|como el de tu expendedora",
+      "Confiabilidad y mantenimiento|FMEA, MTBF",
+      "Proyecto integrador|de idea a prototipo validado"]},
+    {"id": "horizonte", "t": "Horizonte mecatrónico", "nivel": 5, "pre": ["diseno", "control_avanzado", "vision"], "temas": [
+      "Robots humanoides y de aprendizaje|políticas aprendidas, sim2real",
+      "Robótica blanda y bioinspirada",
+      "Industria 4.0 y fábricas autónomas",
+      "Vehículos autónomos y drones",
+      "Micro y nanosistemas (MEMS)",
+      "Tendencias actuales|lo último en robótica e IA física"]}
+  ]
+}

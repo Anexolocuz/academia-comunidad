@@ -1,0 +1,114 @@
+{
+ "id": "japones",
+ "nombre": "Japonés",
+ "icono": "日",
+ "grupo": "Idiomas",
+ "color": "#e84118",
+ "idioma": "ja-JP",
+ "examen": "JLPT N5 → N1",
+ "descripcion": "Kana, kanji y gramática siguiendo el JLPT. Examen de referencia: JLPT N5 → N1.",
+ "recursos": [
+  {
+   "t": "JLPT oficial",
+   "u": "https://www.jlpt.jp"
+  },
+  {
+   "t": "Jisho — diccionario",
+   "u": "https://jisho.org"
+  },
+  {
+   "t": "Tofugu — guías de japonés",
+   "u": "https://www.tofugu.com/learn-japanese/"
+  },
+  {
+   "t": "NHK News Web Easy — noticias en japonés fácil",
+   "u": "https://www3.nhk.or.jp/news/easy/"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "kana",
+   "t": "Hiragana y katakana",
+   "nivel": 1,
+   "pre": [],
+   "temas": [
+    "Hiragana|46 caracteres, dakuten",
+    "Katakana y préstamos",
+    "Pronunciación y ritmo (moras)",
+    "Primeros kanji y radicales"
+   ]
+  },
+  {
+   "id": "n5",
+   "t": "JLPT N5",
+   "nivel": 1,
+   "pre": [
+    "kana"
+   ],
+   "temas": [
+    "Estructura です/ます",
+    "Partículas は, が, を, に, で",
+    "Verbos: grupos y forma ます",
+    "Adjetivos い y な",
+    "Números, contadores y hora",
+    "Forma て y peticiones"
+   ]
+  },
+  {
+   "id": "n4",
+   "t": "JLPT N4",
+   "nivel": 2,
+   "pre": [
+    "n5"
+   ],
+   "temas": [
+    "Forma simple (casual)",
+    "Potencial, volitivo y condicionales|ば, たら, なら",
+    "Dar y recibir|あげる, くれる, もらう",
+    "Pasiva y causativa",
+    "Kanji N4 (300)"
+   ]
+  },
+  {
+   "id": "n3",
+   "t": "JLPT N3",
+   "nivel": 3,
+   "pre": [
+    "n4"
+   ],
+   "temas": [
+    "Gramática intermedia|ようにする, ことにする",
+    "Keigo básico|sonkeigo, kenjougo",
+    "Lectura de textos cotidianos",
+    "Kanji N3 (650)"
+   ]
+  },
+  {
+   "id": "n2",
+   "t": "JLPT N2-N1",
+   "nivel": 4,
+   "pre": [
+    "n3"
+   ],
+   "temas": [
+    "Japonés de negocios (ビジネス日本語)",
+    "Lectura de noticias y artículos técnicos",
+    "Gramática avanzada y matices",
+    "Kanji N2-N1"
+   ]
+  },
+  {
+   "id": "horizonte",
+   "t": "Horizonte: japonés profesional",
+   "nivel": 5,
+   "pre": [
+    "n2"
+   ],
+   "temas": [
+    "Robótica y manufactura japonesa|kaizen, monozukuri",
+    "Cultura empresarial japonesa",
+    "Comprensión de medios nativos"
+   ]
+  }
+ ]
+}

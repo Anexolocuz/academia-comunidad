@@ -1,0 +1,10 @@
+# Tarjeta gráfica NVIDIA para Ollama. Requiere el NVIDIA Container Toolkit en el PC.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

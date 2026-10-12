@@ -1,0 +1,107 @@
+{
+  "id": "ciberseguridad", "nombre": "Ciberseguridad", "icono": "🛡", "grupo": "Ingenierías", "color": "#2d3436",
+  "descripcion": "Proteger (y saber atacar éticamente) sistemas, redes, aplicaciones, nube y máquinas industriales: de los fundamentos a la seguridad de sistemas mecatrónicos e IA. Siempre en entornos propios o autorizados.",
+  "recursos": [
+    {"t": "PortSwigger Web Security Academy — laboratorios gratis de seguridad web", "u": "https://portswigger.net/web-security"},
+    {"t": "OverTheWire — juegos de guerra para aprender Linux y explotación", "u": "https://overthewire.org/wargames/"},
+    {"t": "picoCTF (Carnegie Mellon) — retos CTF para aprender", "u": "https://picoctf.org"},
+    {"t": "TryHackMe — rutas guiadas (muchas gratis)", "u": "https://tryhackme.com"},
+    {"t": "Hack The Box Academy", "u": "https://academy.hackthebox.com"},
+    {"t": "OWASP — Top 10, ASVS, guías de pruebas", "u": "https://owasp.org"},
+    {"t": "MITRE ATT&CK — tácticas y técnicas reales de atacantes", "u": "https://attack.mitre.org"},
+    {"t": "NIST Cybersecurity Framework", "u": "https://www.nist.gov/cyberframework"},
+    {"t": "CISA — alertas y guías (incluye sistemas industriales)", "u": "https://www.cisa.gov"},
+    {"t": "Professor Messer — cursos gratis de CompTIA Security+", "u": "https://www.professormesser.com"}
+  ],
+  "modulos": [
+    {"id": "fundamentos", "t": "Fundamentos de ciberseguridad", "nivel": 1, "pre": [], "temas": [
+      "Qué es la ciberseguridad|tríada CIA, activos, amenazas, vulnerabilidades, riesgo",
+      "Tipos de atacantes y motivaciones|cibercrimen, hacktivismo, estados, insiders",
+      "Ataques comunes|phishing, malware, ransomware, ingeniería social, contraseñas",
+      "Higiene digital personal|gestores de contraseñas, 2FA, copias de seguridad, actualizaciones",
+      "Ética y legalidad del hacking|autorización, alcance, Ley 1273 de 2009 (Colombia), divulgación responsable",
+      "Carreras en ciberseguridad|red team, blue team, GRC, AppSec, OT; certificaciones"]},
+    {"id": "linux", "t": "Linux, Windows y línea de comandos para seguridad", "nivel": 1, "pre": ["sistemas.programacion"], "temas": [
+      "La terminal de Linux|navegación, permisos, usuarios, procesos",
+      "Scripting en Bash y Python para seguridad|automatizar tareas",
+      "Administración de servicios y registros (logs)|systemd, journalctl, syslog",
+      "Windows para seguridad|Active Directory, PowerShell, registro de eventos",
+      "Montar tu laboratorio|máquinas virtuales, redes aisladas, Kali/Parrot, objetivos vulnerables"]},
+    {"id": "redes", "t": "Seguridad de redes", "nivel": 2, "pre": ["fundamentos", "sistemas.redes"], "temas": [
+      "Análisis de tráfico|Wireshark, tcpdump, lectura de paquetes",
+      "Escaneo y enumeración|Nmap, servicios, versiones (en tu laboratorio)",
+      "Firewalls, segmentación y VPN|iptables/nftables, WireGuard, zonas",
+      "Ataques de red|ARP spoofing, MITM, DNS, DoS: cómo funcionan y cómo se detectan",
+      "Seguridad Wi-Fi|WPA2/WPA3, ataques y protección",
+      "Zero Trust|identidad como perímetro (p. ej. Tailscale)"]},
+    {"id": "cripto", "t": "Criptografía aplicada", "nivel": 2, "pre": ["fundamentos", "matematicas.logica"], "temas": [
+      "Cifrado simétrico|AES, modos de operación, gestión de claves",
+      "Cifrado asimétrico|RSA, Diffie-Hellman, curvas elípticas",
+      "Hash, MAC y firmas digitales|SHA-2/3, HMAC, integridad",
+      "PKI y TLS|certificados, cadenas de confianza, HTTPS",
+      "Almacenar contraseñas bien|bcrypt, scrypt, Argon2, sal",
+      "Errores criptográficos típicos|no inventar cripto, aleatoriedad, reutilizar nonces"]},
+    {"id": "web", "t": "Seguridad de aplicaciones web y APIs", "nivel": 2, "pre": ["redes", "sistemas.web"], "temas": [
+      "Cómo funciona la web desde la seguridad|HTTP, cookies, sesiones, CORS",
+      "OWASP Top 10|inyección, control de acceso roto, fallas criptográficas…",
+      "Inyección SQL y de comandos|explotación en laboratorio y defensa",
+      "XSS y CSRF|tipos, impacto, CSP, tokens",
+      "Autenticación y autorización|OAuth 2.0, JWT, IDOR",
+      "Seguridad de APIs|OWASP API Top 10, límites de tasa, validación",
+      "Desarrollo seguro|revisión de código, SAST/DAST, dependencias"]},
+    {"id": "defensa", "t": "Defensa (blue team) y operaciones de seguridad", "nivel": 3, "pre": ["redes", "linux"], "temas": [
+      "Centro de operaciones de seguridad (SOC)|roles, turnos, métricas",
+      "Registros y SIEM|recolección, correlación, Wazuh/Elastic",
+      "Detección|reglas Sigma, IDS/IPS (Suricata), indicadores de compromiso",
+      "MITRE ATT&CK para defensores|mapear detecciones a técnicas",
+      "Endurecimiento de sistemas|CIS Benchmarks, mínimo privilegio, parches",
+      "Gestión de vulnerabilidades|CVE, CVSS, priorización y remediación"]},
+    {"id": "pentest", "t": "Hacking ético y pruebas de penetración", "nivel": 3, "pre": ["web", "redes", "linux"], "temas": [
+      "Metodología de un pentest|alcance, reglas de compromiso, PTES, informe",
+      "Reconocimiento y OSINT|información pública, superficie de ataque",
+      "Explotación|vulnerabilidades conocidas, Metasploit, exploits manuales",
+      "Escalada de privilegios en Linux y Windows",
+      "Ataques a Active Directory|Kerberos, movimiento lateral (en laboratorio)",
+      "Redacción del informe|hallazgos, riesgo, recomendaciones para el cliente",
+      "CTF como entrenamiento|cómo practicar legalmente"]},
+    {"id": "incidentes", "t": "Respuesta a incidentes y forense digital", "nivel": 3, "pre": ["defensa"], "temas": [
+      "Ciclo de respuesta a incidentes|NIST 800-61: preparación, detección, contención, recuperación",
+      "Forense de discos y sistemas de archivos|imagen, cadena de custodia, línea de tiempo",
+      "Forense de memoria|Volatility",
+      "Ransomware: prevenir, contener y recuperar|copias inmutables",
+      "Lecciones aprendidas y comunicación de crisis"]},
+    {"id": "malware", "t": "Análisis de malware e ingeniería inversa", "nivel": 4, "pre": ["incidentes", "sistemas.arquitectura"], "temas": [
+      "Análisis estático y dinámico|sandbox, YARA",
+      "Ensamblador x86-64 y ARM para analistas",
+      "Ingeniería inversa con Ghidra",
+      "Técnicas de evasión y persistencia del malware",
+      "Explotación de memoria|buffer overflow, ROP, mitigaciones (ASLR, DEP)"]},
+    {"id": "nube", "t": "Seguridad en la nube y contenedores", "nivel": 4, "pre": ["defensa", "sistemas.distribuidos"], "temas": [
+      "Modelo de responsabilidad compartida|IaaS, PaaS, SaaS",
+      "Identidades y permisos en la nube|IAM, mínimo privilegio",
+      "Seguridad de contenedores y Kubernetes|imágenes, secretos, políticas",
+      "DevSecOps|seguridad en CI/CD, infraestructura como código",
+      "Errores de configuración típicos|buckets públicos, claves expuestas"]},
+    {"id": "ot", "t": "Seguridad industrial (OT/ICS) y de sistemas embebidos", "nivel": 4, "pre": ["redes", "mecatronica.automatizacion", "mecatronica.digital"], "temas": [
+      "Sistemas de control industrial|PLC, SCADA, modelo Purdue",
+      "Protocolos industriales y sus debilidades|Modbus, CAN bus, Profinet, OPC UA",
+      "Seguridad de microcontroladores y firmware|JTAG, arranque seguro, actualizaciones firmadas",
+      "Ataques de canal lateral y físicos|consumo, EM, inyección de fallas",
+      "Seguridad de robots, vehículos y dispositivos IoT/BLE",
+      "Normas|IEC 62443, casos reales (Stuxnet, ataques a redes eléctricas)"]},
+    {"id": "grc", "t": "Gobierno, riesgo y cumplimiento (GRC)", "nivel": 3, "pre": ["fundamentos", "administracion.proyectos"], "temas": [
+      "Gestión de riesgos de seguridad|identificar, valorar, tratar",
+      "ISO/IEC 27001 y 27002|sistema de gestión de seguridad de la información",
+      "NIST CSF 2.0 y CIS Controls",
+      "Protección de datos personales|Ley 1581 de 2012 (Colombia), GDPR",
+      "Continuidad del negocio y recuperación ante desastres",
+      "Concienciación del personal y cultura de seguridad"]},
+    {"id": "horizonte", "t": "Horizonte de la ciberseguridad", "nivel": 5, "pre": ["pentest", "malware", "ot", "cripto"], "temas": [
+      "Criptografía post-cuántica|estándares NIST (ML-KEM, ML-DSA) y migración",
+      "Seguridad de la IA|inyección de prompts, envenenamiento de datos, robo de modelos",
+      "IA para defensa y ataque|detección automática, agentes ofensivos",
+      "Seguridad de la cadena de suministro de software|SBOM, firmas, ataques reales",
+      "Computación confidencial y hardware seguro|TEE, TPM",
+      "Tendencias actuales|amenazas y técnicas de este año"]}
+  ]
+}

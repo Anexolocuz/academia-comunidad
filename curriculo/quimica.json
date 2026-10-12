@@ -1,0 +1,68 @@
+{
+  "id": "quimica", "nombre": "Química", "icono": "⚗", "grupo": "Ciencias básicas", "color": "#fdcb6e",
+  "descripcion": "La ciencia de la materia: materiales, baterías, semiconductores, energía y vida.",
+  "recursos": [
+    {"t": "OpenStax — Química 2e y Química: átomos primero", "u": "https://openstax.org/subjects/science"},
+    {"t": "LibreTexts Química", "u": "https://chem.libretexts.org"},
+    {"t": "PubChem (NIH) — datos verificados de compuestos", "u": "https://pubchem.ncbi.nlm.nih.gov"},
+    {"t": "Tabla periódica interactiva", "u": "https://ptable.com/?lang=es"},
+    {"t": "Khan Academy — Química", "u": "https://es.khanacademy.org/science/chemistry"}
+  ],
+  "modulos": [
+    {"id": "materia", "t": "Materia y átomo", "nivel": 1, "pre": ["matematicas.aritmetica"], "temas": [
+      "Materia y sus propiedades|estados, mezclas, sustancias puras",
+      "Estructura atómica|protones, neutrones, electrones, isótopos",
+      "Configuración electrónica|orbitales, números cuánticos",
+      "Tabla periódica y propiedades periódicas|radio, electronegatividad, energía de ionización",
+      "Nomenclatura inorgánica|óxidos, ácidos, bases, sales"]},
+    {"id": "enlace", "t": "Enlace y estructura", "nivel": 1, "pre": ["materia"], "temas": [
+      "Enlace iónico, covalente y metálico",
+      "Estructuras de Lewis y geometría molecular|VSEPR",
+      "Polaridad y fuerzas intermoleculares",
+      "Hibridación y teoría de orbitales moleculares"]},
+    {"id": "estequiometria", "t": "Reacciones y estequiometría", "nivel": 1, "pre": ["materia", "matematicas.algebra"], "temas": [
+      "El mol y la masa molar",
+      "Balanceo de ecuaciones químicas",
+      "Cálculos estequiométricos|reactivo limitante, rendimiento",
+      "Soluciones y concentración|molaridad, diluciones",
+      "Tipos de reacciones|precipitación, ácido-base, redox"]},
+    {"id": "estados", "t": "Gases, líquidos y sólidos", "nivel": 2, "pre": ["estequiometria"], "temas": [
+      "Leyes de los gases e ideal|teoría cinética",
+      "Gases reales",
+      "Cambios de fase y diagramas de fase",
+      "Sólidos cristalinos y amorfos|celdas unitarias"]},
+    {"id": "termoquimica", "t": "Termoquímica, cinética y equilibrio", "nivel": 2, "pre": ["estados", "fisica.fluidos_termo"], "temas": [
+      "Entalpía y ley de Hess",
+      "Entropía y energía libre de Gibbs|espontaneidad",
+      "Cinética química|velocidad, ley de velocidad, Arrhenius, catálisis",
+      "Equilibrio químico|Le Châtelier, constantes",
+      "Ácidos y bases|pH, buffers, titulaciones"]},
+    {"id": "electroquimica", "t": "Electroquímica", "nivel": 2, "pre": ["termoquimica"], "temas": [
+      "Reacciones redox y potenciales estándar",
+      "Celdas galvánicas y electrolíticas|ecuación de Nernst",
+      "Baterías|plomo-ácido, ion-litio, estado sólido",
+      "Corrosión y protección de metales"]},
+    {"id": "organica", "t": "Química orgánica", "nivel": 3, "pre": ["enlace"], "temas": [
+      "Hidrocarburos y grupos funcionales|nomenclatura IUPAC",
+      "Isomería y estereoquímica",
+      "Mecanismos de reacción|sustitución, eliminación, adición",
+      "Polímeros|síntesis, plásticos de ingeniería",
+      "Espectroscopía|IR, RMN, masas"]},
+    {"id": "materiales", "t": "Química de materiales", "nivel": 3, "pre": ["electroquimica", "estados"], "temas": [
+      "Semiconductores y dopaje|silicio, química de chips",
+      "Cerámicos y compuestos",
+      "Nanomateriales|grafeno, nanotubos",
+      "Química verde y sostenibilidad"]},
+    {"id": "avanzada", "t": "Química avanzada", "nivel": 4, "pre": ["organica", "fisica.cuantica"], "temas": [
+      "Química cuántica|aproximaciones, DFT",
+      "Bioquímica|proteínas, enzimas, metabolismo",
+      "Química analítica instrumental|cromatografía, espectrometría",
+      "Química computacional|simulación molecular"]},
+    {"id": "horizonte", "t": "Horizonte químico", "nivel": 5, "pre": ["avanzada", "materiales"], "temas": [
+      "Descubrimiento de materiales con IA",
+      "Baterías de nueva generación y almacenamiento de energía",
+      "Captura de carbono y combustibles sintéticos",
+      "Química de la vida sintética",
+      "Tendencias actuales|avances recientes"]}
+  ]
+}

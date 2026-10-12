@@ -1,0 +1,24 @@
+{
+  "nombre": "Bosque",
+  "descripcion": "Verdes suaves, descansa la vista",
+  "claro": {
+    "fondo": "#f3f6f2",
+    "panel": "#ffffff",
+    "panel2": "#e8efe6",
+    "texto": "#1b2419",
+    "suave": "#58664f",
+    "borde": "#d6e0d2",
+    "acento": "#2f8a57",
+    "acento-t": "#ffffff"
+  },
+  "oscuro": {
+    "fondo": "#0f1410",
+    "panel": "#171e18",
+    "panel2": "#1f2820",
+    "texto": "#e3ece1",
+    "suave": "#9db09a",
+    "borde": "#2a352b",
+    "acento": "#5cc98a",
+    "acento-t": "#08130c"
+  }
+}

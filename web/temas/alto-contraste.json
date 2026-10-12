@@ -1,0 +1,30 @@
+{
+  "nombre": "Alto contraste",
+  "descripcion": "Accesible: máximo contraste y bordes marcados",
+  "claro": {
+    "fondo": "#ffffff",
+    "panel": "#ffffff",
+    "panel2": "#f0f0f0",
+    "texto": "#000000",
+    "suave": "#2b2b2b",
+    "borde": "#000000",
+    "acento": "#0040c1",
+    "acento-t": "#ffffff",
+    "bien": "#006b2e",
+    "mal": "#b00020",
+    "medio": "#7a4d00"
+  },
+  "oscuro": {
+    "fondo": "#000000",
+    "panel": "#000000",
+    "panel2": "#141414",
+    "texto": "#ffffff",
+    "suave": "#e0e0e0",
+    "borde": "#ffffff",
+    "acento": "#ffd400",
+    "acento-t": "#000000",
+    "bien": "#4dff88",
+    "mal": "#ff6b6b",
+    "medio": "#ffc94d"
+  }
+}

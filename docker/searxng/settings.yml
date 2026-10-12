@@ -1,0 +1,9 @@
+# SearXNG privado para la Academia: solo accesible dentro de la red de Docker.
+use_default_settings: true
+server:
+  limiter: false          # solo lo usa la Academia, no está abierto a internet
+  image_proxy: false
+search:
+  formats:
+    - html
+    - json                # la Academia pide los resultados en JSON

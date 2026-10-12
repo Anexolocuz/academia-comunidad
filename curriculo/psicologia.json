@@ -1,0 +1,77 @@
+{
+  "id": "psicologia", "nombre": "Psicología y ciencia del aprendizaje", "icono": "🧠", "grupo": "Humanidades", "color": "#9b59b6",
+  "descripcion": "Cómo funcionan la mente y el cerebro: aprendizaje, memoria, atención, motivación, hábitos y comportamiento. Lo que aprendas aquí lo aplicas a tu propia forma de estudiar (y la Academia lo usa para adaptarse a ti).",
+  "recursos": [
+    {"t": "OpenStax — Psychology 2e (libro gratis)", "u": "https://openstax.org/details/books/psychology-2e"},
+    {"t": "The Learning Scientists — estrategias de estudio con evidencia", "u": "https://www.learningscientists.org"},
+    {"t": "Retrieval Practice (Pooja Agarwal) — investigación aplicada", "u": "https://www.retrievalpractice.org"},
+    {"t": "APA — American Psychological Association", "u": "https://www.apa.org/topics"},
+    {"t": "Noba Project — módulos gratuitos de psicología", "u": "https://nobaproject.com"},
+    {"t": "Stanford Encyclopedia — filosofía de la mente y psicología", "u": "https://plato.stanford.edu"}
+  ],
+  "modulos": [
+    {"id": "fundamentos", "t": "Fundamentos de psicología", "nivel": 1, "pre": [], "temas": [
+      "¿Qué es la psicología?|historia, escuelas (conductismo, cognitivismo, humanismo) y ramas",
+      "Método científico en psicología|experimentos, correlación vs causalidad, replicación",
+      "Bases biológicas de la conducta|neuronas, neurotransmisores, sistema nervioso",
+      "Sensación y percepción|umbrales, ilusiones, atención selectiva",
+      "Estados de conciencia|sueño, ritmos circadianos, sustancias"]},
+    {"id": "aprendizaje", "t": "Psicología del aprendizaje", "nivel": 1, "pre": ["fundamentos"], "temas": [
+      "Condicionamiento clásico|Pavlov, extinción, generalización",
+      "Condicionamiento operante|refuerzo, castigo, programas de refuerzo",
+      "Aprendizaje observacional|Bandura, modelado, autoeficacia",
+      "Aprendizaje de habilidades|práctica deliberada, automatización, mesetas",
+      "Transferencia del aprendizaje|cercana y lejana, cómo lograrla"]},
+    {"id": "memoria", "t": "Memoria", "nivel": 2, "pre": ["aprendizaje"], "temas": [
+      "Modelos de memoria|sensorial, de trabajo (Baddeley), largo plazo",
+      "Codificación y niveles de procesamiento|elaboración, efecto de generación",
+      "Curva del olvido y repetición espaciada|Ebbinghaus, FSRS",
+      "Práctica de recuperación (testing effect)|por qué examinarse enseña",
+      "Interferencia, consolidación y sueño|cómo el sueño fija lo aprendido",
+      "Memoria y emoción|estrés, cortisol, aprendizaje bajo presión"]},
+    {"id": "cognicion", "t": "Cognición", "nivel": 2, "pre": ["memoria"], "temas": [
+      "Atención y multitarea|costes del cambio de tarea, flujo",
+      "Carga cognitiva|intrínseca, extrínseca, germana; ejemplos resueltos",
+      "Pensamiento y resolución de problemas|heurísticas, insight, analogías",
+      "Sesgos y toma de decisiones|Kahneman, sistema 1 y 2",
+      "Lenguaje y cognición|adquisición de segundas lenguas, bilingüismo",
+      "Metacognición|saber lo que sabes, ilusión de competencia, calibración"]},
+    {"id": "motivacion", "t": "Motivación, emoción y hábitos", "nivel": 2, "pre": ["aprendizaje"], "temas": [
+      "Teorías de la motivación|autodeterminación, expectativa-valor",
+      "Mentalidad de crecimiento y autoeficacia|lo que dice la evidencia (y lo que no)",
+      "Formación de hábitos|señal-rutina-recompensa, intenciones de implementación",
+      "Procrastinación y autorregulación|por qué ocurre y cómo vencerla",
+      "Emociones y regulación emocional|ansiedad ante exámenes",
+      "Flow y concentración profunda|condiciones del estado de flujo"]},
+    {"id": "desarrollo", "t": "Desarrollo y personalidad", "nivel": 3, "pre": ["fundamentos"], "temas": [
+      "Desarrollo cognitivo a lo largo de la vida|Piaget, Vygotsky, adultez",
+      "Neuroplasticidad en adultos|el cerebro cambia: qué lo potencia",
+      "Personalidad|Big Five, estabilidad y cambio",
+      "Inteligencia|teorías, medición, fluida vs cristalizada",
+      "Envejecimiento cognitivo y reserva cognitiva"]},
+    {"id": "social", "t": "Psicología social y organizacional", "nivel": 3, "pre": ["cognicion"], "temas": [
+      "Influencia social|conformidad, obediencia, persuasión",
+      "Actitudes y cambio de conducta",
+      "Grupos y equipos|cohesión, pensamiento grupal, liderazgo",
+      "Psicología organizacional|motivación laboral, clima, burnout",
+      "Psicología del consumidor y de la negociación"]},
+    {"id": "neurociencia", "t": "Neurociencia cognitiva", "nivel": 4, "pre": ["memoria", "biologia.neuro"], "temas": [
+      "Métodos|EEG, fMRI, lesiones, estimulación",
+      "Hipocampo, corteza y consolidación sistémica",
+      "Dopamina, predicción y aprendizaje por refuerzo|conexión con la IA",
+      "Funciones ejecutivas y corteza prefrontal",
+      "Neurociencia del sueño y del ejercicio en el aprendizaje"]},
+    {"id": "salud", "t": "Salud mental y bienestar", "nivel": 3, "pre": ["motivacion"], "temas": [
+      "Estrés, ansiedad y depresión|señales y cuándo pedir ayuda",
+      "Sueño, ejercicio y nutrición para el rendimiento mental",
+      "Mindfulness y atención|qué dice la evidencia",
+      "Burnout en estudiantes e ingenieros|prevención",
+      "Terapias con evidencia|cognitivo-conductual y otras"]},
+    {"id": "horizonte", "t": "Horizonte: mente, cerebro y tecnología", "nivel": 5, "pre": ["neurociencia", "cognicion"], "temas": [
+      "Ciencia del aprendizaje con IA|tutores inteligentes, aprendizaje adaptativo",
+      "Interfaces cerebro-computador y neurotecnología",
+      "Modelos computacionales de la mente|redes neuronales y cognición",
+      "Crisis de replicación y psicología abierta",
+      "Tendencias actuales|avances recientes en ciencia cognitiva"]}
+  ]
+}

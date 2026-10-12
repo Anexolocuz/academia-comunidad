@@ -1,0 +1,115 @@
+{
+ "id": "coreano",
+ "nombre": "Coreano",
+ "icono": "한",
+ "grupo": "Idiomas",
+ "color": "#0652dd",
+ "idioma": "ko-KR",
+ "examen": "TOPIK I-II (niveles 1-6)",
+ "descripcion": "Hangul, gramática y cultura coreana siguiendo el TOPIK. Examen de referencia: TOPIK I-II (niveles 1-6).",
+ "recursos": [
+  {
+   "t": "TOPIK oficial",
+   "u": "https://www.topik.go.kr"
+  },
+  {
+   "t": "How to Study Korean",
+   "u": "https://www.howtostudykorean.com"
+  },
+  {
+   "t": "Diccionario Naver",
+   "u": "https://korean.dict.naver.com"
+  },
+  {
+   "t": "BBC 코리아 — noticias para lectura",
+   "u": "https://www.bbc.com/korean"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "hangul",
+   "t": "Hangul",
+   "nivel": 1,
+   "pre": [],
+   "temas": [
+    "Vocales básicas y compuestas",
+    "Consonantes simples, dobles y aspiradas",
+    "Formación de sílabas y batchim",
+    "Reglas de pronunciación|liaison, asimilación"
+   ]
+  },
+  {
+   "id": "topik1",
+   "t": "TOPIK 1",
+   "nivel": 1,
+   "pre": [
+    "hangul"
+   ],
+   "temas": [
+    "Saludos y niveles de cortesía",
+    "Partículas de tema y sujeto|은/는, 이/가",
+    "Verbo ser 이다 y existencia 있다/없다",
+    "Números nativos y sino-coreanos",
+    "Presente formal e informal|-아요/어요, -ㅂ니다",
+    "Objeto y lugar|을/를, 에, 에서"
+   ]
+  },
+  {
+   "id": "topik2",
+   "t": "TOPIK 2",
+   "nivel": 2,
+   "pre": [
+    "topik1"
+   ],
+   "temas": [
+    "Pasado y futuro",
+    "Negación|안, 못, -지 않다",
+    "Conectores|-고, -지만, -아서",
+    "Pedir y ofrecer|-주세요, -(으)ㄹ까요?",
+    "Vida diaria: compras, transporte, comida"
+   ]
+  },
+  {
+   "id": "topik3",
+   "t": "TOPIK 3-4",
+   "nivel": 3,
+   "pre": [
+    "topik2"
+   ],
+   "temas": [
+    "Honoríficos|-(으)시-, verbos especiales",
+    "Modificadores de sustantivo|-는, -(으)ㄴ, -(으)ㄹ",
+    "Discurso indirecto",
+    "Expresiones de intención y condición",
+    "Lectura de noticias"
+   ]
+  },
+  {
+   "id": "topik5",
+   "t": "TOPIK 5-6",
+   "nivel": 4,
+   "pre": [
+    "topik3"
+   ],
+   "temas": [
+    "Coreano de negocios y formal",
+    "Hanja frecuentes",
+    "Escritura de ensayos",
+    "Coreano técnico"
+   ]
+  },
+  {
+   "id": "horizonte",
+   "t": "Horizonte: coreano profesional",
+   "nivel": 5,
+   "pre": [
+    "topik5"
+   ],
+   "temas": [
+    "Industria tecnológica coreana (semiconductores, robótica)",
+    "Cultura laboral coreana",
+    "Medios y prensa sin subtítulos"
+   ]
+  }
+ ]
+}

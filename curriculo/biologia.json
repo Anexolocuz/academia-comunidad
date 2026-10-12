@@ -1,0 +1,64 @@
+{
+  "id": "biologia", "nombre": "Biología", "icono": "🧬", "grupo": "Ciencias básicas", "color": "#55efc4",
+  "descripcion": "La ingeniería más antigua: células, genes, cerebro y cómo la tecnología la está transformando (biomecatrónica, bioinformática).",
+  "recursos": [
+    {"t": "OpenStax — Biología 2e", "u": "https://openstax.org/subjects/science"},
+    {"t": "LibreTexts Biología", "u": "https://bio.libretexts.org"},
+    {"t": "HHMI BioInteractive", "u": "https://www.biointeractive.org"},
+    {"t": "NCBI Bookshelf — libros de referencia (NIH)", "u": "https://www.ncbi.nlm.nih.gov/books/"},
+    {"t": "Khan Academy — Biología", "u": "https://es.khanacademy.org/science/biology"}
+  ],
+  "modulos": [
+    {"id": "celula", "t": "La célula", "nivel": 1, "pre": [], "temas": [
+      "Características de la vida y niveles de organización",
+      "Biomoléculas|carbohidratos, lípidos, proteínas, ácidos nucleicos",
+      "Célula procariota y eucariota|organelos",
+      "Membrana y transporte|difusión, ósmosis, transporte activo",
+      "Ciclo celular|mitosis y meiosis"]},
+    {"id": "energia", "t": "Energía en los seres vivos", "nivel": 1, "pre": ["celula", "quimica.estequiometria"], "temas": [
+      "Enzimas y metabolismo",
+      "Respiración celular|glucólisis, Krebs, cadena de electrones",
+      "Fotosíntesis",
+      "ATP y termodinámica biológica"]},
+    {"id": "genetica", "t": "Genética", "nivel": 2, "pre": ["celula"], "temas": [
+      "Herencia mendeliana",
+      "ADN, replicación y reparación",
+      "Transcripción y traducción|dogma central",
+      "Regulación génica y epigenética",
+      "Mutaciones y enfermedades genéticas",
+      "Biotecnología|PCR, secuenciación, CRISPR"]},
+    {"id": "evolucion", "t": "Evolución y ecología", "nivel": 2, "pre": ["genetica"], "temas": [
+      "Selección natural y evidencias de la evolución",
+      "Genética de poblaciones",
+      "Ecosistemas y flujos de energía",
+      "Biodiversidad y conservación",
+      "Cambio climático y biología"]},
+    {"id": "fisiologia", "t": "Anatomía y fisiología humana", "nivel": 2, "pre": ["celula", "energia"], "temas": [
+      "Sistema nervioso|neuronas, potencial de acción",
+      "Sistema musculoesquelético|biomecánica del movimiento",
+      "Sistemas cardiovascular y respiratorio",
+      "Sistema endocrino e inmune",
+      "Sueño, memoria y aprendizaje|cómo aprende tu cerebro"]},
+    {"id": "neuro", "t": "Neurociencia", "nivel": 3, "pre": ["fisiologia"], "temas": [
+      "Sinapsis y plasticidad|base del aprendizaje",
+      "Sistemas sensoriales y motores",
+      "Memoria|codificación, consolidación, repetición espaciada",
+      "Interfaces cerebro-computador"]},
+    {"id": "bioingenieria", "t": "Bioingeniería", "nivel": 3, "pre": ["fisiologia", "mecatronica.sensores"], "temas": [
+      "Biomecánica|modelado de articulaciones y marcha",
+      "Biosensores y señales biomédicas|ECG, EMG, EEG",
+      "Prótesis, exoesqueletos y biomecatrónica",
+      "Biomateriales e ingeniería de tejidos"]},
+    {"id": "bioinformatica", "t": "Bioinformática y biología computacional", "nivel": 4, "pre": ["genetica", "sistemas.estructuras"], "temas": [
+      "Alineamiento de secuencias|BLAST, programación dinámica",
+      "Genómica y análisis de datos de secuenciación",
+      "Predicción de estructura de proteínas|AlphaFold",
+      "Biología de sistemas y modelado"]},
+    {"id": "horizonte", "t": "Horizonte biológico", "nivel": 5, "pre": ["bioinformatica", "neuro"], "temas": [
+      "Biología sintética",
+      "Edición genética de nueva generación|prime editing, base editing",
+      "Longevidad y medicina personalizada",
+      "IA en el descubrimiento de fármacos",
+      "Tendencias actuales|avances recientes"]}
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "nombre": "Atardecer",
+  "descripcion": "Cálida: naranjas y corales",
+  "claro": {
+    "fondo": "#fbf5f1",
+    "panel": "#ffffff",
+    "panel2": "#f4e9e1",
+    "texto": "#2a1d17",
+    "suave": "#6f5b50",
+    "borde": "#ecdcd1",
+    "acento": "#d9612b",
+    "acento-t": "#ffffff"
+  },
+  "oscuro": {
+    "fondo": "#16100d",
+    "panel": "#201814",
+    "panel2": "#2a201b",
+    "texto": "#f2e6de",
+    "suave": "#b9a397",
+    "borde": "#3a2c25",
+    "acento": "#ff8a50",
+    "acento-t": "#1a0c05"
+  }
+}

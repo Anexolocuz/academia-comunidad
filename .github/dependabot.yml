@@ -1,0 +1,11 @@
+# Avisa (con un pull request) cuando una acción de GitHub o la imagen base de Docker tenga una versión nueva o un arreglo de seguridad.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly

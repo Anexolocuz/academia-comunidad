@@ -1,0 +1,74 @@
+{
+ "id": "ingles",
+ "nombre": "Inglés (refuerzo a C2)",
+ "icono": "EN",
+ "grupo": "Idiomas",
+ "color": "#636e72",
+ "idioma": "en-US",
+ "examen": "MCER / IELTS / TOEFL",
+ "descripcion": "Ya lo sabes: aquí lo llevas a nivel profesional (C1-C2), técnico y académico. Examen de referencia: MCER / IELTS / TOEFL.",
+ "recursos": [
+  {
+   "t": "BBC Learning English",
+   "u": "https://www.bbc.co.uk/learningenglish"
+  },
+  {
+   "t": "Cambridge Dictionary",
+   "u": "https://dictionary.cambridge.org"
+  },
+  {
+   "t": "YouGlish — pronunciación en contexto real",
+   "u": "https://youglish.com"
+  },
+  {
+   "t": "Purdue OWL — escritura académica",
+   "u": "https://owl.purdue.edu/owl/purdue_owl.html"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "b2",
+   "t": "Consolidación B2",
+   "nivel": 3,
+   "pre": [],
+   "temas": [
+    "Tiempos verbales en profundidad|perfectos y continuos",
+    "Condicionales y modales de deducción",
+    "Phrasal verbs de uso frecuente",
+    "Pronunciación|schwa, acento de palabra, conexión",
+    "Escucha de podcasts técnicos"
+   ]
+  },
+  {
+   "id": "c1",
+   "t": "C1 — inglés profesional",
+   "nivel": 4,
+   "pre": [
+    "b2"
+   ],
+   "temas": [
+    "Escritura de correos y reportes técnicos",
+    "Inglés para ingeniería|vocabulario de sistemas, mecatrónica, finanzas",
+    "Presentaciones y pitch en inglés",
+    "Lectura de papers y documentación",
+    "Entrevistas de trabajo técnicas",
+    "Collocations y registro formal/informal"
+   ]
+  },
+  {
+   "id": "c2",
+   "t": "C2 — dominio",
+   "nivel": 5,
+   "pre": [
+    "c1"
+   ],
+   "temas": [
+    "Matices, modismos y humor",
+    "Debate y argumentación",
+    "Escritura académica avanzada|ensayos, papers",
+    "Negociación en inglés",
+    "Acentos del mundo"
+   ]
+  }
+ ]
+}

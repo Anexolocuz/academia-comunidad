@@ -1,0 +1,101 @@
+{
+ "id": "aleman",
+ "nombre": "Alemán",
+ "icono": "DE",
+ "grupo": "Idiomas",
+ "color": "#fbc531",
+ "idioma": "de-DE",
+ "examen": "Goethe-Zertifikat A1-C2",
+ "descripcion": "El idioma de la ingeniería mecánica e industrial europea, siguiendo el MCER. Examen de referencia: Goethe-Zertifikat A1-C2.",
+ "recursos": [
+  {
+   "t": "DW Learn German — curso gratis",
+   "u": "https://learngerman.dw.com/es/overview"
+  },
+  {
+   "t": "Goethe-Institut",
+   "u": "https://www.goethe.de/es/spr.html"
+  },
+  {
+   "t": "DWDS — diccionario",
+   "u": "https://www.dwds.de"
+  },
+  {
+   "t": "Tagesschau — noticias para lectura",
+   "u": "https://www.tagesschau.de"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "a1",
+   "t": "A1",
+   "nivel": 1,
+   "pre": [],
+   "temas": [
+    "Pronunciación y alfabeto|umlaut, ß",
+    "Presentarse y verbos regulares",
+    "Artículos der/die/das y género",
+    "Nominativo y acusativo",
+    "Verbos modales",
+    "Orden de la oración (verbo en 2ª posición)"
+   ]
+  },
+  {
+   "id": "a2",
+   "t": "A2",
+   "nivel": 2,
+   "pre": [
+    "a1"
+   ],
+   "temas": [
+    "Perfekt (pasado conversacional)",
+    "Dativo y preposiciones",
+    "Verbos separables",
+    "Oraciones subordinadas con weil, dass",
+    "Comparativo y superlativo"
+   ]
+  },
+  {
+   "id": "b1",
+   "t": "B1",
+   "nivel": 3,
+   "pre": [
+    "a2"
+   ],
+   "temas": [
+    "Präteritum",
+    "Pasiva",
+    "Declinación de adjetivos",
+    "Oraciones de relativo",
+    "Konjunktiv II"
+   ]
+  },
+  {
+   "id": "b2",
+   "t": "B2-C1",
+   "nivel": 4,
+   "pre": [
+    "b1"
+   ],
+   "temas": [
+    "Alemán técnico|Technik, Maschinenbau, Industrie 4.0",
+    "Alemán de negocios y correos formales",
+    "Nominalización y estilo escrito",
+    "Lectura de prensa y documentación técnica"
+   ]
+  },
+  {
+   "id": "horizonte",
+   "t": "Horizonte: alemán profesional",
+   "nivel": 5,
+   "pre": [
+    "b2"
+   ],
+   "temas": [
+    "Trabajar como ingeniero en Alemania|reconocimiento de títulos",
+    "Normas DIN y documentación industrial",
+    "Debate y presentaciones técnicas"
+   ]
+  }
+ ]
+}

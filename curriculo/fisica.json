@@ -1,0 +1,74 @@
+{
+  "id": "fisica", "nombre": "Física", "icono": "⚛", "grupo": "Ciencias básicas", "color": "#00b894",
+  "descripcion": "Cómo funciona el universo, de la mecánica clásica a la cuántica: la base de toda máquina y todo circuito.",
+  "recursos": [
+    {"t": "The Feynman Lectures on Physics (gratis en línea)", "u": "https://www.feynmanlectures.caltech.edu"},
+    {"t": "OpenStax — Física universitaria 1, 2 y 3", "u": "https://openstax.org/subjects/science"},
+    {"t": "PhET — simulaciones interactivas (U. Colorado)", "u": "https://phet.colorado.edu/es/"},
+    {"t": "LibreTexts Física", "u": "https://phys.libretexts.org"},
+    {"t": "MIT OCW — 8.01, 8.02, 8.03, 8.04", "u": "https://ocw.mit.edu/search/?d=Physics"}
+  ],
+  "modulos": [
+    {"id": "mediciones", "t": "Mediciones y método", "nivel": 1, "pre": ["matematicas.aritmetica"], "temas": [
+      "Sistema Internacional y unidades|análisis dimensional, conversiones",
+      "Cifras significativas e incertidumbre|propagación de errores",
+      "Vectores en física|componentes, suma, descomposición",
+      "Método científico y modelado|aproximaciones, órdenes de magnitud (problemas de Fermi)"]},
+    {"id": "mecanica", "t": "Mecánica clásica", "nivel": 1, "pre": ["mediciones", "matematicas.funciones"], "temas": [
+      "Cinemática en 1D y 2D|movimiento uniforme, acelerado, proyectiles",
+      "Leyes de Newton|diagramas de cuerpo libre, fricción",
+      "Trabajo y energía|conservación, potencia",
+      "Momento lineal y choques|impulso, conservación",
+      "Movimiento circular y rotación|torque, momento de inercia, momento angular",
+      "Gravitación|leyes de Kepler, órbitas",
+      "Oscilaciones|movimiento armónico simple, resonancia"]},
+    {"id": "fluidos_termo", "t": "Fluidos y termodinámica", "nivel": 2, "pre": ["mecanica"], "temas": [
+      "Estática de fluidos|presión, Pascal, Arquímedes",
+      "Dinámica de fluidos|continuidad, Bernoulli, viscosidad",
+      "Temperatura y calor|dilatación, calorimetría, transferencia de calor",
+      "Primera ley de la termodinámica|procesos, gas ideal",
+      "Segunda ley y entropía|máquinas térmicas, refrigeradores, Carnot"]},
+    {"id": "ondas", "t": "Ondas y óptica", "nivel": 2, "pre": ["mecanica"], "temas": [
+      "Ondas mecánicas|propagación, superposición, ondas estacionarias",
+      "Sonido|intensidad, efecto Doppler",
+      "Óptica geométrica|reflexión, refracción, lentes",
+      "Óptica física|interferencia, difracción, polarización"]},
+    {"id": "electromagnetismo", "t": "Electricidad y magnetismo", "nivel": 2, "pre": ["mecanica", "matematicas.calculo1"], "temas": [
+      "Carga y campo eléctrico|Coulomb, Gauss",
+      "Potencial eléctrico y capacitancia",
+      "Corriente, resistencia y circuitos DC",
+      "Campo magnético|fuerza de Lorentz, Biot-Savart, Ampère",
+      "Inducción electromagnética|Faraday, Lenz, inductancia, motores y generadores",
+      "Ecuaciones de Maxwell y ondas electromagnéticas"]},
+    {"id": "mecanica_analitica", "t": "Mecánica analítica", "nivel": 3, "pre": ["mecanica", "matematicas.calculo3", "matematicas.edo"], "temas": [
+      "Formulación lagrangiana|coordenadas generalizadas",
+      "Formulación hamiltoniana|espacio de fases",
+      "Sistemas de partículas y cuerpo rígido en 3D",
+      "Oscilaciones acopladas y modos normales",
+      "Caos y sistemas no lineales"]},
+    {"id": "moderna", "t": "Física moderna", "nivel": 3, "pre": ["electromagnetismo", "ondas"], "temas": [
+      "Relatividad especial|dilatación del tiempo, E=mc²",
+      "Origen de la cuántica|cuerpo negro, efecto fotoeléctrico",
+      "Dualidad onda-partícula y principio de incertidumbre",
+      "Modelos atómicos y espectros",
+      "Física nuclear|radiactividad, fisión, fusión"]},
+    {"id": "cuantica", "t": "Mecánica cuántica", "nivel": 4, "pre": ["moderna", "matematicas.algebra_lineal"], "temas": [
+      "Ecuación de Schrödinger|pozo de potencial, efecto túnel",
+      "Formalismo|espacios de Hilbert, operadores, medición",
+      "Oscilador armónico y átomo de hidrógeno",
+      "Espín y entrelazamiento",
+      "Física de semiconductores|bandas, uniones p-n (la base del transistor)"]},
+    {"id": "estadistica", "t": "Física estadística y del estado sólido", "nivel": 4, "pre": ["fluidos_termo", "cuantica"], "temas": [
+      "Ensambles estadísticos y función de partición",
+      "Distribuciones de Bose-Einstein y Fermi-Dirac",
+      "Sólidos cristalinos y fonones",
+      "Magnetismo y superconductividad"]},
+    {"id": "horizonte", "t": "Horizonte de la física", "nivel": 5, "pre": ["cuantica", "estadistica"], "temas": [
+      "Tecnologías cuánticas|computación, sensores y comunicación cuántica",
+      "Fusión nuclear|tokamaks, láser, estado actual",
+      "Materia oscura y energía oscura",
+      "Ondas gravitacionales y cosmología moderna",
+      "Materiales 2D y topológicos",
+      "Tendencias actuales|descubrimientos recientes"]}
+  ]
+}

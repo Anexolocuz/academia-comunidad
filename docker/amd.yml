@@ -1,0 +1,7 @@
+# Tarjeta gráfica AMD (ROCm, solo Linux) para Ollama.
+services:
+  ollama:
+    image: ollama/ollama:rocm
+    devices:
+      - /dev/kfd
+      - /dev/dri

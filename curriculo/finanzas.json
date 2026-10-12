@@ -1,0 +1,73 @@
+{
+  "id": "finanzas", "nombre": "Finanzas", "icono": "💰", "grupo": "Negocios", "color": "#00cec9",
+  "descripcion": "Del presupuesto personal a la valoración de empresas, los mercados y la economía que mueve todo.",
+  "recursos": [
+    {"t": "Khan Academy — Finanzas y mercados de capital", "u": "https://www.khanacademy.org/economics-finance-domain/core-finance"},
+    {"t": "Aswath Damodaran (NYU) — valoración, datos y cursos gratis", "u": "https://pages.stern.nyu.edu/~adamodar/"},
+    {"t": "Bogleheads wiki — inversión pasiva a largo plazo", "u": "https://www.bogleheads.org/wiki/Main_Page"},
+    {"t": "Investopedia — diccionario financiero", "u": "https://www.investopedia.com"},
+    {"t": "Banco de la República — educación económica (Colombia)", "u": "https://www.banrep.gov.co/es/publicaciones-investigaciones/educacion-economica-financiera"},
+    {"t": "Superintendencia Financiera de Colombia — consumidor financiero", "u": "https://www.superfinanciera.gov.co"},
+    {"t": "Corporate Finance Institute — cursos gratis", "u": "https://corporatefinanceinstitute.com/collections/free-courses/"}
+  ],
+  "modulos": [
+    {"id": "personales", "t": "Finanzas personales", "nivel": 1, "pre": [], "temas": [
+      "Presupuesto y flujo de caja personal|regla 50/30/20, registro de gastos",
+      "Fondo de emergencia y ahorro|automatizar el ahorro",
+      "Deuda inteligente|tasas, tarjetas de crédito, amortización, tasa efectiva anual",
+      "Interés simple y compuesto|el efecto bola de nieve",
+      "Inflación y poder adquisitivo",
+      "Impuestos personales básicos|declaración de renta en Colombia",
+      "Seguros, pensión y retiro|régimen de pensiones, aportes voluntarios"]},
+    {"id": "economia", "t": "Economía", "nivel": 1, "pre": ["matematicas.funciones"], "temas": [
+      "Oferta, demanda y precios|elasticidad",
+      "Costos, competencia y estructuras de mercado|monopolio, oligopolio",
+      "Macroeconomía|PIB, desempleo, inflación",
+      "Dinero, bancos centrales y política monetaria|tasas de interés",
+      "Política fiscal y deuda pública",
+      "Comercio internacional y tipo de cambio|dólar, balanza de pagos",
+      "Economía conductual|sesgos en decisiones de dinero"]},
+    {"id": "matematica_fin", "t": "Matemática financiera", "nivel": 2, "pre": ["personales", "matematicas.algebra"], "temas": [
+      "Valor del dinero en el tiempo|valor presente y futuro",
+      "Tasas nominales, efectivas y equivalentes",
+      "Anualidades y amortización de créditos",
+      "VPN, TIR y evaluación de proyectos",
+      "Excel/Python para finanzas"]},
+    {"id": "contabilidad", "t": "Contabilidad", "nivel": 2, "pre": ["personales"], "temas": [
+      "Ecuación contable y partida doble",
+      "Estados financieros|balance, resultados, flujo de efectivo",
+      "Análisis de estados financieros|razones de liquidez, rentabilidad, endeudamiento",
+      "Costos|fijos, variables, punto de equilibrio",
+      "NIIF y contabilidad en Colombia"]},
+    {"id": "inversion", "t": "Inversión", "nivel": 2, "pre": ["matematica_fin", "matematicas.probabilidad"], "temas": [
+      "Clases de activos|acciones, bonos, inmobiliario, materias primas, cripto",
+      "Riesgo y rendimiento|volatilidad, diversificación",
+      "Fondos indexados y ETF|costos, inversión pasiva",
+      "Bonos y renta fija|duración, curva de rendimiento",
+      "Psicología del inversor|errores típicos",
+      "Cómo invertir desde Colombia|bolsa local, plataformas, riesgos legales"]},
+    {"id": "corporativas", "t": "Finanzas corporativas", "nivel": 3, "pre": ["contabilidad", "matematica_fin"], "temas": [
+      "Costo de capital|WACC, CAPM",
+      "Estructura de capital y apalancamiento",
+      "Presupuesto de capital",
+      "Gestión del capital de trabajo",
+      "Política de dividendos"]},
+    {"id": "valoracion", "t": "Valoración de empresas", "nivel": 3, "pre": ["corporativas"], "temas": [
+      "Flujo de caja descontado (DCF)",
+      "Valoración relativa|múltiplos",
+      "Valoración de startups y empresas tecnológicas",
+      "Fusiones y adquisiciones"]},
+    {"id": "mercados", "t": "Mercados y riesgo", "nivel": 4, "pre": ["inversion", "valoracion"], "temas": [
+      "Teoría moderna de portafolios|frontera eficiente",
+      "Derivados|futuros, opciones, Black-Scholes",
+      "Gestión de riesgos|VaR, coberturas",
+      "Finanzas cuantitativas|modelos estocásticos, backtesting",
+      "Regulación financiera|Basilea, supervisión"]},
+    {"id": "horizonte", "t": "Horizonte financiero", "nivel": 5, "pre": ["mercados"], "temas": [
+      "Finanzas descentralizadas y monedas digitales de bancos centrales",
+      "IA en finanzas|trading algorítmico, riesgo crediticio",
+      "Finanzas sostenibles y ESG",
+      "Economía de la atención y de plataformas",
+      "Tendencias actuales|lo último en mercados y política monetaria"]}
+  ]
+}

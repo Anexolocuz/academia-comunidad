@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14161c">
+<title>Academia</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icono-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="vendor/katex.min.css">
+<link rel="stylesheet" href="estilo.css">
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="vendor/katex.min.js"></script>
+<script src="vendor/auto-render.min.js"></script>
+</head>
+<body>
+<header class="barra">
+  <button class="marca" data-ir="hoy" aria-label="Inicio"><span class="logo">🎓</span><span class="nombre-app">Academia</span></button>
+  <div class="estado-ia" id="estadoIA" title="Qué está haciendo la IA (toca para ver la cola)" data-ir="cola" role="button"></div>
+  <nav class="atajos">
+    <button data-ir="cola" title="Cola de la IA y recursos" aria-label="Cola de la IA">⏳</button>
+    <button data-ir="objetivos" title="Objetivos" aria-label="Objetivos">🎯</button>
+    <button data-ir="progreso" title="Cómo aprendes" aria-label="Cómo aprendes">📈</button>
+    <button data-ir="chequeo" title="Chequeo semanal" aria-label="Chequeo semanal">🧪</button>
+    <button data-ir="ajustes" title="Ajustes" aria-label="Ajustes">⚙️</button>
+  </nav>
+</header>
+<nav class="menu" id="menu">
+  <button data-ir="hoy"><span>☀️</span><b>Hoy</b></button>
+  <button data-ir="ruta"><span>🗺️</span><b>Ruta</b></button>
+  <button data-ir="repasar"><span>🔁</span><b>Repasar</b><i class="globo" id="globoRepaso" hidden></i></button>
+  <button data-ir="cuaderno"><span>✍️</span><b>Cuaderno</b></button>
+  <button data-ir="tutor"><span>💬</span><b>Tutor</b></button>
+  <button data-ir="noticias"><span>🌍</span><b>Noticias</b></button>
+</nav>
+<main id="vista" tabindex="-1"></main>
+<div class="modal" id="modal" hidden><div class="caja" id="modalCaja"></div></div>
+<div class="aviso" id="aviso" hidden></div>
+<script src="app.js"></script>
+<script src="cuaderno.js"></script>
+</body>
+</html>

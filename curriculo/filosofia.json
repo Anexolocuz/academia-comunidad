@@ -1,0 +1,57 @@
+{
+  "id": "filosofia", "nombre": "Filosofía", "icono": "☯", "grupo": "Humanidades", "color": "#a29bfe",
+  "descripcion": "Pensar con rigor: lógica, conocimiento, mente, ciencia y las grandes preguntas que un ingeniero completo debe saber plantear.",
+  "recursos": [
+    {"t": "Stanford Encyclopedia of Philosophy", "u": "https://plato.stanford.edu"},
+    {"t": "Internet Encyclopedia of Philosophy", "u": "https://iep.utm.edu"},
+    {"t": "Filosofía en español — textos y diccionarios", "u": "https://www.filosofia.org"},
+    {"t": "Aeon — ensayos de filosofía y ciencia", "u": "https://aeon.co"}
+  ],
+  "modulos": [
+    {"id": "intro", "t": "Introducción y pensamiento crítico", "nivel": 1, "pre": [], "temas": [
+      "¿Qué es la filosofía?|ramas y métodos",
+      "Argumentos|premisas, conclusión, validez, solidez",
+      "Falacias|formales e informales",
+      "Sesgos cognitivos|cómo nos engaña el cerebro",
+      "Pensamiento crítico aplicado|evaluar noticias y afirmaciones"]},
+    {"id": "historia", "t": "Historia de la filosofía", "nivel": 1, "pre": ["intro"], "temas": [
+      "Presocráticos, Sócrates, Platón y Aristóteles",
+      "Filosofía helenística|estoicismo, epicureísmo",
+      "Filosofía medieval",
+      "Modernidad|Descartes, Hume, Kant",
+      "Siglo XIX|Hegel, Marx, Nietzsche, Mill",
+      "Siglo XX|analítica y continental",
+      "Filosofía oriental|confucianismo, taoísmo, budismo (útil para chino, coreano y japonés)"]},
+    {"id": "epistemologia", "t": "Epistemología", "nivel": 2, "pre": ["intro"], "temas": [
+      "¿Qué es el conocimiento?|creencia verdadera justificada, Gettier",
+      "Racionalismo y empirismo",
+      "Escepticismo",
+      "Epistemología bayesiana|grados de creencia"]},
+    {"id": "ciencia", "t": "Filosofía de la ciencia", "nivel": 2, "pre": ["epistemologia"], "temas": [
+      "Inducción y el problema de Hume",
+      "Popper y la falsación",
+      "Kuhn y las revoluciones científicas",
+      "Realismo científico y modelos",
+      "Explicación y causalidad"]},
+    {"id": "logica", "t": "Lógica filosófica", "nivel": 3, "pre": ["intro", "matematicas.logica"], "temas": [
+      "Lógica modal|necesidad y posibilidad",
+      "Paradojas|mentiroso, sorites, Russell",
+      "Teoremas de Gödel y sus implicaciones",
+      "Lógicas no clásicas|difusa, intuicionista"]},
+    {"id": "mente", "t": "Filosofía de la mente y de la tecnología", "nivel": 3, "pre": ["epistemologia"], "temas": [
+      "Problema mente-cuerpo|dualismo, fisicalismo, funcionalismo",
+      "Conciencia|el problema difícil",
+      "¿Pueden pensar las máquinas?|Turing, cuarto chino",
+      "Filosofía de la tecnología|Heidegger, Ellul, tecnología y sociedad"]},
+    {"id": "politica", "t": "Filosofía política y social", "nivel": 3, "pre": ["historia"], "temas": [
+      "Contrato social|Hobbes, Locke, Rousseau",
+      "Justicia|Rawls, Nozick",
+      "Libertad y poder|Berlin, Foucault",
+      "Democracia y tecnología"]},
+    {"id": "horizonte", "t": "Horizonte filosófico", "nivel": 5, "pre": ["mente", "ciencia"], "temas": [
+      "Riesgo existencial y largoplacismo",
+      "Filosofía de la IA y alineación",
+      "Transhumanismo y mejora humana",
+      "Debates actuales"]}
+  ]
+}

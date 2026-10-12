@@ -1,0 +1,46 @@
+{
+  "id": "etica", "nombre": "Ética", "icono": "⚖", "grupo": "Humanidades", "color": "#fd79a8",
+  "descripcion": "Decidir bien: ética general, profesional de ingeniería, de la IA y de los negocios.",
+  "recursos": [
+    {"t": "Código de ética de ACM", "u": "https://www.acm.org/code-of-ethics"},
+    {"t": "Código de ética de IEEE", "u": "https://www.ieee.org/about/corporate/governance/p7-8.html"},
+    {"t": "Stanford Encyclopedia — Ética", "u": "https://plato.stanford.edu/search/searcher.py?query=ethics"},
+    {"t": "Recomendación de la UNESCO sobre la ética de la IA", "u": "https://www.unesco.org/es/artificial-intelligence/recommendation-ethics"}
+  ],
+  "modulos": [
+    {"id": "teorias", "t": "Teorías éticas", "nivel": 1, "pre": ["filosofia.intro"], "temas": [
+      "¿Qué es la ética?|moral, ética, metaética",
+      "Consecuencialismo y utilitarismo",
+      "Deontología kantiana",
+      "Ética de la virtud|Aristóteles",
+      "Contractualismo y ética del cuidado",
+      "Relativismo y universalismo"]},
+    {"id": "aplicada", "t": "Ética aplicada", "nivel": 2, "pre": ["teorias"], "temas": [
+      "Dilemas morales y toma de decisiones",
+      "Bioética|consentimiento, experimentación",
+      "Ética ambiental y sostenibilidad",
+      "Derechos humanos"]},
+    {"id": "ingenieria", "t": "Ética profesional en ingeniería", "nivel": 2, "pre": ["teorias"], "temas": [
+      "Responsabilidad del ingeniero|seguridad pública primero",
+      "Códigos de ética profesional|ACM, IEEE, COPNIA (Colombia)",
+      "Casos históricos|Challenger, Therac-25, Boeing 737 MAX",
+      "Denuncia de irregularidades y conflictos de interés",
+      "Propiedad intelectual y licencias|software libre"]},
+    {"id": "digital", "t": "Ética digital y de la IA", "nivel": 3, "pre": ["ingenieria"], "temas": [
+      "Privacidad y protección de datos|habeas data, GDPR",
+      "Sesgo algorítmico y equidad",
+      "Transparencia y explicabilidad",
+      "Ética de robots autónomos y armas autónomas",
+      "Regulación de la IA|Ley de IA de la UE, marcos internacionales"]},
+    {"id": "negocios", "t": "Ética empresarial", "nivel": 3, "pre": ["teorias"], "temas": [
+      "Responsabilidad social empresarial y ESG",
+      "Gobierno corporativo y corrupción",
+      "Ética en finanzas|riesgo moral, conflictos de agencia",
+      "Liderazgo ético"]},
+    {"id": "horizonte", "t": "Horizonte ético", "nivel": 5, "pre": ["digital"], "temas": [
+      "Alineación de IA y seguridad de sistemas avanzados",
+      "Neuroderechos y neurotecnología",
+      "Ética de la mejora genética",
+      "Debates actuales"]}
+  ]
+}

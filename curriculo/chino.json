@@ -1,0 +1,132 @@
+{
+ "id": "chino",
+ "nombre": "Chino mandarín",
+ "icono": "中",
+ "grupo": "Idiomas",
+ "color": "#d63031",
+ "idioma": "zh-CN",
+ "examen": "HSK 3.0 (niveles 1-9)",
+ "descripcion": "Mandarín con caracteres simplificados y pinyin, siguiendo el HSK. Examen de referencia: HSK 3.0 (niveles 1-9).",
+ "recursos": [
+  {
+   "t": "Chinese Testing International — HSK oficial",
+   "u": "https://www.chinesetest.cn"
+  },
+  {
+   "t": "MDBG — diccionario chino",
+   "u": "https://www.mdbg.net/chinese/dictionary"
+  },
+  {
+   "t": "BBC 中文 — noticias para lectura",
+   "u": "https://www.bbc.com/zhongwen/simp"
+  },
+  {
+   "t": "Hanzi Writer — orden de trazos",
+   "u": "https://hanziwriter.org"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "pinyin",
+   "t": "Pronunciación y pinyin",
+   "nivel": 1,
+   "pre": [],
+   "temas": [
+    "Iniciales y finales del pinyin",
+    "Los cuatro tonos y el tono neutro",
+    "Cambios de tono|不 y 一, tercer tono",
+    "Trazos y radicales básicos de los caracteres"
+   ]
+  },
+  {
+   "id": "hsk1",
+   "t": "HSK 1",
+   "nivel": 1,
+   "pre": [
+    "pinyin"
+   ],
+   "temas": [
+    "Saludos y presentaciones",
+    "Números, fechas y hora",
+    "Pronombres y la frase con 是",
+    "Preguntas con 吗, 呢 y palabras interrogativas",
+    "Familia, comida y compras",
+    "Clasificadores básicos|个, 本, 杯"
+   ]
+  },
+  {
+   "id": "hsk2",
+   "t": "HSK 2",
+   "nivel": 2,
+   "pre": [
+    "hsk1"
+   ],
+   "temas": [
+    "Partícula 了 y aspecto completado",
+    "Comparaciones con 比",
+    "Complementos de resultado",
+    "Direcciones y transporte",
+    "Tiempo, clima y rutinas",
+    "Partícula 过 (experiencias)"
+   ]
+  },
+  {
+   "id": "hsk3",
+   "t": "HSK 3",
+   "nivel": 2,
+   "pre": [
+    "hsk2"
+   ],
+   "temas": [
+    "Complementos de grado y de dirección",
+    "Estructura 把",
+    "Pasiva con 被",
+    "Conectores|因为…所以, 虽然…但是",
+    "Lectura de textos cortos",
+    "Escritura de caracteres frecuentes (600)"
+   ]
+  },
+  {
+   "id": "hsk4",
+   "t": "HSK 4-5",
+   "nivel": 3,
+   "pre": [
+    "hsk3"
+   ],
+   "temas": [
+    "Vocabulario de trabajo y tecnología",
+    "Chengyu (modismos) frecuentes",
+    "Lectura de noticias simplificadas",
+    "Expresar opiniones y argumentar",
+    "Escucha de diálogos reales"
+   ]
+  },
+  {
+   "id": "hsk6",
+   "t": "HSK 6-9",
+   "nivel": 4,
+   "pre": [
+    "hsk4"
+   ],
+   "temas": [
+    "Chino de negocios",
+    "Chino técnico y científico",
+    "Literatura y cultura clásica",
+    "Debate y presentaciones formales"
+   ]
+  },
+  {
+   "id": "horizonte",
+   "t": "Horizonte: chino profesional",
+   "nivel": 5,
+   "pre": [
+    "hsk6"
+   ],
+   "temas": [
+    "Negociar con empresas chinas",
+    "Leer prensa y papers chinos",
+    "Cultura de negocios y guanxi"
+   ]
+  }
+ ]
+}

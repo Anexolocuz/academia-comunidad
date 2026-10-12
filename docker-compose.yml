@@ -1,0 +1,78 @@
+# Academia en Docker — plug and play.
+#
+#   Solo la Academia (usa la IA que ya tengas en tu PC):   docker compose up -d
+#   + IA incluida (Ollama):                                 docker compose --profile ollama up -d
+#   + buscador web privado (SearXNG):                       docker compose --profile ollama --profile buscador up -d
+#   + tarjeta gráfica NVIDIA:  añade  -f docker-compose.yml -f docker/nvidia.yml
+#   + tarjeta gráfica AMD:     añade  -f docker-compose.yml -f docker/amd.yml
+#
+# Lo más fácil: ./docker/arrancar.sh (Linux/macOS) o docker\arrancar.ps1 (Windows): pregunta sí/no y lo arma.
+# Abre http://127.0.0.1:8092 y usa ⚙️ Ajustes → 🪄 Configuración automática.
+#
+# SEGURIDAD: el puerto solo se publica en 127.0.0.1 (este PC). Para usarla desde el celular usa Tailscale
+# (`tailscale serve --bg --https=15443 http://127.0.0.1:8092`) o cambia a "8092:8092" Y define ACADEMIA_CLAVE en .env.
+
+name: academia
+
+services:
+  academia:
+    image: ghcr.io/anexolocuz/academia-comunidad:${ACADEMIA_VERSION:-latest}
+    build:
+      context: .
+      args:
+        VERSION: ${ACADEMIA_VERSION:-dev}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ACADEMIA_PUERTO:-8092}:8092"
+    volumes:
+      - academia-datos:/datos
+    environment:
+      # Quién cuenta como «este PC»: el propio contenedor y la red interna de este compose
+      # (por ahí llegan las conexiones del puerto publicado en 127.0.0.1 y las de tailscale serve).
+      ACADEMIA_REDES_LOCALES: "127.0.0.0/8,::1/128,172.29.89.0/24"
+      ACADEMIA_CLAVE: ${ACADEMIA_CLAVE:-}
+      ACADEMIA_USUARIO: ${ACADEMIA_USUARIO:-yo}
+      # Valores de partida (se pueden cambiar luego en Ajustes; el escaneo automático los ajusta)
+      ACADEMIA_INICIAL_IA_URL: ${IA_URL:-http://ollama:11434}
+      ACADEMIA_INICIAL_MODELO: ${IA_MODELO:-gemma3:4b}
+      ACADEMIA_INICIAL_SEARX_URL: ${BUSCADOR_URL:-}
+      TZ: ${TZ:-UTC}                           # pon tu zona en .env, p. ej. TZ=America/Mexico_City
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # para usar la IA instalada en tu PC (Ollama con OLLAMA_HOST=0.0.0.0)
+    networks: [academia]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ["/tmp"]
+
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama-modelos:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: 15m
+    networks: [academia]                      # sin puertos publicados: solo la Academia lo ve
+
+  searxng:
+    profiles: ["buscador"]
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    volumes:
+      - ./docker/searxng/settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-}      # lo crea docker/arrancar.sh en .env (o: openssl rand -hex 32)
+    networks: [academia]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, SETGID, SETUID]
+
+networks:
+  academia:
+    ipam:
+      config:
+        - subnet: 172.29.89.0/24
+
+volumes:
+  academia-datos:
+  ollama-modelos:

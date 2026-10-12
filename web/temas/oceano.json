@@ -1,0 +1,24 @@
+{
+  "nombre": "Océano",
+  "descripcion": "Azules y turquesas",
+  "claro": {
+    "fondo": "#f1f6f9",
+    "panel": "#ffffff",
+    "panel2": "#e4eef4",
+    "texto": "#13222c",
+    "suave": "#516572",
+    "borde": "#d2e1ea",
+    "acento": "#0b84a5",
+    "acento-t": "#ffffff"
+  },
+  "oscuro": {
+    "fondo": "#0b141a",
+    "panel": "#122029",
+    "panel2": "#182a35",
+    "texto": "#e1edf3",
+    "suave": "#93acba",
+    "borde": "#22394a",
+    "acento": "#3cc4e6",
+    "acento-t": "#04141a"
+  }
+}

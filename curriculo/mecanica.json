@@ -1,0 +1,99 @@
+{
+  "id": "mecanica", "nombre": "Ingeniería Mecánica", "icono": "🔩", "grupo": "Ingenierías", "color": "#636e72",
+  "descripcion": "Energía, fluidos, calor, máquinas y manufactura: el diseño y análisis de todo lo que se mueve, se calienta o soporta carga. Comparte la base con Mecatrónica (estática, materiales, dibujo) y va más a fondo en lo térmico, los fluidos y la simulación.",
+  "recursos": [
+    {"t": "MIT OCW — Ingeniería mecánica (2.001, 2.003, 2.005, 2.006…)", "u": "https://ocw.mit.edu/search/?d=Mechanical%20Engineering"},
+    {"t": "LibreTexts Ingeniería — termodinámica, fluidos, mecánica", "u": "https://eng.libretexts.org"},
+    {"t": "NPTEL — cursos completos de ingeniería mecánica (IIT)", "u": "https://nptel.ac.in/course.html"},
+    {"t": "Engineering Toolbox — datos y propiedades de referencia", "u": "https://www.engineeringtoolbox.com"},
+    {"t": "FreeCAD (CAD/FEM libre)", "u": "https://www.freecad.org"},
+    {"t": "OpenFOAM (CFD libre)", "u": "https://www.openfoam.com"},
+    {"t": "ASME — normas y recursos", "u": "https://www.asme.org"}
+  ],
+  "modulos": [
+    {"id": "introduccion", "t": "Introducción a la ingeniería mecánica", "nivel": 1, "pre": ["fisica.mediciones"], "temas": [
+      "¿Qué hace un ingeniero mecánico?|campos: diseño, energía, manufactura, mantenimiento",
+      "Unidades, magnitudes y estimación en ingeniería|SI, sistema inglés, órdenes de magnitud",
+      "Metrología|calibrador, micrómetro, tolerancias, incertidumbre",
+      "El proceso de diseño en ingeniería|requisitos, conceptos, prototipo, validación",
+      "Seguridad industrial|riesgos mecánicos, normas, EPP"]},
+    {"id": "dinamica", "t": "Dinámica de maquinaria", "nivel": 2, "pre": ["mecatronica.estatica", "matematicas.calculo2"], "temas": [
+      "Cinemática de partículas y cuerpos rígidos en el plano",
+      "Cinética: fuerza, masa y aceleración en cuerpos rígidos",
+      "Métodos de energía y momento en máquinas",
+      "Volantes, balanceo de rotores y máquinas alternativas",
+      "Análisis de mecanismos con software|simulación de eslabonamientos"]},
+    {"id": "termodinamica", "t": "Termodinámica aplicada", "nivel": 2, "pre": ["fisica.fluidos_termo", "matematicas.calculo1"], "temas": [
+      "Propiedades de sustancias puras|tablas de vapor, diagramas T-v y P-h",
+      "Primera ley en sistemas cerrados y volúmenes de control",
+      "Segunda ley, entropía y eficiencia isentrópica",
+      "Exergía|el trabajo útil disponible",
+      "Mezclas de gases y psicrometría|aire húmedo, aire acondicionado"]},
+    {"id": "fluidos", "t": "Mecánica de fluidos", "nivel": 2, "pre": ["fisica.fluidos_termo", "matematicas.calculo2"], "temas": [
+      "Propiedades de los fluidos y estática|manometría, fuerzas sobre superficies",
+      "Ecuaciones de conservación|masa, momento, energía (Bernoulli generalizado)",
+      "Análisis dimensional y semejanza|números de Reynolds, Froude, modelos",
+      "Flujo en tuberías|pérdidas, Moody, redes de tuberías",
+      "Capa límite, arrastre y sustentación",
+      "Bombas y turbomáquinas|curvas, NPSH, selección"]},
+    {"id": "resistencia", "t": "Resistencia de materiales avanzada", "nivel": 3, "pre": ["mecatronica.materiales", "matematicas.algebra_lineal"], "temas": [
+      "Estados de esfuerzo y deformación|círculo de Mohr, esfuerzos principales",
+      "Deflexión de vigas y estructuras hiperestáticas",
+      "Pandeo de columnas|Euler, Johnson",
+      "Teorías de falla estática|von Mises, Tresca, Mohr-Coulomb",
+      "Fatiga|curvas S-N, Goodman, concentradores, vida útil"]},
+    {"id": "calor", "t": "Transferencia de calor", "nivel": 3, "pre": ["termodinamica", "matematicas.edo"], "temas": [
+      "Conducción estacionaria|resistencias térmicas, aletas",
+      "Conducción transitoria|Biot, capacitancia concentrada",
+      "Convección forzada y natural|correlaciones de Nusselt",
+      "Radiación térmica|cuerpo negro, factores de forma",
+      "Intercambiadores de calor|LMTD, ε-NTU",
+      "Gestión térmica de electrónica|disipadores, ventiladores (une con mecatrónica)"]},
+    {"id": "elementos", "t": "Diseño de elementos de máquinas", "nivel": 3, "pre": ["resistencia", "mecatronica.mecanismos"], "temas": [
+      "Diseño de ejes|cargas combinadas, fatiga, deflexión",
+      "Uniones atornilladas, soldadas y adhesivas",
+      "Resortes|helicoidales, de torsión, de lámina",
+      "Rodamientos y cojinetes|vida L10, lubricación",
+      "Engranajes|AGMA: flexión y picadura",
+      "Frenos, embragues, correas y cadenas"]},
+    {"id": "maquinas_termicas", "t": "Máquinas térmicas y energía", "nivel": 3, "pre": ["termodinamica", "fluidos"], "temas": [
+      "Ciclos de potencia de vapor|Rankine, recalentamiento, regeneración",
+      "Ciclos de gas|Otto, Diesel, Brayton; turbinas de gas",
+      "Motores de combustión interna|rendimiento, emisiones",
+      "Refrigeración y bombas de calor|ciclo por compresión de vapor, COP",
+      "Energías renovables|eólica, solar térmica, hidráulica",
+      "Sistemas HVAC|cargas térmicas, diseño básico"]},
+    {"id": "manufactura", "t": "Procesos de manufactura", "nivel": 2, "pre": ["mecatronica.materiales", "mecatronica.dibujo"], "temas": [
+      "Fundición y conformado|forja, laminado, extrusión, estampado",
+      "Mecanizado|torneado, fresado, parámetros de corte, desgaste de herramienta",
+      "CNC y programación G-code|CAM",
+      "Soldadura y uniones",
+      "Manufactura aditiva|FDM, SLA, SLS, metal; diseño para impresión 3D",
+      "Metrología y control de calidad en planta"]},
+    {"id": "vibraciones", "t": "Vibraciones mecánicas", "nivel": 4, "pre": ["dinamica", "matematicas.edo"], "temas": [
+      "Vibración libre de un grado de libertad|amortiguamiento",
+      "Vibración forzada y resonancia|transmisibilidad, aislamiento",
+      "Sistemas de varios grados de libertad|modos y frecuencias naturales",
+      "Análisis modal experimental y FFT",
+      "Mantenimiento predictivo por vibraciones|diagnóstico de fallas en máquinas"]},
+    {"id": "simulacion", "t": "Simulación: elementos finitos y CFD", "nivel": 4, "pre": ["resistencia", "calor", "matematicas.numericos"], "temas": [
+      "Método de elementos finitos (FEM)|formulación, elementos, mallado",
+      "Análisis estructural y térmico con FEM|condiciones de contorno, convergencia",
+      "Dinámica de fluidos computacional (CFD)|volúmenes finitos, turbulencia (k-ε, k-ω)",
+      "Validación y verificación de simulaciones",
+      "Optimización topológica y diseño generativo"]},
+    {"id": "gestion", "t": "Mantenimiento y gestión de activos", "nivel": 4, "pre": ["elementos", "administracion.operaciones"], "temas": [
+      "Tipos de mantenimiento|correctivo, preventivo, predictivo, RCM",
+      "Confiabilidad|MTBF, Weibull, disponibilidad",
+      "TPM y gestión de activos (ISO 55000)",
+      "Costos del ciclo de vida y reemplazo de equipos",
+      "Proyectos de ingeniería mecánica|planos, presupuestos, licitaciones"]},
+    {"id": "horizonte", "t": "Horizonte de la ingeniería mecánica", "nivel": 5, "pre": ["simulacion", "maquinas_termicas"], "temas": [
+      "Materiales avanzados y metamateriales mecánicos",
+      "Hidrógeno, almacenamiento térmico y transición energética",
+      "Gemelos digitales e IA en diseño y mantenimiento",
+      "Manufactura aditiva de metales a escala industrial",
+      "Micro y nanomecánica",
+      "Tendencias actuales|avances recientes en ingeniería mecánica"]}
+  ]
+}

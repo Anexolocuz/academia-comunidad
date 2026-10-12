@@ -1,0 +1,24 @@
+{
+  "nombre": "Sepia",
+  "descripcion": "Para leer mucho rato, como papel",
+  "claro": {
+    "fondo": "#f4ecd8",
+    "panel": "#fbf6e9",
+    "panel2": "#ece2c8",
+    "texto": "#3b2f1e",
+    "suave": "#6e5f48",
+    "borde": "#e0d3b4",
+    "acento": "#8a5a2b",
+    "acento-t": "#fff8ea"
+  },
+  "oscuro": {
+    "fondo": "#1c1812",
+    "panel": "#25201a",
+    "panel2": "#2f2920",
+    "texto": "#eadfc8",
+    "suave": "#b5a688",
+    "borde": "#3d352a",
+    "acento": "#d6a467",
+    "acento-t": "#1c1206"
+  }
+}

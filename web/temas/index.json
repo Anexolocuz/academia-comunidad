@@ -1,0 +1,32 @@
+[
+  {
+    "id": "clasico",
+    "nombre": "Clásica",
+    "descripcion": "La de siempre: azul tranquilo"
+  },
+  {
+    "id": "bosque",
+    "nombre": "Bosque",
+    "descripcion": "Verdes suaves, descansa la vista"
+  },
+  {
+    "id": "oceano",
+    "nombre": "Océano",
+    "descripcion": "Azules y turquesas"
+  },
+  {
+    "id": "atardecer",
+    "nombre": "Atardecer",
+    "descripcion": "Cálida: naranjas y corales"
+  },
+  {
+    "id": "sepia",
+    "nombre": "Sepia",
+    "descripcion": "Para leer mucho rato, como papel"
+  },
+  {
+    "id": "alto-contraste",
+    "nombre": "Alto contraste",
+    "descripcion": "Accesible: máximo contraste y bordes marcados"
+  }
+]

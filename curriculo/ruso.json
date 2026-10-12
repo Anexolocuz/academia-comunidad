@@ -1,0 +1,107 @@
+{
+ "id": "ruso",
+ "nombre": "Ruso",
+ "icono": "Я",
+ "grupo": "Idiomas",
+ "color": "#2d3436",
+ "idioma": "ru-RU",
+ "examen": "TORFL (ТРКИ) / MCER A1-C2",
+ "descripcion": "Cirílico, casos y aspectos verbales del ruso. Examen de referencia: TORFL (ТРКИ) / MCER A1-C2.",
+ "recursos": [
+  {
+   "t": "OpenRussian — diccionario con declinaciones",
+   "u": "https://openrussian.org"
+  },
+  {
+   "t": "BBC Русская служба — lectura",
+   "u": "https://www.bbc.com/russian"
+  },
+  {
+   "t": "Wiktionary ruso (conjugaciones)",
+   "u": "https://en.wiktionary.org/wiki/Category:Russian_language"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "cirilico",
+   "t": "Alfabeto cirílico",
+   "nivel": 1,
+   "pre": [],
+   "temas": [
+    "Letras y sonidos",
+    "Acento y reducción vocálica",
+    "Consonantes duras y blandas",
+    "Lectura de palabras transparentes"
+   ]
+  },
+  {
+   "id": "a1",
+   "t": "A1",
+   "nivel": 1,
+   "pre": [
+    "cirilico"
+   ],
+   "temas": [
+    "Saludos y presentación",
+    "Género de sustantivos",
+    "Presente de los verbos|1ª y 2ª conjugación",
+    "Caso nominativo y preposicional",
+    "Números y precios"
+   ]
+  },
+  {
+   "id": "a2",
+   "t": "A2",
+   "nivel": 2,
+   "pre": [
+    "a1"
+   ],
+   "temas": [
+    "Acusativo y genitivo",
+    "Pasado y futuro",
+    "Aspecto perfectivo e imperfectivo",
+    "Verbos de movimiento|идти/ходить",
+    "Dativo e instrumental"
+   ]
+  },
+  {
+   "id": "b1",
+   "t": "B1-B2",
+   "nivel": 3,
+   "pre": [
+    "a2"
+   ],
+   "temas": [
+    "Sistema completo de casos en plural",
+    "Participios y gerundios",
+    "Oraciones subordinadas",
+    "Lectura de prensa"
+   ]
+  },
+  {
+   "id": "c1",
+   "t": "C1",
+   "nivel": 4,
+   "pre": [
+    "b1"
+   ],
+   "temas": [
+    "Ruso técnico y científico",
+    "Estilo formal y negocios",
+    "Literatura rusa breve"
+   ]
+  },
+  {
+   "id": "horizonte",
+   "t": "Horizonte: ruso profesional",
+   "nivel": 5,
+   "pre": [
+    "c1"
+   ],
+   "temas": [
+    "Ciencia e ingeniería rusoparlante (física, matemáticas)",
+    "Prensa y análisis geopolítico"
+   ]
+  }
+ ]
+}

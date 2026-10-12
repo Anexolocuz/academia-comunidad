@@ -1,0 +1,11 @@
+# Datos personales de cada instalación: NUNCA van a git
+datos/
+config/academia.json
+.env
+# Python
+__pycache__/
+*.pyc
+# Varios
+*.log
+.DS_Store
+Thumbs.db

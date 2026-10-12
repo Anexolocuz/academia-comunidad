@@ -1,0 +1,1249 @@
+{
+ "_nota": "Fuentes de noticias por región. regiones = segmentos que cada persona prioriza (0-3) en Ajustes; «global» siempre existe. region de cada fuente = id de una región (si falta: global). peso = confianza/relevancia (1-3). areas = áreas por defecto. tipo 'lectura' = feeds en otros idiomas para practicar (no entran al ranking). Las regiones y fuentes que agrega el administrador desde Ajustes van en datos/regiones.json (no aquí). Probadas 2026-10-06 y 2026-10-12.",
+ "regiones": {
+  "global": {
+   "nombre": "Global",
+   "icono": "🌍",
+   "descripcion": "Medios internacionales, ciencia y tecnología"
+  },
+  "latinoamerica": {
+   "nombre": "Latinoamérica",
+   "icono": "🌎",
+   "descripcion": "Economía y actualidad de la región"
+  },
+  "mexico": {
+   "nombre": "México",
+   "icono": "🇲🇽",
+   "descripcion": "Economía y negocios de México"
+  },
+  "colombia": {
+   "nombre": "Colombia",
+   "icono": "🇨🇴",
+   "descripcion": "Economía, tecnología y actualidad de Colombia"
+  },
+  "peru": {
+   "nombre": "Perú",
+   "icono": "🇵🇪",
+   "descripcion": "Actualidad de Perú"
+  },
+  "chile": {
+   "nombre": "Chile",
+   "icono": "🇨🇱",
+   "descripcion": "Actualidad de Chile"
+  },
+  "argentina": {
+   "nombre": "Argentina",
+   "icono": "🇦🇷",
+   "descripcion": "Economía y actualidad de Argentina"
+  },
+  "espana": {
+   "nombre": "España",
+   "icono": "🇪🇸",
+   "descripcion": "Ciencia, economía y tecnología de España"
+  }
+ },
+ "fuentes": [
+  {
+   "n": "BBC World",
+   "u": "https://feeds.bbci.co.uk/news/world/rss.xml",
+   "peso": 3,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "BBC Science",
+   "u": "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+   "peso": 3,
+   "areas": [
+    "fisica",
+    "biologia",
+    "quimica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "BBC Technology",
+   "u": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+   "peso": 3,
+   "areas": [
+    "tecnologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "BBC Business",
+   "u": "https://feeds.bbci.co.uk/news/business/rss.xml",
+   "peso": 3,
+   "areas": [
+    "finanzas",
+    "administracion"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "BBC Mundo",
+   "u": "https://feeds.bbci.co.uk/mundo/rss.xml",
+   "peso": 3,
+   "areas": [],
+   "idioma": "es",
+   "region": "global"
+  },
+  {
+   "n": "The Guardian World",
+   "u": "https://www.theguardian.com/world/rss",
+   "peso": 2,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "The Guardian Science",
+   "u": "https://www.theguardian.com/science/rss",
+   "peso": 2,
+   "areas": [
+    "fisica",
+    "biologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "The Guardian Technology",
+   "u": "https://www.theguardian.com/technology/rss",
+   "peso": 2,
+   "areas": [
+    "tecnologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "The Guardian Economics",
+   "u": "https://www.theguardian.com/business/economics/rss",
+   "peso": 2,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "NYT World",
+   "u": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+   "peso": 3,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Al Jazeera",
+   "u": "https://www.aljazeera.com/xml/rss/all.xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "France 24 Español",
+   "u": "https://www.france24.com/es/rss",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "global"
+  },
+  {
+   "n": "DW Español",
+   "u": "https://rss.dw.com/rdf/rss-sp-all",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "global"
+  },
+  {
+   "n": "ONU Noticias",
+   "u": "https://news.un.org/feed/subscribe/es/news/all/rss.xml",
+   "peso": 2,
+   "areas": [
+    "etica"
+   ],
+   "idioma": "es",
+   "region": "global"
+  },
+  {
+   "n": "OMS",
+   "u": "https://www.who.int/rss-feeds/news-english.xml",
+   "peso": 3,
+   "areas": [
+    "biologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Nature",
+   "u": "https://www.nature.com/nature.rss",
+   "peso": 3,
+   "areas": [
+    "fisica",
+    "biologia",
+    "quimica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Nature Physics",
+   "u": "https://www.nature.com/nphys.rss",
+   "peso": 3,
+   "areas": [
+    "fisica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Nature Chemistry",
+   "u": "https://www.nature.com/nchem.rss",
+   "peso": 3,
+   "areas": [
+    "quimica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Nature Electronics",
+   "u": "https://www.nature.com/natelectron.rss",
+   "peso": 3,
+   "areas": [
+    "mecatronica",
+    "tecnologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Nature Machine Intelligence",
+   "u": "https://www.nature.com/natmachintell.rss",
+   "peso": 3,
+   "areas": [
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Quanta Magazine",
+   "u": "https://www.quantamagazine.org/feed/",
+   "peso": 3,
+   "areas": [
+    "matematicas",
+    "fisica",
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Science News",
+   "u": "https://www.sciencenews.org/feed",
+   "peso": 2,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily",
+   "u": "https://www.sciencedaily.com/rss/top/science.xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Matemáticas",
+   "u": "https://www.sciencedaily.com/rss/computers_math/mathematics.xml",
+   "peso": 2,
+   "areas": [
+    "matematicas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Robótica",
+   "u": "https://www.sciencedaily.com/rss/computers_math/robotics.xml",
+   "peso": 2,
+   "areas": [
+    "mecatronica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily IA",
+   "u": "https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml",
+   "peso": 2,
+   "areas": [
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Química",
+   "u": "https://www.sciencedaily.com/rss/matter_energy/chemistry.xml",
+   "peso": 2,
+   "areas": [
+    "quimica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Física",
+   "u": "https://www.sciencedaily.com/rss/matter_energy/physics.xml",
+   "peso": 2,
+   "areas": [
+    "fisica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Biología",
+   "u": "https://www.sciencedaily.com/rss/plants_animals/biology.xml",
+   "peso": 2,
+   "areas": [
+    "biologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Mente y cerebro",
+   "u": "https://www.sciencedaily.com/rss/mind_brain.xml",
+   "peso": 2,
+   "areas": [
+    "psicologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "ScienceDaily Ingeniería",
+   "u": "https://www.sciencedaily.com/rss/matter_energy/engineering.xml",
+   "peso": 2,
+   "areas": [
+    "mecatronica",
+    "mecanica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Phys.org Física",
+   "u": "https://phys.org/rss-feed/physics-news/",
+   "peso": 2,
+   "areas": [
+    "fisica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Phys.org Química",
+   "u": "https://phys.org/rss-feed/chemistry-news/",
+   "peso": 2,
+   "areas": [
+    "quimica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Phys.org Biología",
+   "u": "https://phys.org/rss-feed/biology-news/",
+   "peso": 2,
+   "areas": [
+    "biologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Phys.org Matemáticas",
+   "u": "https://phys.org/rss-feed/science-news/mathematics/",
+   "peso": 2,
+   "areas": [
+    "matematicas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Phys.org Ingeniería",
+   "u": "https://phys.org/rss-feed/technology-news/engineering/",
+   "peso": 2,
+   "areas": [
+    "mecatronica",
+    "mecanica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "MIT News Research",
+   "u": "https://news.mit.edu/rss/research",
+   "peso": 3,
+   "areas": [],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "NASA",
+   "u": "https://www.nasa.gov/news-release/feed/",
+   "peso": 3,
+   "areas": [
+    "fisica",
+    "tecnologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "IEEE Spectrum",
+   "u": "https://spectrum.ieee.org/feeds/feed.rss",
+   "peso": 3,
+   "areas": [
+    "mecatronica",
+    "sistemas",
+    "tecnologia",
+    "mecanica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "MIT Technology Review",
+   "u": "https://www.technologyreview.com/feed/",
+   "peso": 3,
+   "areas": [
+    "tecnologia",
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Ars Technica",
+   "u": "https://feeds.arstechnica.com/arstechnica/index",
+   "peso": 2,
+   "areas": [
+    "tecnologia",
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "The Robot Report",
+   "u": "https://www.therobotreport.com/feed/",
+   "peso": 2,
+   "areas": [
+    "mecatronica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "EE Times",
+   "u": "https://www.eetimes.com/feed/",
+   "peso": 2,
+   "areas": [
+    "mecatronica",
+    "tecnologia",
+    "mecanica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Hackaday",
+   "u": "https://hackaday.com/blog/feed/",
+   "peso": 1,
+   "areas": [
+    "mecatronica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Krebs on Security",
+   "u": "https://krebsonsecurity.com/feed/",
+   "peso": 2,
+   "areas": [
+    "ciberseguridad"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "BleepingComputer",
+   "u": "https://www.bleepingcomputer.com/feed/",
+   "peso": 2,
+   "areas": [
+    "ciberseguridad"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "GitHub Blog",
+   "u": "https://github.blog/feed/",
+   "peso": 1,
+   "areas": [
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Google AI Blog",
+   "u": "https://blog.google/technology/ai/rss/",
+   "peso": 1,
+   "areas": [
+    "sistemas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Hacker News (≥300 puntos)",
+   "u": "https://hnrss.org/frontpage?points=300",
+   "peso": 1,
+   "areas": [
+    "sistemas",
+    "tecnologia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "El País Ciencia",
+   "u": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/ciencia/portada",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "espana"
+  },
+  {
+   "n": "El País Economía",
+   "u": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/economia/portada",
+   "peso": 2,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "es",
+   "region": "espana"
+  },
+  {
+   "n": "El País Tecnología",
+   "u": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/tecnologia/portada",
+   "peso": 2,
+   "areas": [
+    "tecnologia"
+   ],
+   "idioma": "es",
+   "region": "espana"
+  },
+  {
+   "n": "The Economist Finanzas",
+   "u": "https://www.economist.com/finance-and-economics/rss.xml",
+   "peso": 3,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Financial Times",
+   "u": "https://www.ft.com/rss/home",
+   "peso": 3,
+   "areas": [
+    "finanzas",
+    "administracion"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "CNBC Economía",
+   "u": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+   "peso": 2,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Reserva Federal (EE. UU.)",
+   "u": "https://www.federalreserve.gov/feeds/press_all.xml",
+   "peso": 3,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Banco Central Europeo",
+   "u": "https://www.ecb.europa.eu/rss/press.html",
+   "peso": 3,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Banco de la República",
+   "u": "https://www.banrep.gov.co/es/rss.xml",
+   "peso": 3,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "es",
+   "region": "colombia"
+  },
+  {
+   "n": "McKinsey Insights",
+   "u": "https://www.mckinsey.com/insights/rss",
+   "peso": 2,
+   "areas": [
+    "administracion"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "La República (Colombia)",
+   "u": "https://www.larepublica.co/rss/",
+   "peso": 2,
+   "areas": [
+    "finanzas",
+    "administracion"
+   ],
+   "idioma": "es",
+   "region": "colombia"
+  },
+  {
+   "n": "Portafolio",
+   "u": "https://www.portafolio.co/rss/economia.xml",
+   "peso": 2,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "es",
+   "region": "colombia"
+  },
+  {
+   "n": "El Tiempo Economía",
+   "u": "https://www.eltiempo.com/rss/economia.xml",
+   "peso": 2,
+   "areas": [
+    "finanzas"
+   ],
+   "idioma": "es",
+   "region": "colombia"
+  },
+  {
+   "n": "El Tiempo Tecnósfera",
+   "u": "https://www.eltiempo.com/rss/tecnosfera.xml",
+   "peso": 1,
+   "areas": [
+    "tecnologia"
+   ],
+   "idioma": "es",
+   "region": "colombia"
+  },
+  {
+   "n": "Bloomberg Línea",
+   "u": "https://www.bloomberglinea.com/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 2,
+   "areas": [
+    "finanzas",
+    "administracion"
+   ],
+   "idioma": "es",
+   "region": "latinoamerica"
+  },
+  {
+   "n": "Aeon",
+   "u": "https://aeon.co/feed.rss",
+   "peso": 2,
+   "areas": [
+    "filosofia",
+    "etica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Daily Nous",
+   "u": "https://dailynous.com/feed/",
+   "peso": 1,
+   "areas": [
+    "filosofia"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Stanford Encyclopedia (novedades)",
+   "u": "https://plato.stanford.edu/rss/sep.xml",
+   "peso": 2,
+   "areas": [
+    "filosofia",
+    "etica"
+   ],
+   "idioma": "en",
+   "region": "global"
+  },
+  {
+   "n": "Infobae América",
+   "u": "https://www.infobae.com/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 1,
+   "areas": [],
+   "idioma": "es",
+   "region": "latinoamerica"
+  },
+  {
+   "n": "Semana",
+   "u": "https://www.semana.com/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 1,
+   "areas": [],
+   "idioma": "es",
+   "region": "colombia"
+  },
+  {
+   "n": "Expansión",
+   "u": "https://expansion.mx/rss",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "mexico"
+  },
+  {
+   "n": "El Economista (México)",
+   "u": "https://www.eleconomista.com.mx/rss/ultimas-noticias",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "mexico"
+  },
+  {
+   "n": "El Financiero",
+   "u": "https://www.elfinanciero.com.mx/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "mexico"
+  },
+  {
+   "n": "La Nación (Argentina)",
+   "u": "https://www.lanacion.com.ar/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "argentina"
+  },
+  {
+   "n": "Clarín",
+   "u": "https://www.clarin.com/rss/lo-ultimo/",
+   "peso": 1,
+   "areas": [],
+   "idioma": "es",
+   "region": "argentina"
+  },
+  {
+   "n": "Ámbito",
+   "u": "https://www.ambito.com/rss/pages/home.xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "argentina"
+  },
+  {
+   "n": "La Tercera",
+   "u": "https://www.latercera.com/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "chile"
+  },
+  {
+   "n": "El Comercio (Perú)",
+   "u": "https://elcomercio.pe/arc/outboundfeeds/rss/?outputType=xml",
+   "peso": 2,
+   "areas": [],
+   "idioma": "es",
+   "region": "peru"
+  },
+  {
+   "n": "Xataka",
+   "u": "https://www.xataka.com/feedburner.xml",
+   "peso": 1,
+   "areas": [],
+   "idioma": "es",
+   "region": "espana"
+  },
+  {
+   "n": "elDiario.es",
+   "u": "https://www.eldiario.es/rss/",
+   "peso": 1,
+   "areas": [],
+   "idioma": "es",
+   "region": "espana"
+  },
+  {
+   "n": "BBC 中文",
+   "u": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml",
+   "tipo": "lectura",
+   "idioma": "zh",
+   "area": "chino"
+  },
+  {
+   "n": "BBC 코리아",
+   "u": "https://feeds.bbci.co.uk/korean/rss.xml",
+   "tipo": "lectura",
+   "idioma": "ko",
+   "area": "coreano"
+  },
+  {
+   "n": "연합뉴스 (Yonhap)",
+   "u": "https://www.yna.co.kr/rss/news.xml",
+   "tipo": "lectura",
+   "idioma": "ko",
+   "area": "coreano"
+  },
+  {
+   "n": "NHK ニュース",
+   "u": "https://www3.nhk.or.jp/rss/news/cat0.xml",
+   "tipo": "lectura",
+   "idioma": "ja",
+   "area": "japones"
+  },
+  {
+   "n": "毎日新聞",
+   "u": "https://mainichi.jp/rss/etc/mainichi-flash.rss",
+   "tipo": "lectura",
+   "idioma": "ja",
+   "area": "japones"
+  },
+  {
+   "n": "BBC Русская служба",
+   "u": "https://feeds.bbci.co.uk/russian/rss.xml",
+   "tipo": "lectura",
+   "idioma": "ru",
+   "area": "ruso"
+  },
+  {
+   "n": "РБК",
+   "u": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+   "tipo": "lectura",
+   "idioma": "ru",
+   "area": "ruso"
+  },
+  {
+   "n": "Tagesschau",
+   "u": "https://www.tagesschau.de/xml/rss2/",
+   "tipo": "lectura",
+   "idioma": "de",
+   "area": "aleman"
+  },
+  {
+   "n": "DW Deutsch",
+   "u": "https://rss.dw.com/xml/rss-de-all",
+   "tipo": "lectura",
+   "idioma": "de",
+   "area": "aleman"
+  },
+  {
+   "n": "Der Spiegel",
+   "u": "https://www.spiegel.de/schlagzeilen/index.rss",
+   "tipo": "lectura",
+   "idioma": "de",
+   "area": "aleman"
+  }
+ ],
+ "palabras": {
+  "sistemas": [
+   "software",
+   "programming",
+   "programación",
+   "database",
+   "cloud",
+   "nube",
+   "algorithm",
+   "algoritmo",
+   "artificial intelligence",
+   "inteligencia artificial",
+   " ai ",
+   " ia ",
+   "machine learning",
+   "llm",
+   "openai",
+   "anthropic",
+   "nvidia",
+   "chatbot",
+   "quantum comput",
+   "computación cuántica",
+   "linux",
+   "open source",
+   "código abierto",
+   "data center",
+   "centro de datos",
+   "semiconductor",
+   "chip"
+  ],
+  "mecatronica": [
+   "robot",
+   "automat",
+   "drone",
+   "dron",
+   "autonomous vehicle",
+   "vehículo autónomo",
+   "self-driving",
+   "sensor",
+   "actuator",
+   "manufactur",
+   "manufactura",
+   "industria 4.0",
+   "3d print",
+   "impresión 3d",
+   "electric vehicle",
+   "vehículo eléctrico",
+   "battery",
+   "batería",
+   "motor",
+   "humanoid",
+   "humanoide",
+   "exoskeleton",
+   "exoesqueleto",
+   "lidar",
+   "plc",
+   "embedded"
+  ],
+  "matematicas": [
+   "mathemat",
+   "matemátic",
+   "theorem",
+   "teorema",
+   "proof",
+   "conjecture",
+   "conjetura",
+   "statistic",
+   "estadístic",
+   "prime number",
+   "número primo",
+   "topolog",
+   "geometr",
+   "equation",
+   "ecuación"
+  ],
+  "fisica": [
+   "physic",
+   "físic",
+   "quantum",
+   "cuántic",
+   "particle",
+   "partícula",
+   "cern",
+   "fusion",
+   "fusión",
+   "telescope",
+   "telescopio",
+   "black hole",
+   "agujero negro",
+   "gravitational",
+   "laser",
+   "láser",
+   "superconduct",
+   "cosmolog",
+   "nasa",
+   "esa ",
+   "space",
+   "espacial",
+   "satellite",
+   "satélite",
+   "neutrino"
+  ],
+  "quimica": [
+   "chemis",
+   "químic",
+   "molecul",
+   "molécul",
+   "catalyst",
+   "catalizador",
+   "polymer",
+   "polímero",
+   "battery",
+   "batería",
+   "lithium",
+   "litio",
+   "hydrogen",
+   "hidrógeno",
+   "carbon capture",
+   "captura de carbono",
+   "graphene",
+   "grafeno",
+   "materials science",
+   "ciencia de materiales"
+  ],
+  "biologia": [
+   "biolog",
+   "genes",
+   "genétic",
+   "dna",
+   "adn",
+   "crispr",
+   "cell",
+   "célula",
+   "protein",
+   "proteína",
+   "virus",
+   "vaccine",
+   "vacuna",
+   "species",
+   "especie",
+   "evolution",
+   "evolución",
+   "brain",
+   "cerebro",
+   "neuro",
+   "cancer",
+   "cáncer",
+   "health",
+   "salud",
+   "pandemic",
+   "pandemia",
+   "ecosystem",
+   "ecosistema",
+   "climate",
+   "clima",
+   "genom",
+   "genetic"
+  ],
+  "filosofia": [
+   "philosoph",
+   "filosof",
+   "consciousness",
+   "conciencia",
+   "free will",
+   "libre albedrío",
+   "epistem",
+   "metaphys",
+   "existential"
+  ],
+  "etica": [
+   "ethic",
+   "ética",
+   "privacy",
+   "privacidad",
+   "regulation",
+   "regulación",
+   "human rights",
+   "derechos humanos",
+   "bias",
+   "sesgo",
+   "surveillance",
+   "vigilancia",
+   "misinformation",
+   "desinformación",
+   "ai act",
+   "ley de ia",
+   "deepfake",
+   "corruption",
+   "corrupción"
+  ],
+  "tecnologia": [
+   "technolog",
+   "tecnolog",
+   "startup",
+   "apple",
+   "google",
+   "microsoft",
+   "meta ",
+   "amazon",
+   "tesla",
+   "spacex",
+   "smartphone",
+   "5g",
+   "6g",
+   "internet",
+   "innovation",
+   "innovación",
+   "energy",
+   "energía",
+   "solar",
+   "renewable",
+   "renovable",
+   "nuclear"
+  ],
+  "finanzas": [
+   "market",
+   "mercado",
+   "stock",
+   "acciones",
+   "bolsa",
+   "inflation",
+   "inflación",
+   "interest rate",
+   "tasa de interés",
+   "tasas de interés",
+   "central bank",
+   "banco central",
+   "federal reserve",
+   "reserva federal",
+   "fed ",
+   "ecb",
+   "bce",
+   "banrep",
+   "banco de la república",
+   "gdp",
+   "pib",
+   "recession",
+   "recesión",
+   "bond",
+   "bono",
+   "dollar",
+   "dólar",
+   "peso colombiano",
+   "bitcoin",
+   "crypto",
+   "cripto",
+   "tariff",
+   "arancel",
+   "debt",
+   "deuda",
+   "economy",
+   "economía",
+   "imf",
+   "fmi",
+   "investment",
+   "inversión",
+   "earnings",
+   "oil price",
+   "petróleo"
+  ],
+  "administracion": [
+   "ceo",
+   "management",
+   "gestión",
+   "company",
+   "empresa",
+   "merger",
+   "fusión",
+   "acquisition",
+   "adquisición",
+   "layoff",
+   "despidos",
+   "strategy",
+   "estrategia",
+   "leadership",
+   "liderazgo",
+   "supply chain",
+   "cadena de suministro",
+   "workforce",
+   "empleo",
+   "startup",
+   "business",
+   "negocio",
+   "productivity",
+   "productividad",
+   "remote work",
+   "teletrabajo"
+  ],
+  "psicologia": [
+   "psycholog",
+   "psicolog",
+   "mental health",
+   "salud mental",
+   "anxiety",
+   "ansiedad",
+   "depression",
+   "depresión",
+   "cognit",
+   "behavio",
+   "conducta",
+   "dopamine",
+   "dopamina",
+   "motivation",
+   "motivación",
+   "adhd",
+   "tdah",
+   "wellbeing",
+   "bienestar",
+   "neuroscien",
+   "neurocien",
+   "cognitive"
+  ],
+  "mecanica": [
+   "mechanical engineer",
+   "ingeniería mecánica",
+   "turbine",
+   "turbina",
+   "engine",
+   "thermodynam",
+   "termodinám",
+   "heat pump",
+   "bomba de calor",
+   "hvac",
+   "manufactur",
+   "machining",
+   "mecanizado",
+   "welding",
+   "soldadura",
+   "fluid dynamic",
+   "aerodynam",
+   "vibration",
+   "vibración",
+   "hydrogen",
+   "hidrógeno",
+   "jet engine",
+   "combustion",
+   "combustión",
+   "gearbox"
+  ],
+  "ciberseguridad": [
+   "cyber",
+   "ciberseg",
+   "ciberataque",
+   "hacker",
+   "hacking",
+   "ransomware",
+   "malware",
+   "phishing",
+   "vulnerab",
+   "exploit",
+   "zero-day",
+   "data breach",
+   "filtración de datos",
+   "brecha de datos",
+   "cve-",
+   "ddos",
+   "botnet",
+   "spyware",
+   "encryption",
+   "cifrado",
+   "infosec"
+  ]
+ }
+}

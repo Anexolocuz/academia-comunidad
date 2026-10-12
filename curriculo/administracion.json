@@ -1,0 +1,65 @@
+{
+  "id": "administracion", "nombre": "Administración", "icono": "📊", "grupo": "Negocios", "color": "#e84393",
+  "descripcion": "Dirigir personas, proyectos y empresas: estrategia, operaciones, marketing y liderazgo.",
+  "recursos": [
+    {"t": "Guía oficial de Scrum", "u": "https://scrumguides.org/scrum-guide.html"},
+    {"t": "PMI — gestión de proyectos", "u": "https://www.pmi.org"},
+    {"t": "Lean Enterprise Institute", "u": "https://www.lean.org"},
+    {"t": "MIT OCW — Sloan School of Management", "u": "https://ocw.mit.edu/search/?d=Sloan%20School%20of%20Management"}
+  ],
+  "modulos": [
+    {"id": "fundamentos", "t": "Fundamentos de administración", "nivel": 1, "pre": [], "temas": [
+      "Proceso administrativo|planear, organizar, dirigir, controlar",
+      "Teorías de la administración|Taylor, Fayol, Drucker",
+      "Tipos de organización y estructuras",
+      "Productividad personal|prioridades, gestión del tiempo, Eisenhower, GTD"]},
+    {"id": "personas", "t": "Liderazgo y personas", "nivel": 1, "pre": ["fundamentos"], "temas": [
+      "Estilos de liderazgo",
+      "Motivación|Maslow, Herzberg, autodeterminación",
+      "Comunicación efectiva y feedback",
+      "Negociación|Harvard, BATNA",
+      "Trabajo en equipo y resolución de conflictos",
+      "Gestión del talento humano|selección, evaluación, cultura"]},
+    {"id": "proyectos", "t": "Gestión de proyectos", "nivel": 2, "pre": ["fundamentos"], "temas": [
+      "Ciclo de vida del proyecto y PMBOK",
+      "Alcance, cronograma y costos|EDT, Gantt, ruta crítica",
+      "Gestión de riesgos del proyecto",
+      "Métodos ágiles|Scrum, Kanban",
+      "Valor ganado e indicadores"]},
+    {"id": "marketing", "t": "Marketing", "nivel": 2, "pre": ["fundamentos"], "temas": [
+      "Segmentación, mercado objetivo y posicionamiento",
+      "Mezcla de marketing|producto, precio, plaza, promoción",
+      "Investigación de mercados",
+      "Marketing digital|SEO, contenidos, métricas",
+      "Ventas y relación con clientes"]},
+    {"id": "operaciones", "t": "Operaciones y cadena de suministro", "nivel": 3, "pre": ["proyectos", "matematicas.probabilidad"], "temas": [
+      "Gestión de operaciones|capacidad, procesos",
+      "Lean y Six Sigma|desperdicios, DMAIC",
+      "Inventarios|EOQ, punto de reorden",
+      "Logística y cadena de suministro",
+      "Calidad|ISO 9001, control estadístico de procesos"]},
+    {"id": "estrategia", "t": "Estrategia", "nivel": 3, "pre": ["marketing", "finanzas.contabilidad"], "temas": [
+      "Análisis del entorno|PESTEL, cinco fuerzas de Porter",
+      "Ventaja competitiva y cadena de valor",
+      "FODA, Océano Azul y modelos de negocio (Canvas)",
+      "Estrategia corporativa|diversificación, alianzas",
+      "Indicadores y Balanced Scorecard|OKR"]},
+    {"id": "emprendimiento", "t": "Emprendimiento", "nivel": 3, "pre": ["estrategia"], "temas": [
+      "Lean Startup|hipótesis, MVP, validación",
+      "Plan de negocio y finanzas del emprendimiento",
+      "Formalización en Colombia|SAS, registro, impuestos",
+      "Financiación|bootstrapping, inversionistas, capital de riesgo",
+      "Escalar un negocio"]},
+    {"id": "direccion", "t": "Alta dirección", "nivel": 4, "pre": ["estrategia", "operaciones"], "temas": [
+      "Toma de decisiones bajo incertidumbre",
+      "Gestión del cambio organizacional",
+      "Gobierno corporativo",
+      "Negocios internacionales",
+      "Dirección de empresas de tecnología"]},
+    {"id": "horizonte", "t": "Horizonte de la administración", "nivel": 5, "pre": ["direccion"], "temas": [
+      "Organizaciones con IA|automatización y nuevos roles",
+      "Trabajo remoto y equipos distribuidos",
+      "Economía circular y modelos sostenibles",
+      "Tendencias actuales|lo nuevo en gestión"]}
+  ]
+}
