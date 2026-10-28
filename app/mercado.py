@@ -81,6 +81,12 @@ def referente(ctx, area_id, usuario=None):
                         for m in area["modulos"])
     otros = "\n".join(f"{r} = {d}" for r, d in cur.catalogo_modulos(usuario) if not r.startswith(area_id + "."))
     bloque = "\n\n".join(f"[{i}] {f['titulo']} — {f['url']}\n{f['texto']}" for i, f in enumerate(fuentes))
+    previo = kv_get(f"mercado:{area_id}")
+    estable = ("\nREFERENTE ANTERIOR (" + datetime.fromtimestamp(previo["fecha"]).strftime("%Y-%m-%d") + "): "
+               + " | ".join(f"N{n['nivel']}: " + "; ".join(c["competencia"] for c in n["competencias"])
+                            for n in previo["niveles"])
+               + "\nConsérvalo salvo que la evidencia de hoy muestre un cambio real (renovarlo seguido no debe hacer "
+                 "saltar el nivel de un día a otro por azar).\n") if previo else ""
     prompt = (
         f"Fecha de hoy: {datetime.now():%Y-%m-%d}.\nÁrea: {area['nombre']}. {area.get('descripcion', '')}\n\n"
         "Construye el REFERENTE ACTUAL del mercado laboral y profesional de esta área: qué se le exige HOY a cada nivel, "
@@ -94,7 +100,7 @@ def referente(ctx, area_id, usuario=None):
         "- cambios_5_anios: qué cambió en lo que se exige respecto a hace 5 años (concreto).\n"
         "- resumen_mercado: 2-3 frases sobre cómo está hoy la demanda del área.\n"
         "Básate en la evidencia; no inventes cifras ni nombres de informes. JSON compacto.\n\n"
-        f"EVIDENCIA WEB DE HOY:\n{bloque or '(sin resultados: usa conocimiento general reciente y dilo)'}\n\n"
+        f"{estable}EVIDENCIA WEB DE HOY:\n{bloque or '(sin resultados: usa conocimiento general reciente y dilo)'}\n\n"
         f"MÓDULOS DE ESTA ÁREA:\n{modulos}\n\nOTROS MÓDULOS DEL CURRÍCULO (también valen):\n{otros[:9000]}")
     ctx.fase(f"Armando el referente actual: {area['nombre']}")
     r = ctx.chat([{"role": "system", "content": SISTEMA_BASE}, {"role": "user", "content": prompt}],

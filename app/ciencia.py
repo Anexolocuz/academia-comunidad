@@ -159,3 +159,78 @@ def traducir_modulos(ctx, usuario=None, area_id=None):
                 kv_set(f"consulta_en:{m['ref']}", q.strip())
                 hechos += 1
     return {"traducidos": hechos}
+
+
+ARXIV = "S4306400194"   # fuente arXiv en OpenAlex
+
+
+def _sobre_el_tema(claves, w):
+    """Más laxo que _coinciden: basta con que la mitad de los términos esté en el título o el resumen."""
+    if not claves:
+        return True
+    texto = (w.get("title") or "") + " " + " ".join((w.get("abstract_inverted_index") or {}).keys())
+    raices = {_raiz(x) for x in re.findall(r"[a-z]{4,}", texto.lower())}
+    return sum(1 for c in claves if _raiz(c) in raices) >= max(1, (len(claves) + 1) // 2)
+
+
+def _relevantes(ws, corte=0.45):
+    """De lo que OpenAlex considera relevante (≥ corte del máximo), lo más citado primero."""
+    if not ws:
+        return []
+    tope = max(w.get("relevance_score") or 0 for w in ws) or 1
+    ws = [w for w in ws if (w.get("relevance_score") or 0) / tope >= corte]
+    return sorted(ws, key=lambda w: -(w.get("cited_by_count") or 0))
+
+
+def frontera(consulta, n=8):
+    """Lo más vivo de un tema para el mapa de la frontera: revisiones de los últimos 4 años (lo que el campo ya
+    ordenó), trabajos de los últimos 2 años más citados (lo que está pegando) y preprints recientes (lo que viene).
+    Caché 7 días: la frontera se mira cada mes, no hace falta más."""
+    consulta = (consulta or "").strip()
+    if not consulta:
+        return []
+    clave = "frontera:" + consulta.lower()[:200]
+    c = kv_get(clave)
+    if c and time.time() - c["fecha"] < 7 * 86400:
+        return c["lista"][:n]
+    anio = datetime.now().year
+    base = "has_abstract:true,is_retracted:false"
+    try:
+        grupos = [
+            _relevantes(_consultar({"search": consulta, "per-page": 20, "select": CAMPOS,
+                                    "filter": f"{base},type:review,from_publication_date:{anio - 4}-01-01"})),
+            _relevantes(_consultar({"search": consulta, "per-page": 25, "select": CAMPOS,
+                                    "filter": f"{base},from_publication_date:{anio - 2}-01-01"})),
+            # preprints solo de arXiv (moderado): en otros repositorios abiertos se cuela mucho texto sin revisar
+            _consultar({"search": consulta, "per-page": 15, "select": CAMPOS, "sort": "relevance_score:desc",
+                        "filter": f"{base},type:preprint,primary_location.source.id:{ARXIV},"
+                                  f"from_publication_date:{anio - 1}-01-01"}),
+        ]
+    except Exception:
+        return []
+    claves = set(re.findall(r"[a-z]{4,}", consulta.lower())) - {"about", "using", "between", "based", "with", "from"}
+    out, ids = [], set()
+    for k, g in enumerate(grupos):
+        for w in g:
+            if w["id"] in ids or not w.get("title") or not _sobre_el_tema(claves, w):
+                continue
+            if k < 2 and (w.get("cited_by_count") or 0) < 5:   # «muy citado» y revisiones: con algo de aval
+                continue
+            ids.add(w["id"])
+            p = _fmt(w)
+            p["clase"] = ("revisión", "reciente muy citado", "preprint nuevo")[k]
+            p["openalex"] = w["id"]
+            out.append(p)
+    # intercalar las tres clases para que ninguna se coma el cupo
+    orden = sorted(out, key=lambda p: ({"revisión": 0, "reciente muy citado": 1, "preprint nuevo": 2}[p["clase"]],
+                                        -(p["citas"] or 0)))
+    por = {}
+    for p in orden:
+        por.setdefault(p["clase"], []).append(p)
+    mezcla = []
+    while any(por.values()):
+        for cl in ("revisión", "reciente muy citado", "preprint nuevo"):
+            if por.get(cl):
+                mezcla.append(por[cl].pop(0))
+    kv_set(clave, {"fecha": time.time(), "lista": mezcla[:12]})
+    return mezcla[:n]

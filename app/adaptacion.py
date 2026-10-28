@@ -18,6 +18,7 @@ import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import adaptativo as aa
 import analitica as an
 import curriculo as cur
 from base import ejecutar, fila, filas, kv_get, kv_set
@@ -156,9 +157,45 @@ def plan_adaptativo(usuario, perfil):
     if pendientes > 120:
         n = max(1, n - 1)
         ajustes.append(f"Tienes {pendientes} repasos atrasados: hoy empieza por Repasar; un tema nuevo menos.")
-    recuperar = olvidados_recientes(usuario)
+    # cuántos temas nuevos caben de verdad en tu día, con los minutos que te cuesta cada uno
+    rit = aa.ritmo(usuario)
+    if rit["medido"]:
+        caben = max(1, int(float(perfil.get("minutos_dia") or 60) * aa.FRACCION_NUEVO // rit["min_por_tema"]))
+        if n > caben:
+            ajustes.append(f"Hoy {caben} tema(s) nuevo(s) y no {n}: a tu ritmo real (~{rit['min_por_tema']} min por tema "
+                           f"con quiz y práctica) es lo que cabe en tus {perfil.get('minutos_dia')} min sin dejar de repasar.")
+            n = caben
+    import dominio
+    necesita, nombres = dominio.necesidad_diaria(usuario, perfil)
+    if necesita > n + 0.2:
+        ajustes.append(f"Tus metas con plazo ({', '.join(nombres)}) piden ~{necesita:.1f} temas nuevos por día y hoy "
+                       f"caben {n}. Para llegar a tiempo: más minutos al día, un plazo más largo, o «Ubícame» para "
+                       "saltar lo que ya sabes. Los temas de esas metas van primero.")
+    metas = cur.areas_de_metas(usuario)
+    activas = [a for a in cur.areas(usuario).values() if a["id"] in cur.areas_de(usuario) and not a.get("objetivo")
+               and cur.peso(a, perfil.get("pesos", {}), usuario, metas) > 0]
+    if len(activas) > 5 and n:
+        ajustes.append(f"Tienes {len(activas)} áreas recibiendo temas nuevos y hoy caben {n}: a cada una le toca un tema "
+                       f"cada ~{round(len(activas) / n)} días. En 🔭 Horizonte puedes enfocarte en 2-3 y dejar el resto "
+                       "en mantenimiento (siguen sus repasos).")
+    recuperar = [{**t, "motivo": "el chequeo o el pulso mostraron que lo olvidaste"} for t in olvidados_recientes(usuario)]
     if recuperar:
         ajustes.append(f"Recupera primero {len(recuperar)} tema(s) que el chequeo o el pulso mostraron olvidados.")
+    ya = {t["id"] for t in recuperar}
+    no_entendidas = [t for t in aa.partes_no_entendidas(usuario) if t["id"] not in ya][:max(0, 3 - len(recuperar))]
+    if no_entendidas:
+        ajustes.append(f"Vuelve a {len(no_entendidas)} lección(es) con partes que marcaste «no lo entendí»: "
+                       "ábrelas y pide «🔄 Explícamelo de otra forma».")
+        recuperar += no_entendidas
+        ya |= {t["id"] for t in no_entendidas}
+    requisitos = [t for t in aa.requisitos_olvidados(usuario) if t["id"] not in ya][:max(0, 3 - len(recuperar))]
+    if requisitos:
+        ajustes.append("Refresca antes " + ", ".join(f"«{t['t']}»" for t in requisitos) + ": es requisito de lo que "
+                       "estás por estudiar y se te está olvidando (la causa más común de no entender lo nuevo).")
+        recuperar += requisitos
+    fmt = aa.formato(usuario)
+    if fmt["recomendado"] == "esencial" and fmt["razon"]:
+        ajustes.append(fmt["razon"] + " (Se cambia arriba de cada lección.)")
     fr = [f for f in d["franjas"] if f["repasos"] >= 20 and f["retencion"] is not None]
     mejor = max(fr, key=lambda f: f["retencion"]) if len(fr) >= 2 else None
     if mejor:
@@ -177,7 +214,9 @@ def plan_adaptativo(usuario, perfil):
     # texto que leen las lecciones y el tutor para adaptarse
     notas = []
     if recuperar:
-        notas.append("olvidó hace poco: " + ", ".join(t["t"] for t in recuperar[:4]))
+        notas.append("debe recuperar o reforzar: " + ", ".join(f"{t['t']} ({t['motivo']})" for t in recuperar[:4]))
+    if fmt["recomendado"] == "esencial":
+        notas.append("no alcanza a terminar las lecciones largas: ve al grano, lo esencial primero")
     if metodo:
         notas.append(f"le funciona especialmente bien: {metodo.lower()}")
     debiles = [x["t"] for x in d["olvidando"][:4]]
@@ -229,7 +268,8 @@ def plan_del_dia(usuario, perfil, congelar=True):
     if plan is None:
         adapt = plan_adaptativo(usuario, perfil)
         temas = [t["id"] for t in cur.recomendar(usuario, perfil, adapt["nuevos"])]
-        plan = {"recuperar": [t["id"] for t in adapt["recuperar"]], "temas": temas, "extra": []}
+        plan = {"recuperar": [t["id"] for t in adapt["recuperar"]], "temas": temas, "extra": [],
+                "motivos": {t["id"]: t.get("motivo", "") for t in adapt["recuperar"]}}
         if congelar:
             kv_set(clave, plan)
     return plan

@@ -6,6 +6,7 @@ Las áreas de los objetivos personales se guardan en la base (`area_extra`).
 """
 import json
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -23,6 +24,25 @@ ejecutar("""CREATE TABLE IF NOT EXISTS objetivo (
   plan TEXT, estado TEXT DEFAULT 'activo', creado REAL)""")
 
 _AREAS = {}
+
+
+ejecutar("""CREATE TABLE IF NOT EXISTS ruta_extra (
+  usuario TEXT, area TEXT, datos TEXT, actualizado REAL, PRIMARY KEY (usuario, area))""")   # capa propia (revision.py)
+
+# Versión de las áreas de cada persona: la suben triggers de SQLite en cada cambio de area_extra/ruta_extra (las
+# escriben varios módulos), así areas(usuario) se arma una vez y se reutiliza hasta que algo cambie (2026-10-28:
+# «Hoy» la llamaba ~370 veces por petición y tardaba 2,6 s).
+ejecutar("CREATE TABLE IF NOT EXISTS areas_version (usuario TEXT PRIMARY KEY, v INTEGER NOT NULL DEFAULT 0)")
+for _tabla in ("area_extra", "ruta_extra"):
+    for _ev, _fila in (("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")):
+        ejecutar(f"""CREATE TRIGGER IF NOT EXISTS ver_{_tabla}_{_ev.lower()} AFTER {_ev} ON {_tabla} BEGIN
+            INSERT INTO areas_version(usuario, v) VALUES({_fila}.usuario, 1)
+            ON CONFLICT(usuario) DO UPDATE SET v = v + 1; END""")
+    ejecutar(f"""CREATE TRIGGER IF NOT EXISTS ver_{_tabla}_dueno AFTER UPDATE OF usuario ON {_tabla} BEGIN
+        INSERT INTO areas_version(usuario, v) VALUES(OLD.usuario, 1)
+        ON CONFLICT(usuario) DO UPDATE SET v = v + 1; END""")
+_CACHE = {}
+_CACHE_LOCK = threading.Lock()
 
 
 def _id(x):
@@ -49,6 +69,7 @@ def _normalizar(a):
 
 
 def cargar():
+    _CACHE.clear()
     _AREAS.clear()
     for f in sorted(CARPETA.glob("*.json")):
         a = json.loads(f.read_text(encoding="utf-8"))
@@ -57,12 +78,38 @@ def cargar():
 
 
 def areas(usuario=None):
+    """Catálogo + áreas propias + capa propia de las rutas del catálogo. Lo devuelto es de solo lectura (va en
+    caché): quien quiera cambiar un área lee su fila de la base, como revision.py y dominio.py."""
     if not _AREAS:
         cargar()
+    if not usuario:
+        return dict(_AREAS)
+    v = (fila("SELECT v FROM areas_version WHERE usuario=?", (usuario,)) or {"v": 0})["v"]
+    with _CACHE_LOCK:
+        c = _CACHE.get(usuario)
+        if c and c[0] == v:
+            return dict(c[1])
+    out = _armar_areas(usuario)
+    with _CACHE_LOCK:
+        _CACHE[usuario] = (v, out)
+    return dict(out)
+
+
+def _armar_areas(usuario):
     out = dict(_AREAS)
     if usuario:
         for r in filas("SELECT id, datos FROM area_extra WHERE usuario=?", (usuario,)):
             out[r["id"]] = _normalizar(json.loads(r["datos"]))
+        # capa propia de las rutas del catálogo (revision.py): temas al final de sus módulos y módulos «🆕 …»
+        for r in filas("SELECT area, datos FROM ruta_extra WHERE usuario=?", (usuario,)):
+            if r["area"] not in _AREAS:
+                continue
+            a = json.loads(json.dumps(_AREAS[r["area"]]))
+            extra = json.loads(r["datos"])
+            for m in a["modulos"]:
+                m["temas"] = list(m["temas"]) + extra.get("temas", {}).get(m["id"], [])
+            a["modulos"] += [dict(m) for m in extra.get("modulos", [])]
+            out[r["area"]] = _normalizar(a)
     return out
 
 
@@ -154,8 +201,10 @@ def marcar(usuario, tid, **campos):
 
 
 def mapa(usuario):
-    """Todo el currículo con dominio y bloqueo, para la pestaña Ruta."""
+    """Todo el currículo con dominio y bloqueo, para la pestaña Ruta (con la memoria actual de cada tema)."""
+    import adaptativo
     avs = avances(usuario)
+    mem = adaptativo.memoria_por_tema(usuario)
     out = []
     for a in areas(usuario).values():
         mods = []
@@ -165,7 +214,8 @@ def mapa(usuario):
                          "abierto": desbloqueado(m, avs, usuario),
                          "temas": [{"id": t["id"], "t": t["t"], "d": t["d"],
                                     "estado": (avs.get(t["id"]) or {}).get("estado", "nuevo"),
-                                    "dominio": round(dominio_tema(avs.get(t["id"])), 2)}
+                                    "dominio": round(dominio_tema(avs.get(t["id"])), 2),
+                                    "memoria": round(mem[t["id"]], 2) if t["id"] in mem else None}
                                    for t in m["temas_obj"]]})
         dom = sum(x["dominio"] * len(x["temas"]) for x in mods) / max(1, sum(len(x["temas"]) for x in mods))
         out.append({"id": a["id"], "nombre": a["nombre"], "icono": a.get("icono"), "color": a.get("color"),
@@ -208,15 +258,62 @@ def refs_objetivos(usuario):
     return refs
 
 
+def dependientes(usuario):
+    """módulo → cuántos módulos de TUS áreas lo necesitan, directa o indirectamente. Lo que desbloquea más
+    camino hacia lo que te importa vale más por minuto de estudio."""
+    mias = areas_de(usuario)
+    hijos = {}
+    for a in areas(usuario).values():
+        if a["id"] not in mias:
+            continue
+        for m in a["modulos"]:
+            for p in m["pre"]:
+                hijos.setdefault(p, set()).add(m["ref"])
+    memo = {}
+
+    def alcance(r, pila):
+        if r in memo:
+            return memo[r]
+        out = set()
+        for h in hijos.get(r, ()):
+            if h not in pila:
+                out.add(h)
+                out |= alcance(h, pila | {r})
+        memo[r] = out
+        return out
+
+    return {r: len(alcance(r, frozenset())) for r in hijos}
+
+
+def refs_con_plazo(usuario):
+    """Módulos (con todos sus requisitos) de las metas activas que tienen plazo (📅 programa de dominio)."""
+    from base import kv_get
+    refs = []
+    for o in filas("SELECT id, plan FROM objetivo WHERE usuario=? AND estado='activo'", (usuario,)):
+        if kv_get(f"programa:{usuario}:{o['id']}"):
+            try:
+                p = json.loads(o["plan"])
+                refs += p.get("modulos", []) + p.get("extra", [])
+            except (ValueError, TypeError):
+                pass
+    return set(cierre_prerrequisitos(refs, usuario)) if refs else set()
+
+
 def recomendar(usuario, perfil, n=3, excluir=()):
     """Elige n temas nuevos intercalando áreas (interleaving): pesa la
     prioridad que diste a cada área, cuánto hace que no la tocas, y si sirve
-    a uno de tus objetivos. Reserva un cupo para un idioma si hay activos.
+    a uno de tus objetivos (o a sus requisitos), y cuánto camino desbloquea (lo que más módulos tuyos
+    necesitan va antes). Reserva un cupo para un idioma si hay activos.
     Con n grande (sesiones extra) toma también el 2.º y 3.er frente de cada área."""
     avs = avances(usuario)
     pesos = perfil.get("pesos", {})
     ultimos = ultimo_estudio_por_area(usuario)
     obj = refs_objetivos(usuario)
+    obj_cierre = set(cierre_prerrequisitos(list(obj), usuario))   # también los requisitos de tus metas
+    con_plazo = refs_con_plazo(usuario)                           # metas con fecha: lo suyo va primero
+    import dominio
+    critica = dominio.refs_proyecto(usuario)
+    deps = dependientes(usuario)
     ahora = time.time()
     excluir = set(excluir)
     cand = []
@@ -229,7 +326,12 @@ def recomendar(usuario, perfil, n=3, excluir=()):
         fr = [t for t in frontera(a, avs, usuario) if t["id"] not in excluir]
         dias = (ahora - ultimos.get(a["id"], ahora - 7 * 86400)) / 86400
         for k, t in enumerate(fr):
-            bonus = 2.0 if t["modulo"] in obj else 1.0
+            bonus = 2.0 if t["modulo"] in obj else 1.5 if t["modulo"] in obj_cierre else 1.0
+            if t["modulo"] in con_plazo:
+                bonus *= 3.0
+            if t["modulo"] in critica:      # ruta crítica del proyecto elegido en el laboratorio de innovación
+                bonus *= 2.0
+            bonus *= 1 + 0.1 * min(deps.get(t["modulo"], 0), 8)
             cand.append((w * bonus * (1 + min(dias, 14)) / (1 + 2 * k), a.get("grupo") == "Idiomas", t))
     cand.sort(key=lambda x: -x[0])
     elegidos, areas_usadas, idiomas = [], set(), 0

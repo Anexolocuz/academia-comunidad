@@ -23,6 +23,9 @@ goal-based roadmaps, news compared across outlets, weekly check-ups and professi
 
 - 🔒 Local-first and closed by default: only this PC can connect; phones via Tailscale or a LAN access key.
   CSRF, DNS-rebinding and header-spoofing protections; non-root read-only Docker image.
+- 💹 Stock watchlist: alerts, direct and indirect news (competitors, suppliers, macro factors), scenario forecasts
+  from "very likely" to "very unlikely" anchored to the stock's own base rate, scored (Brier) when they expire, plus an
+  optional portfolio view with diversification risk. Educational only — not financial advice.
 - 🧠 Works with any OpenAI-compatible server (Ollama, LM Studio, llama.cpp, llama-swap, vLLM, Jan).
 - 🎨 Light/dark, 6 palettes (incl. high contrast), custom accent, font scaling; PWA on Android/iOS.
 - 🧩 Zero dependencies: Python standard library + vanilla HTML/JS — easy to read and learn from.

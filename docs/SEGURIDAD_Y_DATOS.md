@@ -30,6 +30,10 @@ trae un `LEEME.md` por tabla.
 - Fuentes RSS de noticias **de las regiones que alguien usa** y el texto de esos artículos (para analizarlos y compararlos). Las fuentes nuevas solo se aceptan si son direcciones públicas de internet.
 - Búsquedas web, si configuras SearXNG (que anonimiza ante los buscadores).
 - Búsquedas de documentos científicos en OpenAlex: solo términos técnicos del tema, sin datos tuyos.
+- 💹 **Solo si usas Acciones**: los nombres o símbolos que buscas y vigilas van a Yahoo Finance (precios) y a
+  Google Noticias / Yahoo Finance (titulares por RSS), igual que si los buscaras en el navegador. **Nunca** salen tu
+  cartera (cantidades, precios de compra), tus alertas, tus notas ni tus pronósticos: se calculan y guardan en tu PC.
+  Si no agregas acciones, la Academia no contacta esos servicios.
 - «Buscar actualizaciones» consulta GitHub solo cuando pulsas el botón.
 - **Nada más.** Las librerías web vienen incluidas (`web/vendor/`); la IA es la tuya (local o en otro PC tuyo).
 

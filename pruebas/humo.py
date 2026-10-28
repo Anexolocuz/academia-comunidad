@@ -65,6 +65,18 @@ def main():
                 ("regiones de noticias (global siempre)", any(r["id"] == "global" for r in json.loads(pedir(u + "/api/regiones")[1])["regiones"])),
                 ("fuentes solo de internet público", "público" in pedir(u + "/api/regiones/fuente/probar", b'{"u":"http://127.0.0.1/rss"}', {"Content-Type": "application/json"})[1]),
                 ("cabeceras de seguridad", "nosniff" in str(urllib.request.urlopen(u + "/").headers)),
+                ("horizonte (motor adaptativo)", "ritmo" in json.loads(pedir(u + "/api/horizonte")[1])),
+                ("parte de lección rechaza datos inválidos", "error" in json.loads(pedir(u + "/api/parte", b'{"tema":"x","parte":1,"estado":"raro"}', {"Content-Type": "application/json"})[1])),
+                ("reexplicar solo con estilos conocidos", "error" in json.loads(pedir(u + "/api/reexplicar", b'{"tema":"x","estilo":"<b>"}', {"Content-Type": "application/json"})[1])),
+                ("Hermes: lo que más rinde hoy", pedir(u + "/api/hermes/siguiente")[0] == 200),
+                ("programa de dominio: meta ajena o inexistente", "error" in json.loads(pedir(u + "/api/dominio?objetivo=999")[1])),
+                ("lectura de paper ajena o inexistente", "error" in json.loads(pedir(u + "/api/paper?id=999")[1])),
+                ("Hermes: repaso por chat", "tarjetas" in json.loads(pedir(u + "/api/hermes/repaso?n=2")[1])),
+                ("acciones: lista vacía al empezar", json.loads(pedir(u + "/api/acciones")[1]).get("acciones") == []),
+                ("acciones: rechaza símbolos inválidos", "inválido" in pedir(u + "/api/acciones/vigilar", b'{"simbolo":"<b>x"}', {"Content-Type": "application/json"})[1]),
+                ("acciones: pronóstico solo de tu lista", "error" in json.loads(pedir(u + "/api/accion/pronostico", b'{"simbolo":"NVDA"}', {"Content-Type": "application/json"})[1])),
+                ("acciones: no se ajusta una ajena", "error" in json.loads(pedir(u + "/api/acciones/ajustar", b'{"simbolo":"NVDA"}', {"Content-Type": "application/json"})[1])),
+                ("respuestas comprimidas (gzip)", urllib.request.urlopen(urllib.request.Request(u + "/app.js", headers={"Accept-Encoding": "gzip"})).headers.get("Content-Encoding") == "gzip"),
             ]
             for nombre, ok in casos:
                 print(("✅ " if ok else "❌ ") + nombre)

@@ -98,12 +98,54 @@ def modelos_pedidos():
     return set()
 
 
-def otros_modelos(esperando=False):
-    """Modelos de otras apps cargados (y, con esperando=True, también los que están pidiendo turno)."""
-    otros = [m for m in modelos_cargados() if m not in COMPATIBLES()]
+_libre_desde = {}   # modelo de otra app → desde cuándo lo vemos sin procesar nada
+
+
+def _modelo_quieto(m, segundos=20):
+    """El modelo de otra app lleva `segundos` sin procesar ninguna petición (slots de llama-server vía llama-swap)."""
+    try:
+        slots = _get_json(f"{LLAMA()}/upstream/{urllib.parse.quote(m)}/slots", 3)
+    except Exception:
+        return False
+    if any(x.get("is_processing") for x in slots):
+        _libre_desde.pop(m, None)
+        return False
+    _libre_desde.setdefault(m, time.time())
+    return time.time() - _libre_desde[m] >= segundos
+
+
+def _memoria_sin_documento():
+    """El proxy de Supermemory no está a mitad de un documento (cortarlo dañaría la extracción de recuerdos)."""
+    url = _c("supermemory_estado_url")
+    if not url:
+        return True
+    try:
+        return not _get_json(url, 3).get("en_curso")
+    except Exception:
+        return True   # proxy apagado: no hay documento en curso
+
+
+def otros_modelos(esperando=False, usuario_espera=False):
+    """Modelos de otras apps cargados (y, con esperando=True, también los que están pidiendo turno).
+    Con usuario_espera (una tarea que la persona pidió y está esperando): los modelos de `modelos_cedibles` no
+    cuentan si llevan 20 s sin procesar nada y Supermemory no está a mitad de un documento. Así lo pedido pasa
+    antes que la memoria y que una conversación en pausa, sin cortar nunca una respuesta a medias."""
+    cargados = modelos_cargados()
+    otros = [m for m in cargados if m not in COMPATIBLES()]
     if esperando:
         otros += [m for m in modelos_pedidos() if m not in COMPATIBLES() and m not in otros]
+    cedibles = set(_c("modelos_cedibles") or [])
+    # solo se cede si el otro modelo ya está cargado (preguntarle a uno descargado lo haría cargar) y nadie lo pide
+    if usuario_espera and otros and cedibles and all(m in cedibles and m in cargados for m in otros) \
+            and _memoria_sin_documento() and all(_modelo_quieto(m) for m in set(otros)):
+        return []
     return otros
+
+
+def usuario_esperando():
+    """¿Hay una tarea pedida por una persona (prioridad 0) en cola, esperando o corriendo? (lo consulta el proxy de
+    Supermemory para no empezar documentos nuevos mientras tanto)."""
+    return any(t.prioridad == 0 and t.estado in ("cola", "conflicto", "corriendo") for t in cola.trabajos.values())
 
 
 EVITAR = ("youtube.com", "youtu.be", "tiktok.com", "facebook.com", "instagram.com", "pinterest.", "x.com/",
@@ -118,15 +160,49 @@ def _confianza(url):
     return 2 if any(c in url for c in CONFIABLES) else 1
 
 
+_busq = {"lock": threading.Lock(), "ultima": 0.0, "pausa_hasta": 0.0, "cache": {}, "intervalo": 1.2}
+INTERVALO_BUSQUEDA = 1.2      # segundos entre consultas a SearXNG (los motores suspenden si se les pide de golpe)
+INTERVALO_MAXIMO = 6.0        # tope del frenado automático
+CACHE_BUSQUEDA = 6 * 3600     # la misma consulta no se repite en 6 h
+
+
 def buscar_web(consulta, n=6, idioma="es"):
-    """Resultados de SearXNG local: [{titulo, url, texto}], sin redes sociales
-    y con las fuentes académicas/oficiales primero."""
+    """Resultados de SearXNG local: [{titulo, url, texto}], sin redes sociales y con las fuentes académicas/oficiales
+    primero. Las consultas van EN FILA, una cada INTERVALO_BUSQUEDA s, con caché de 6 h; si los motores avisan que
+    nos suspendieron por exceso de peticiones, se deja de consultar 5 min (2026-10-27: una ráfaga de la búsqueda
+    agresiva hizo que Brave, Google y Wikipedia suspendieran el buscador que también usan Hermes y Open WebUI)."""
     if not _c("searx_url"):
         return []
+    clave = (consulta.strip().lower(), idioma)
+    c = _busq["cache"].get(clave)
+    if c and time.time() - c[0] < CACHE_BUSQUEDA:
+        return c[1][:n]
     q = urllib.parse.urlencode({"q": consulta, "format": "json", "language": idioma})
-    try:
-        datos = _get_json(f"{_c('searx_url').rstrip('/')}/search?{q}", 20)
-    except Exception:
+    with _busq["lock"]:
+        if time.time() < _busq["pausa_hasta"]:
+            return []
+        espera = _busq["intervalo"] - (time.time() - _busq["ultima"])
+        if espera > 0:
+            time.sleep(espera)
+        try:
+            datos = _get_json(f"{_c('searx_url').rstrip('/')}/search?{q}", 20)
+        except Exception:
+            datos = None
+        _busq["ultima"] = time.time()
+    if datos is None:
+        return []
+    caidos = [e for e in datos.get("unresponsive_engines") or [] if "too many" in str(e).lower() or "suspend" in str(e).lower()]
+    # Frenado automático (2026-10-28): con un motor suspendido el ritmo se duplica (hasta 6 s entre consultas) y
+    # vuelve poco a poco a 1,2 s con respuestas limpias. Antes solo se pausaba si NO había resultados: con Brave y
+    # Google suspendidos todo el día (51 pausas/día) se seguía consultando a 1,2 s y no se recuperaban nunca.
+    # Solo frena un rechazo NUEVO: los que dicen «Suspended: …» son motores que SearXNG ya no está consultando.
+    nuevos = [e for e in caidos if not str(e).lower().count("suspended")]
+    with _busq["lock"]:
+        _busq["intervalo"] = (min(INTERVALO_MAXIMO, _busq["intervalo"] * 2) if nuevos
+                              else max(INTERVALO_BUSQUEDA, _busq["intervalo"] * 0.9))
+    if caidos and not datos.get("results"):
+        _busq["pausa_hasta"] = time.time() + 300
+        print(f"búsqueda web en pausa 5 min: {caidos}", flush=True)
         return []
     vistos, out = set(), []
     for r in datos.get("results", []):
@@ -137,6 +213,11 @@ def buscar_web(consulta, n=6, idioma="es"):
         out.append({"titulo": (r.get("title") or "")[:200], "url": u,
                     "texto": (r.get("content") or "")[:500]})
     out.sort(key=lambda r: -_confianza(r["url"]))  # orden estable: dentro de cada grupo manda SearXNG
+    if out:
+        _busq["cache"][clave] = (time.time(), out)
+        if len(_busq["cache"]) > 3000:
+            for k in sorted(_busq["cache"], key=lambda k: _busq["cache"][k][0])[:1000]:
+                _busq["cache"].pop(k, None)
     return out[:n]
 
 
@@ -282,8 +363,12 @@ class Cola:
     def _reintentar_conflictos(self):
         # Una tarea en «conflicto» = esperando en la cola a que otra app suelte la IA; vuelve sola en cuanto quede libre
         esperando = [t for t in self.trabajos.values() if t.estado == "conflicto"]
-        if esperando and not otros_modelos():
-            for t in esperando:
+        if not esperando:
+            return
+        libre = not otros_modelos()
+        cede = libre or (any(t.prioridad == 0 for t in esperando) and not otros_modelos(usuario_espera=True))
+        for t in esperando:
+            if libre or (cede and t.prioridad == 0):
                 t.estado = "cola"
                 heapq.heappush(self._h, (t.prioridad, next(self._n), t))
 
@@ -306,6 +391,8 @@ class Cola:
             traceback.print_exc()
             t.estado, t.error = "error", f"{type(e).__name__}: {e}"
         t.terminado = time.time()
+        if t.estado in ("listo", "error") and t.usuario:
+            guardar_resultado(t)
 
     def _limpiar(self):
         # los terminados bien se olvidan a la hora; los fallidos se guardan 24 h para poder reintentarlos
@@ -313,6 +400,31 @@ class Cola:
         for k in [k for k, t in self.trabajos.items()
                   if t.terminado and t.terminado < ahora - (86400 if t.estado == "error" else 3600)]:
             del self.trabajos[k]
+
+
+def guardar_resultado(t):
+    """El resultado de cada tarea queda en la base 7 días: si cierras la ventana, cambias de equipo o el servidor se
+    reinicia, `GET /api/trabajo?id=` lo sigue devolviendo (no hay que volver a esperar)."""
+    from base import ejecutar
+    try:
+        dato = json.dumps(t.resultado, ensure_ascii=False, default=str)
+        if len(dato) > 3_000_000:
+            dato = "null"
+        ejecutar("""INSERT OR REPLACE INTO trabajo_hecho(id,usuario,tipo,etiqueta,estado,resultado,error,terminado)
+                    VALUES(?,?,?,?,?,?,?,?)""", (t.id, t.usuario, t.tipo, t.etiqueta, t.estado, dato, t.error, t.terminado))
+        ejecutar("DELETE FROM trabajo_hecho WHERE terminado<?", (time.time() - 7 * 86400,))
+    except Exception:
+        traceback.print_exc()
+
+
+def resultado_guardado(tid, usuario):
+    from base import fila
+    r = fila("SELECT * FROM trabajo_hecho WHERE id=? AND usuario=?", (tid, usuario))
+    if not r:
+        return None
+    return {"id": r["id"], "tipo": r["tipo"], "estado": r["estado"], "etiqueta": r["etiqueta"], "texto": "", "fase": "",
+            "resultado": json.loads(r["resultado"] or "null"), "error": r["error"], "otros": [], "pos": 0,
+            "guardado": True}
 
 
 class Contexto:
@@ -328,7 +440,8 @@ class Contexto:
         if self.t.permiso == "ligero" and _c("modelo_ligero"):
             return _c("modelo_ligero")
         cede = self.t.permiso != "interrumpir" or not config.C.get("permitir_interrumpir", True)
-        otros = otros_modelos(esperando=True)
+        pide = self.t.prioridad == 0
+        otros = otros_modelos(esperando=True, usuario_espera=pide)
         if otros and cede:
             if not getattr(self.t, "pedidos", 0):
                 raise Conflicto(otros)          # aún no empezó: vuelve a la cola sin perder nada
@@ -338,7 +451,7 @@ class Contexto:
             while otros:
                 self.t.fase = f"⏸ Pausada: {', '.join(otros)} usa la IA; sigue sola al terminar"
                 time.sleep(20)
-                otros = otros_modelos(esperando=True)
+                otros = otros_modelos(esperando=True, usuario_espera=pide)
             self.t.fase = fase
         self.t.pedidos = getattr(self.t, "pedidos", 0) + 1
         return _c("modelo")

@@ -148,3 +148,32 @@ guarda en `datos/regiones.json` (tuyo, no se toca al actualizar); el catálogo d
 (nombre), `u` (RSS/Atom), `peso` (1-3), `areas`, `idioma` y `region` (si falta: global). Las de `"tipo": "lectura"`
 son para practicar idiomas (no tienen región). `palabras` asigna áreas por palabras clave. Probar una fuente a mano:
 `curl -sL <url> | grep -c "<item"`.
+
+
+## Rutas vivas (2026-10-27)
+
+| Clave | De fábrica | Qué hace |
+|---|---|---|
+| `mercado_cada_dias` | 30 | Cada cuántos días se renueva el nivel profesional frente al mercado de cada ruta (una tarea de IA por área). |
+| `revision_rutas_cada_dias` | 7 | Cada cuántos días se revisa cada ruta y se le agrega lo que falta. |
+| `verificar_lecciones` | false | true = cada lección nueva se contrasta sola con fuentes verificadas (una tarea de IA más por lección). |
+
+Con `1` y `1` todo se renueva a diario (más horas de IA; la cola respeta a las demás apps).
+
+
+## 💹 Acciones (2026-10-28)
+
+| Clave | De fábrica | Qué hace |
+|---|---|---|
+| `acciones_pronostico_diario` | true | En la actualización diaria, un pronóstico a 30 días por cada acción vigilada de cada persona activa (si el último tiene más de 20 h; de fondo, detrás de lo de estudio). false = solo precios, noticias y alertas; el pronóstico se pide a mano. |
+
+Los precios vienen de Yahoo Finance y las noticias de Yahoo Finance y Google Noticias (RSS de búsqueda), sin claves.
+No hay nada más que configurar.
+
+
+## Prioridad frente a otras apps de IA
+
+| Clave | De fábrica | Qué hace |
+|---|---|---|
+| `modelos_cedibles` | `[]` | Modelos de otras apps que ceden el turno a lo que PIDES cuando llevan 20 s sin procesar (p. ej. `["modelo-de-mi-agente"]`). Vacío = siempre esperar. |
+| `supermemory_estado_url` | `""` | URL de otra app de IA que devuelva JSON `{"en_curso": true\|false}` (p. ej. un servicio de memoria como Supermemory detrás de un proxy propio): la Academia no entra a mitad de su trabajo. Esa app puede consultar `GET /api/prioridad` (`usuario_esperando`, `diaria`, `fondo`, `corriendo`) para no empezar trabajo nuevo mientras alguien espera o para dejarle turnos a la Academia. |

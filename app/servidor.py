@@ -12,6 +12,7 @@ necesita la «clave_acceso». Las escrituras exigen JSON y mismo origen (contra
 CSRF) y el Host debe ser conocido (contra DNS rebinding).
 """
 import base64
+import gzip
 import hashlib
 import hmac
 import ipaddress
@@ -57,7 +58,12 @@ import ciencia  # noqa: E402
 import mercado  # noqa: E402
 import analitica as an  # noqa: E402
 import adaptacion as ad  # noqa: E402
+import adaptativo as aa  # noqa: E402
+import dominio  # noqa: E402
+import revision  # noqa: E402
+import verificacion as vf  # noqa: E402
 import escaneo  # noqa: E402
+import acciones as ac  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
@@ -90,6 +96,7 @@ PERFIL_BASE = {   # perfil en blanco: cada persona elige sus áreas y metas en A
     "nombre": "", "situacion": "", "metas": "", "estilo": "",
     "pesos": {},
     "nuevos_dia": 2, "tarjetas_nuevas_dia": 25, "minutos_dia": 60, "solo_lapiz": False,   # sin lápiz (iPhone): el dedo dibuja
+    "dia_maxima": False,   # True = la rutina diaria deja TODAS las lecciones del día listas a máxima profundidad
     "configurado": False,
 }
 
@@ -272,11 +279,22 @@ class Manejador(BaseHTTPRequestHandler):
         self.send_header("Referrer-Policy", "no-referrer")
         super().end_headers()
 
+    def _comprimir(self, datos, tipo):
+        """gzip para texto de más de 2 KB si el navegador lo acepta: el mapa (~300 KB) o app.js llegan en una
+        fracción por el celular."""
+        if len(datos) < 2048 or "gzip" not in (self.headers.get("Accept-Encoding") or "") or not (
+                tipo.startswith("text/") or "json" in tipo or "javascript" in tipo or "svg" in tipo):
+            return datos, False
+        return gzip.compress(datos, 5), True
+
     def json(self, obj, codigo=200):
-        cuerpo = json.dumps(obj, ensure_ascii=False).encode()
+        cuerpo, gz = self._comprimir(json.dumps(obj, ensure_ascii=False).encode(), "json")
         self.send_response(codigo)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(cuerpo)))
         self.end_headers()
         self.wfile.write(cuerpo)
@@ -302,8 +320,12 @@ class Manejador(BaseHTTPRequestHandler):
         tipo = mimetypes.guess_type(str(ruta))[0] or "application/octet-stream"
         if ruta.suffix == ".webmanifest":
             tipo = "application/manifest+json"
+        datos, gz = self._comprimir(datos, tipo)
         self.send_response(200)
         self.send_header("Content-Type", tipo + ("; charset=utf-8" if tipo.startswith("text/") or tipo.endswith("javascript") else ""))
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(datos)))
         self.send_header("Cache-Control", "public, max-age=86400" if cache and "vendor" in str(ruta) else "no-cache")
         self.end_headers()
@@ -385,6 +407,8 @@ class Manejador(BaseHTTPRequestHandler):
             res = fn(usuario, q, datos, self)
             if res is not None:
                 self.json(res)
+        except (BrokenPipeError, ConnectionResetError):
+            return   # la persona cerró la pestaña o cambió de vista antes de recibir la respuesta: no es un fallo
         except Exception as e:
             traceback.print_exc()
             try:
@@ -423,7 +447,7 @@ def r_yo(usuario, q, d, h):
 def r_perfil(usuario, q, d, h):
     p = perfil_de(usuario)
     for k in ("nombre", "situacion", "metas", "estilo", "nuevos_dia", "tarjetas_nuevas_dia", "minutos_dia",
-              "solo_lapiz", "configurado"):
+              "solo_lapiz", "dia_maxima", "configurado", "modo_lectura", "paso_a_paso", "diagnostico_previo"):
         if k in d:
             p[k] = d[k]
     if isinstance(d.get("pesos"), dict):
@@ -455,6 +479,12 @@ def _tarjeta_tema(tid, usuario, areas, avs, tipo):
             "estado": av.get("estado", "nuevo"), "hecho": hecho, "tipo": tipo}
 
 
+def _con_motivo(x, plan):
+    if x:
+        x["motivo"] = (plan.get("motivos") or {}).get(x["id"], "")
+    return x
+
+
 @ruta("GET", "/api/hoy")
 def r_hoy(usuario, q, d, h):
     perfil = perfil_de(usuario)
@@ -462,7 +492,7 @@ def r_hoy(usuario, q, d, h):
     adapt = ad.plan_adaptativo(usuario, perfil)
     areas = cur.areas(usuario)
     avs = cur.avances(usuario)
-    temas = [x for x in ([_tarjeta_tema(t, usuario, areas, avs, "recuperar") for t in plan["recuperar"]]
+    temas = [x for x in ([_con_motivo(_tarjeta_tema(t, usuario, areas, avs, "recuperar"), plan) for t in plan["recuperar"]]
                          + [_tarjeta_tema(t, usuario, areas, avs, "nuevo") for t in plan["temas"]]
                          + [_tarjeta_tema(t, usuario, areas, avs, "extra") for t in plan["extra"]]) if x]
     cola, venc, nuevas = cola_repaso(usuario, perfil)
@@ -477,10 +507,31 @@ def r_hoy(usuario, q, d, h):
                        (usuario,))]
     abierto = fila("SELECT id, creado FROM chequeo WHERE usuario=? AND completado IS NULL ORDER BY id DESC LIMIT 1",
                    (usuario,))
-    return {"temas": temas, "repaso": {"vencidas": venc, "nuevas": nuevas, "hechas_hoy": hechos},
+    pulso_hecho = ad.pulso_hecho_hoy(usuario)
+    hay_tarjetas = bool(fila("SELECT 1 FROM tarjeta WHERE usuario=? AND estabilidad IS NOT NULL", (usuario,)))
+    pendiente = next((t for t in temas if not t["hecho"]), None)
+    if abierto:
+        sig = {"ir": f"chequeo/{abierto['id']}", "titulo": "🧪 Haz tu chequeo semanal", "por_que": "10-15 min: muestra qué olvidaste para recuperarlo antes de que cueste más."}
+    elif not pulso_hecho and hay_tarjetas:
+        sig = {"ir": "pulso", "titulo": "⚡ Pulso de 1-2 min", "por_que": "5 tarjetas para calentar: recuperar algo antes de lo nuevo fija ambos."}
+    elif venc >= 15:
+        sig = {"ir": "repasar", "titulo": f"🔁 Repasa {venc} tarjetas vencidas", "por_que": "Están a punto de olvidarse: repasarlas hoy cuesta segundos; mañana, reaprender."}
+    elif pendiente:
+        sig = {"ir": f"tema/{pendiente['id']}", "titulo": ("♻️ " if pendiente["tipo"] == "recuperar" else "📖 ") + pendiente["t"],
+               "por_que": pendiente.get("motivo") or "El tema que más rinde ahora según tu prioridad, tus metas y lo que desbloquea."}
+    elif venc:
+        sig = {"ir": "repasar", "titulo": f"🔁 Repasa {venc} tarjetas", "por_que": "Lo nuevo de hoy está hecho: cierra con repaso."}
+    elif not temas:
+        sig = {"ir": "objetivos", "titulo": "🎯 Crea una meta de aprendizaje",
+               "por_que": "Aún no hay temas para ti: escribe qué quieres lograr y la IA arma la ruta con todo lo necesario."}
+    else:
+        sig = {"ir": "", "titulo": "🎉 Hoy está hecho", "por_que": "Descansar y dormir también consolidan lo aprendido. Si te sobra energía: ➕ Otra sesión."}
+    pruebas_listas = fila("SELECT COUNT(*) n FROM prueba_nivel WHERE usuario=? AND estado='lista'", (usuario,))["n"]
+    return {"temas": temas, "repaso": {"vencidas": venc, "nuevas": nuevas, "hechas_hoy": hechos}, "siguiente": sig,
+            "pruebas_listas": pruebas_listas,
             "chequeo": abierto, "adaptacion": {k: adapt[k] for k in ("ajustes", "bloque", "mejor_franja", "nuevos", "base")},
-            "pulso_hecho": ad.pulso_hecho_hoy(usuario),
-            "hay_tarjetas": bool(fila("SELECT 1 FROM tarjeta WHERE usuario=? AND estabilidad IS NOT NULL", (usuario,))),
+            "pulso_hecho": pulso_hecho,
+            "hay_tarjetas": hay_tarjetas,
             "minutos_hoy": round(seg / 60), "meta_minutos": perfil.get("minutos_dia", 60),
             "lecciones_hoy": lecc_hoy, "racha": racha(usuario),
             "objetivos": [{"id": o["id"], "titulo": o["titulo"], "progreso": o["progreso"]} for o in objetivos],
@@ -491,11 +542,51 @@ def r_hoy(usuario, q, d, h):
             "ia": estado_ia(usuario)}
 
 
-def preparar_lecciones(usuario, tids, prioridad):
+def _lista(usuario, tid, maxima):
+    """¿La lección ya está como se pide? Con «maxima», además a la versión más profunda (las de idiomas tienen
+    una sola versión: lista es lista)."""
+    v = fila("SELECT version, completa FROM leccion WHERE usuario=? AND tema=? AND ejercicios IS NOT NULL", (usuario, tid))
+    if not v:
+        return False
+    if not maxima or (v["version"] or 1) >= lec.VERSION_MAXIMA:
+        return True
+    t = cur.tema(tid, usuario)
+    return not t or bool(cur.areas(usuario)[t["area"]].get("idioma"))
+
+
+def _leccion_y_rapida(ctx, tid, usuario, perfil, maxima):
+    """Lección del plan; detrás, su vista previa (si la persona no termina las completas) y el contraste de sus
+    afirmaciones con fuentes verificadas (`verificar_lecciones`)."""
+    r = lec.generar_leccion(ctx, tid, usuario, perfil, False, maxima)
+    try:
+        if aa.formato(usuario)["recomendado"] == "esencial":
+            aa.preparar_rapida(usuario, perfil, tid, 1)
+        if config.C.get("verificar_lecciones"):
+            encolar_verificacion(usuario, tid, 2)
+    except Exception:
+        traceback.print_exc()
+    return r
+
+
+def _verif_en_cola(usuario, clave):
+    return next((x for x in ia.cola.trabajos.values() if x.tipo == "verificar" and x.usuario == usuario
+                 and x.etiqueta == clave and x.estado in ("cola", "corriendo", "conflicto")), None)
+
+
+def encolar_verificacion(usuario, tid, prioridad):
+    t = _verif_en_cola(usuario, f"tema:{tid}")
+    if t:
+        if prioridad == 0 and t.prioridad > 0 and t.estado == "cola":
+            ia.cola.subir(t)
+        return t
+    return ia.nuevo("verificar", lambda ctx: vf.verificar_leccion(ctx, usuario, tid), prioridad, usuario, f"tema:{tid}")
+
+
+def preparar_lecciones(usuario, tids, prioridad, maxima=False):
     perfil = perfil_ia(usuario)
     n = 0
     for tid in tids:
-        if fila("SELECT 1 FROM leccion WHERE usuario=? AND tema=? AND ejercicios IS NOT NULL", (usuario, tid)):
+        if _lista(usuario, tid, maxima):
             continue
         previo = next((x for x in ia.cola.trabajos.values() if x.tipo == "leccion" and x.etiqueta == tid and x.usuario == usuario
                        and x.estado in ("cola", "corriendo", "conflicto")), None)
@@ -503,15 +594,17 @@ def preparar_lecciones(usuario, tids, prioridad):
             if prioridad == 0 and previo.prioridad > 0 and previo.estado == "cola":
                 ia.cola.subir(previo)
             continue
-        ia.nuevo("leccion", lambda ctx, tid=tid: lec.generar_leccion(ctx, tid, usuario, perfil), prioridad, usuario, tid)
+        ia.nuevo("leccion", lambda ctx, tid=tid: _leccion_y_rapida(ctx, tid, usuario, perfil, maxima),
+                 prioridad, usuario, tid)
         n += 1
     return n
 
 
 @ruta("POST", "/api/hoy/preparar")
 def r_hoy_preparar(usuario, q, d, h):
-    plan = ad.plan_del_dia(usuario, perfil_de(usuario))
-    n = preparar_lecciones(usuario, plan["recuperar"] + plan["temas"] + plan["extra"], 0)
+    perfil = perfil_de(usuario)
+    plan = ad.plan_del_dia(usuario, perfil)
+    n = preparar_lecciones(usuario, plan["recuperar"] + plan["temas"] + plan["extra"], 0, bool(perfil.get("dia_maxima")))
     return {"ok": True, "encoladas": n}
 
 
@@ -521,7 +614,7 @@ def r_hoy_extra(usuario, q, d, h):
     cantidad = max(1, min(int(d.get("cantidad") or perfil.get("nuevos_dia", 3)), 10))
     nuevos = ad.agregar_sesion(usuario, perfil, cantidad)
     if d.get("preparar", True):
-        preparar_lecciones(usuario, nuevos, 0)
+        preparar_lecciones(usuario, nuevos, 0, bool(perfil.get("dia_maxima")))
     return {"ok": True, "agregados": len(nuevos)}
 
 
@@ -616,6 +709,10 @@ NOMBRE_TRABAJO = {
     "noticias": "🌍 Análisis de noticias", "sintesis": "🧭 Síntesis de noticias", "comparar": "🔎 Comparar fuentes",
     "explicar": "🔎 Noticia a fondo", "lectura": "🈶 Lectura en idioma", "ciencia": "🔬 Consultas científicas",
     "mercado": "📈 Referente del mercado", "a_fondo": "🌍 Noticia a fondo",
+    "verificar": "🔎 Contrastar fuentes", "ruta": "🔄 Actualizar una ruta", "ramas": "🌳 Mapa de sub-ramas",
+    "ideas": "🚀 Ideas en la frontera", "presentacion": "🎤 Preparar presentación", "pares": "🧑‍⚖️ Revisión de pares", "frontera": "🔭 Frontera de una meta", "paper": "📄 Lectura guiada de paper", "aporte": "💡 Evaluar tu aporte",
+    "reexplicar": "🔄 Explicación de otra forma", "externo": "📥 Lo que estudiaste fuera", "rapida": "⚡ Ruta rápida",
+    "pronostico": "💹 Pronóstico de una acción", "relaciones": "💹 Mapa de una acción", "acciones": "💹 Acciones vigiladas",
 }
 
 
@@ -1003,14 +1100,17 @@ def r_tema(usuario, q, d, h):
             "anterior": m["temas_obj"][i - 1]["id"] if i > 0 else None,
             "siguiente": m["temas_obj"][i + 1]["id"] if i + 1 < len(m["temas_obj"]) else None,
             "leccion": {"contenido": lecc["contenido"], "ejercicios": json.loads(lecc["ejercicios"] or "null"),
-                        "fuentes": json.loads(lecc["fuentes"] or "[]"), "creado": lecc["creado"],
+                        "fuentes": vf.marcar_fuentes(json.loads(lecc["fuentes"] or "[]")), "creado": lecc["creado"],
                         "version": lecc["version"] or 1, "completa": lecc["completa"] != 0,
                         "partes": len((json.loads(lecc["plan"]) or {}).get("partes", [])) if lecc["plan"] else 0,
                         "anteriores": fila("SELECT COUNT(*) n FROM leccion_anterior WHERE usuario=? AND tema=?",
                                                           (usuario, tid))["n"]}
             if lecc else None,
             "avance": av, "trabajo": pend,
-            "tarjetas": fila("SELECT COUNT(*) n FROM tarjeta WHERE usuario=? AND tema=?", (usuario, tid))["n"]}
+            "tarjetas": fila("SELECT COUNT(*) n FROM tarjeta WHERE usuario=? AND tema=?", (usuario, tid))["n"],
+            "formato": aa.formato(usuario), "partes": aa.partes_de(usuario, tid),
+            "verificacion": vf.de(usuario, f"tema:{tid}"),
+            "verificando": _verif_en_cola(usuario, f"tema:{tid}") is not None}
 
 
 @ruta("POST", "/api/leccion")
@@ -1026,7 +1126,10 @@ def r_leccion(usuario, q, d, h):
                 x.permiso = d["permiso"]
             return trabajo_json(x)
     perfil = perfil_ia(usuario)
-    t = ia.nuevo("leccion", lambda ctx: lec.generar_leccion(ctx, tid, usuario, perfil, d.get("forzar"), bool(d.get("maxima"))),
+    # Lección nueva de alguien que pidió «todo a máxima profundidad»: nace así (las ya escritas no se tocan al abrirlas)
+    maxima = bool(d.get("maxima")) or (bool(perfil.get("dia_maxima")) and not d.get("forzar") and not fila(
+        "SELECT 1 FROM leccion WHERE usuario=? AND tema=? AND completa!=0", (usuario, tid)))
+    t = ia.nuevo("leccion", lambda ctx: lec.generar_leccion(ctx, tid, usuario, perfil, d.get("forzar"), maxima),
                  0, usuario, tid)
     t.permiso = d.get("permiso")
     return trabajo_json(t)
@@ -1136,10 +1239,24 @@ def r_ciencia(usuario, q, d, h):
     return r
 
 
+@ruta("GET", "/api/prioridad")
+def r_prioridad(usuario, q, d, h):
+    """Para otras apps de IA de este PC que comparten la GPU (p. ej. un servicio de memoria): si una persona espera
+    una tarea no deberían empezar trabajo nuevo; con trabajo del día (prioridad 1) o masivo (2+) pueden dejarle a la
+    Academia una ventana entre sus tareas."""
+    pend = [t for t in list(ia.cola.trabajos.values()) if t.estado in ("cola", "corriendo", "conflicto")]
+    return {"usuario_esperando": ia.usuario_esperando(),
+            "diaria": sum(1 for t in pend if t.prioridad == 1),
+            "fondo": sum(1 for t in pend if t.prioridad >= 2),
+            "corriendo": len(ia.cola.actuales)}
+
+
 @ruta("GET", "/api/trabajo")
 def r_trabajo(usuario, q, d, h):
     t = ia.cola.trabajos.get(q.get("id", ""))
-    return t.publico() if t and t.usuario in (None, usuario) else {"estado": "desconocido"}   # solo los propios
+    if t and t.usuario in (None, usuario):   # solo los propios
+        return t.publico()
+    return ia.resultado_guardado(q.get("id", ""), usuario) or {"estado": "desconocido"}
 
 
 def puede_reintentar(t, usuario):
@@ -1206,19 +1323,106 @@ def r_dominado(usuario, q, d, h):
     return {"ok": True}
 
 
+def _prueba(usuario, pid):
+    r = fila("SELECT * FROM prueba_nivel WHERE id=? AND usuario=?", (int(pid), usuario))
+    if not r:
+        return None
+    return {"id": r["id"], "ref": r["ref"], "datos": json.loads(r["datos"]), "respuestas": json.loads(r["respuestas"] or "{}"),
+            "estado": r["estado"], "resultado": json.loads(r["resultado"]) if r["resultado"] else None,
+            "creada": r["creada"], "terminada": r["terminada"]}
+
+
 @ruta("POST", "/api/prueba")
 def r_prueba(usuario, q, d, h):
-    t = ia.nuevo("prueba", lambda ctx: lec.prueba_nivel(ctx, d["ref"], usuario), 0, usuario, d["ref"])
+    """Si ya hay una prueba de ese módulo sin terminar, se retoma (desde cualquier equipo); si se está preparando,
+    se devuelve ese trabajo; si no, se prepara una nueva."""
+    ref = d.get("ref", "")
+    if not cur.modulo(ref, usuario):
+        return {"error": "módulo desconocido"}
+    abierta = fila("SELECT id FROM prueba_nivel WHERE usuario=? AND ref=? AND estado='lista' ORDER BY id DESC LIMIT 1",
+                   (usuario, ref))
+    if abierta and not d.get("nueva"):
+        return {"prueba": abierta["id"]}
+    t = next((x for x in ia.cola.trabajos.values() if x.tipo == "prueba" and x.usuario == usuario and x.etiqueta == ref
+              and x.estado in ("cola", "corriendo", "conflicto")), None)
+    if not t:
+        if abierta:   # pidió una nueva: la anterior sin terminar se descarta
+            ejecutar("UPDATE prueba_nivel SET estado='descartada' WHERE id=?", (abierta["id"],))
+        t = ia.nuevo("prueba", lambda ctx: lec.prueba_nivel(ctx, ref, usuario), 0, usuario, ref)
     t.permiso = d.get("permiso")
     return trabajo_json(t)
+
+
+@ruta("GET", "/api/prueba")
+def r_prueba_ver(usuario, q, d, h):
+    x = _prueba(usuario, q.get("id")) if str(q.get("id", "")).isdigit() else None
+    return x or {"error": "prueba desconocida"}
+
+
+@ruta("POST", "/api/prueba/respuesta")
+def r_prueba_respuesta(usuario, q, d, h):
+    """Cada respuesta se guarda al tocarla: cerrar la ventana o cambiar de equipo no pierde nada."""
+    x = _prueba(usuario, d.get("id") or 0)
+    i, j = d.get("i"), d.get("j")
+    if not x or x["estado"] != "lista" or not isinstance(i, int) or not isinstance(j, int) \
+            or not 0 <= i < len(x["datos"]["preguntas"]):
+        return {"error": "datos inválidos"}
+    p_ = x["datos"]["preguntas"][i]
+    if str(i) in x["respuestas"]:
+        return {"ok": True, "repetida": True, **x["respuestas"][str(i)]}
+    x["respuestas"][str(i)] = {"j": j, "ok": j == p_["correcta"], "tema": p_["tema"]}
+    ejecutar("UPDATE prueba_nivel SET respuestas=? WHERE id=?", (json.dumps(x["respuestas"]), x["id"]))
+    return {"ok": True, **x["respuestas"][str(i)]}
+
+
+@ruta("GET", "/api/pruebas")
+def r_pruebas(usuario, q, d, h):
+    out = {"listas": [], "terminadas": [], "preparando": []}
+    for r in filas("""SELECT id, ref, datos, respuestas, estado, resultado, creada, terminada FROM prueba_nivel
+                      WHERE usuario=? AND estado IN ('lista','terminada') ORDER BY id DESC LIMIT 40""", (usuario,)):
+        m = cur.modulo(r["ref"], usuario)
+        item = {"id": r["id"], "ref": r["ref"], "modulo": m["t"] if m else r["ref"],
+                "area": cur.modulo_area_nombre(r["ref"], usuario), "creada": r["creada"],
+                "total": len(json.loads(r["datos"])["preguntas"]), "respondidas": len(json.loads(r["respuestas"] or "{}"))}
+        if r["estado"] == "lista":
+            out["listas"].append(item)
+        else:
+            res = json.loads(r["resultado"] or "{}")
+            out["terminadas"].append({**item, "terminada": r["terminada"], "aprobado": res.get("aprobado"),
+                                      "porcentaje": res.get("porcentaje"), "pasados": len(res.get("pasados", [])),
+                                      "pendientes": len(res.get("pendientes", []))})
+    out["preparando"] = [{"ref": x.etiqueta, "modulo": (cur.modulo(x.etiqueta, usuario) or {}).get("t", x.etiqueta),
+                          "trabajo": x.publico()} for x in ia.cola.trabajos.values()
+                         if x.tipo == "prueba" and x.usuario == usuario and x.estado in ("cola", "corriendo", "conflicto")]
+    return out
+
+
+@ruta("GET", "/api/ubicacion/estado")
+def r_ubicacion_ver(usuario, q, d, h):
+    return {"estado": kv_get(f"ubicacion:{usuario}:{q.get('clave', '')}")}
+
+
+@ruta("POST", "/api/ubicacion/estado")
+def r_ubicacion_guardar(usuario, q, d, h):
+    """Dónde va la búsqueda binaria de «Ubícame» (se retoma desde cualquier equipo); estado null = terminada."""
+    clave = re.sub(r"[^a-z0-9_.:]", "", str(d.get("clave", "")))[:80]
+    if not clave:
+        return {"error": "clave inválida"}
+    kv_set(f"ubicacion:{usuario}:{clave}", d.get("estado"))
+    return {"ok": True}
 
 
 @ruta("POST", "/api/prueba/resultado")
 def r_prueba_res(usuario, q, d, h):
     """95 % o más = módulo superado (todos sus temas probados). Si no, se marcan
     como probados solo los temas con TODAS sus preguntas bien; el resto queda pendiente."""
+    guardada = _prueba(usuario, d["id"]) if str(d.get("id", "")).isdigit() else None
+    if guardada:
+        d["ref"] = guardada["ref"]
+        if guardada["estado"] == "terminada" and guardada["resultado"]:
+            return guardada["resultado"]
     m = cur.modulo(d["ref"], usuario)
-    res = d.get("respuestas", [])
+    res = list(guardada["respuestas"].values()) if guardada else d.get("respuestas", [])
     bien = sum(1 for r in res if r.get("ok"))
     total = len(res)
     aprobado = total > 0 and bien / total >= lec.APROBAR_PRUEBA
@@ -1239,8 +1443,112 @@ def r_prueba_res(usuario, q, d, h):
     registrar(usuario, "prueba", None, m["area"], bien / max(1, total),
               {"ref": d["ref"], "pasados": len(pasados), "pendientes": len(pendientes)})
     ad.invalidar(usuario)
-    return {"aprobado": aprobado, "bien": bien, "total": total, "porcentaje": bien / max(1, total),
-            "minimo": lec.APROBAR_PRUEBA, "pasados": pasados, "pendientes": pendientes}
+    out = {"aprobado": aprobado, "bien": bien, "total": total, "porcentaje": bien / max(1, total),
+           "minimo": lec.APROBAR_PRUEBA, "pasados": pasados, "pendientes": pendientes}
+    if guardada:
+        ejecutar("UPDATE prueba_nivel SET estado='terminada', resultado=?, terminada=? WHERE id=?",
+                 (json.dumps(out, ensure_ascii=False), time.time(), guardada["id"]))
+    return out
+
+
+# ------------------------------------------------- lectura adaptativa (por partes)
+@ruta("POST", "/api/parte")
+def r_parte(usuario, q, d, h):
+    if not cur.tema(d.get("tema", ""), usuario):
+        return {"error": "tema desconocido"}
+    try:
+        aa.guardar_parte(usuario, d["tema"], int(d["parte"]), d.get("estado"), d.get("segundos"))
+    except (ValueError, TypeError, KeyError):
+        return {"error": "datos inválidos"}
+    ad.invalidar(usuario)
+    return {"ok": True}
+
+
+@ruta("POST", "/api/reexplicar")
+def r_reexplicar(usuario, q, d, h):
+    if not cur.tema(d.get("tema", ""), usuario) or d.get("estilo") not in aa.ESTILOS:
+        return {"error": "datos inválidos"}
+    t = aa.reexplicar_trabajo(usuario, perfil_ia(usuario), d["tema"], int(d.get("parte") or 1), d["estilo"],
+                              str(d.get("duda") or "")[:600])
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("POST", "/api/rapida")
+def r_rapida(usuario, q, d, h):
+    if not cur.tema(d.get("tema", ""), usuario):
+        return {"error": "tema desconocido"}
+    t = aa.preparar_rapida(usuario, perfil_ia(usuario), d["tema"], 0)
+    if not t:
+        rap = aa.rapida_de(usuario, d["tema"])
+        return {"listo": True, "texto": rap["texto"]} if rap else {"error": "no disponible: la lección aún no está completa o es de idiomas"}
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("POST", "/api/diagnostico")
+def r_diagnostico(usuario, q, d, h):
+    if not cur.tema(d.get("tema", ""), usuario):
+        return {"error": "tema desconocido"}
+    return {"ok": True, "diagnostico": aa.guardar_diagnostico(usuario, d["tema"], int(d.get("bien", 0)),
+                                                               int(d.get("total", 0)), d.get("flojas") or [],
+                                                               d.get("vistas") or [])}
+
+
+# ------------------------------------------------- horizonte, ubicación y aprendizaje externo
+@ruta("GET", "/api/horizonte")
+def r_horizonte(usuario, q, d, h):
+    n = max(1, min(int(q.get("enfoque") or 3), 8))
+    return aa.horizonte(usuario, perfil_de(usuario), n)
+
+
+@ruta("POST", "/api/enfoque")
+def r_enfoque(usuario, q, d, h):
+    """Enfocarse: las áreas elegidas a prioridad 3; las demás activas a `resto` (0 = mantenimiento: sin temas nuevos
+    pero sus tarjetas se siguen repasando; 1 = de fondo: avanzan poco).
+    Lo pide la persona con un botón; nunca se aplica solo."""
+    mias = cur.areas_de(usuario)
+    elegidas = [a for a in d.get("areas", []) if a in mias]
+    if not elegidas:
+        return {"error": "elige al menos un área"}
+    resto = max(0, min(1, int(d.get("resto", 0))))
+    p = perfil_de(usuario)
+    metas = cur.areas_de_metas(usuario)
+    for a_id, a in cur.areas(usuario).items():
+        if a_id not in mias:
+            continue
+        if a_id in elegidas:
+            p["pesos"][a_id] = 3
+        elif cur.peso(a, p["pesos"], usuario, metas) > 0:
+            p["pesos"][a_id] = resto
+    guardar_perfil(usuario, p)
+    ad.reiniciar_plan_si_no_empezo(usuario)
+    ad.invalidar(usuario)
+    return {"ok": True, "pesos": p["pesos"]}
+
+
+@ruta("POST", "/api/ubicacion/inferir")
+def r_ubicacion_inferir(usuario, q, d, h):
+    if not cur.modulo(d.get("ref", ""), usuario):
+        return {"error": "módulo desconocido"}
+    marcados = aa.inferir_requisitos(usuario, d["ref"], bool(d.get("todas")))
+    ad.invalidar(usuario)
+    return {"ok": True, "inferidos": len(marcados)}
+
+
+@ruta("GET", "/api/externo")
+def r_externo_ver(usuario, q, d, h):
+    return {"externo": aa.externo(usuario)}
+
+
+@ruta("POST", "/api/externo")
+def r_externo(usuario, q, d, h):
+    texto = str(d.get("texto") or "").strip()
+    if len(texto) < 5:
+        return {"error": "cuenta qué estudiaste"}
+    t = ia.nuevo("externo", lambda ctx: aa.mapear_externo(ctx, usuario, texto), 0, usuario, "externo")
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
 
 
 # --------------------------------------------------------------- repaso
@@ -1264,6 +1572,29 @@ def r_repasar(usuario, q, d, h):
     origen = d.get("origen") if d.get("origen") in ("pulso", "chequeo") else "repaso"
     p = an.aplicar_repaso(usuario, t, int(d["nota"]), d.get("segundos"), origen)
     return {"ok": True, "vence": p["vence"]}
+
+
+@ruta("POST", "/api/quiz/fallos")
+def r_quiz_fallos(usuario, q, d, h):
+    """Lo que fallaste en el quiz se vuelve tarjeta (desde el quiz guardado de la lección, no desde el navegador):
+    repasar justo los errores es lo que más rinde por minuto."""
+    t = cur.tema(d.get("tema", ""), usuario)
+    lecc = fila("SELECT ejercicios FROM leccion WHERE usuario=? AND tema=?", (usuario, d.get("tema", "")))
+    if not t or not lecc:
+        return {"error": "tema desconocido"}
+    quiz = (json.loads(lecc["ejercicios"] or "{}") or {}).get("quiz", [])
+    tarjetas = []
+    for i in d.get("fallos", [])[:20]:
+        if not isinstance(i, int) or not 0 <= i < len(quiz):
+            continue
+        p_ = quiz[i]
+        ops = p_.get("opciones") or []
+        correcta = ops[p_["correcta"]] if p_.get("tipo") == "opcion" and isinstance(p_.get("correcta"), int) \
+            and 0 <= p_["correcta"] < len(ops) else ""
+        tarjetas.append({"frente": p_.get("pregunta", ""),
+                         "reverso": (f"**{correcta}**\n\n" if correcta else "") + (p_.get("explicacion") or "")})
+    a = cur.areas(usuario)[t["area"]]
+    return {"ok": True, "agregadas": agregar_tarjetas(usuario, tarjetas, t["id"], t["area"], a.get("idioma"), "quiz")}
 
 
 @ruta("POST", "/api/tarjeta")
@@ -1670,10 +2001,302 @@ def r_objetivo_nuevo(usuario, q, d, h):
     if not titulo:
         return {"error": "Escribe el objetivo"}
     perfil = perfil_de(usuario)
-    t = ia.nuevo("objetivo", lambda ctx: lec.planear_objetivo(ctx, usuario, perfil, titulo, d.get("descripcion", "")),
-                 0, usuario, titulo)
+    def planear(ctx):
+        r = lec.planear_objetivo(ctx, usuario, perfil, titulo, d.get("descripcion", ""))
+        dominio.mapear_ramas(ctx, usuario, perfil, r["objetivo"])   # que no quede ninguna sub-rama sin cubrir
+        if d.get("semanas"):
+            dominio.poner_plazo(usuario, r["objetivo"], int(d["semanas"]))
+        ia.nuevo("frontera", lambda c: dominio.generar_frontera(c, usuario, perfil_ia(usuario), r["objetivo"]),
+                 1, usuario, str(r["objetivo"]))
+        return r
+    t = ia.nuevo("objetivo", planear, 0, usuario, titulo)
     t.permiso = d.get("permiso")
     return trabajo_json(t)
+
+
+# ------------------------------------------------- programa de dominio (meta → frontera)
+def _frontera_en_cola(usuario, oid):
+    return next((x for x in ia.cola.trabajos.values() if x.tipo == "frontera" and x.usuario == usuario
+                 and x.etiqueta == str(oid) and x.estado in ("cola", "corriendo", "conflicto")), None)
+
+
+@ruta("GET", "/api/dominio")
+def r_dominio(usuario, q, d, h):
+    oid = q.get("objetivo", "")
+    if not oid.isdigit() or not fila("SELECT 1 FROM objetivo WHERE id=? AND usuario=?", (int(oid), usuario)):
+        return {"error": "meta desconocida"}
+    pend = _frontera_en_cola(usuario, oid)
+    trab = {x.tipo: x.publico() for x in ia.cola.trabajos.values() if x.usuario == usuario and x.etiqueta == str(oid)
+            and x.tipo in ("ramas", "ideas") and x.estado in ("cola", "corriendo", "conflicto")}
+    return {"programa": dominio.estado_programa(usuario, perfil_de(usuario), oid), "ramas": dominio.ramas_de(usuario, oid),
+            "ideas": dominio.ideas_de(usuario, oid), "trabajos": trab,
+            "frontera": dominio.ultima_frontera(oid), "frontera_trabajo": pend.publico() if pend else None,
+            "lecturas": dominio.lecturas_de(usuario, oid), "aportes": dominio.aportes_de(usuario, oid)}
+
+
+@ruta("POST", "/api/programa")
+def r_programa(usuario, q, d, h):
+    try:
+        prog = dominio.poner_plazo(usuario, d.get("objetivo"), max(0, min(int(d.get("semanas") or 0), 260)))
+    except (ValueError, TypeError):
+        return {"error": "meta desconocida"}
+    ad.invalidar(usuario)
+    ad.reiniciar_plan_si_no_empezo(usuario)
+    return {"ok": True, "programa": prog}
+
+
+@ruta("POST", "/api/frontera")
+def r_frontera(usuario, q, d, h):
+    oid = str(d.get("objetivo", ""))
+    if not oid.isdigit() or not fila("SELECT 1 FROM objetivo WHERE id=? AND usuario=?", (int(oid), usuario)):
+        return {"error": "meta desconocida"}
+    t = _frontera_en_cola(usuario, oid)
+    if t:
+        if t.prioridad > 0 and t.estado == "cola":
+            ia.cola.subir(t)
+        return trabajo_json(t)
+    t = ia.nuevo("frontera", lambda ctx: dominio.generar_frontera(ctx, usuario, perfil_ia(usuario), oid), 0, usuario, oid)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+def _meta_propia(usuario, oid):
+    oid = str(oid or "")
+    return oid if oid.isdigit() and fila("SELECT 1 FROM objetivo WHERE id=? AND usuario=?", (int(oid), usuario)) else None
+
+
+def _tarea_meta(tipo, usuario, etiqueta, fn, d):
+    t = next((x for x in ia.cola.trabajos.values() if x.tipo == tipo and x.usuario == usuario and x.etiqueta == etiqueta
+              and x.estado in ("cola", "corriendo", "conflicto")), None) or ia.nuevo(tipo, fn, 0, usuario, etiqueta)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("POST", "/api/ramas")
+def r_ramas(usuario, q, d, h):
+    oid = _meta_propia(usuario, d.get("objetivo"))
+    if not oid:
+        return {"error": "meta desconocida"}
+    return _tarea_meta("ramas", usuario, oid, lambda ctx: dominio.mapear_ramas(ctx, usuario, perfil_ia(usuario), oid), d)
+
+
+@ruta("POST", "/api/ideas")
+def r_ideas(usuario, q, d, h):
+    oid = _meta_propia(usuario, d.get("objetivo"))
+    if not oid:
+        return {"error": "meta desconocida"}
+    if not dominio.ultima_frontera(oid):
+        return {"error": "primero hace falta el mapa de la frontera (🔭) de esta meta"}
+    enfoque = str(d.get("enfoque") or "")[:600]
+    return _tarea_meta("ideas", usuario, oid, lambda ctx: dominio.idear(ctx, usuario, perfil_ia(usuario), oid, enfoque), d)
+
+
+def _idea_propia(usuario, d):
+    iid = str(d.get("idea") or "")
+    return iid if iid.isdigit() and dominio._idea(usuario, iid) else None
+
+
+@ruta("POST", "/api/idea/elegir")
+def r_idea_elegir(usuario, q, d, h):
+    iid = _idea_propia(usuario, d)
+    if not iid:
+        return {"error": "idea desconocida"}
+    dominio.elegir_idea(usuario, iid)
+    ad.invalidar(usuario)
+    ad.reiniciar_plan_si_no_empezo(usuario)
+    return {"ok": True}
+
+
+@ruta("POST", "/api/idea/presentacion")
+def r_idea_presentacion(usuario, q, d, h):
+    iid = _idea_propia(usuario, d)
+    if not iid:
+        return {"error": "idea desconocida"}
+    return _tarea_meta("presentacion", usuario, iid, lambda ctx: dominio.preparar_presentacion(ctx, usuario, perfil_ia(usuario), iid), d)
+
+
+@ruta("POST", "/api/idea/pares")
+def r_idea_pares(usuario, q, d, h):
+    iid = _idea_propia(usuario, d)
+    if not iid:
+        return {"error": "idea desconocida"}
+    return _tarea_meta("pares", usuario, iid, lambda ctx: dominio.revision_pares(ctx, usuario, iid), d)
+
+
+@ruta("POST", "/api/paper/guia")
+def r_paper_guia(usuario, q, d, h):
+    oid = str(d.get("objetivo", ""))
+    if not oid.isdigit() or not fila("SELECT 1 FROM objetivo WHERE id=? AND usuario=?", (int(oid), usuario)):
+        return {"error": "meta desconocida"}
+    n = int(d.get("paper") or 0)
+    t = ia.nuevo("paper", lambda ctx: dominio.guia_paper(ctx, usuario, perfil_ia(usuario), oid, n), 0, usuario, f"{oid}:{n}")
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("GET", "/api/paper")
+def r_paper(usuario, q, d, h):
+    x = dominio.lectura(usuario, q.get("id") or 0) if str(q.get("id", "")).isdigit() else None
+    return x or {"error": "lectura desconocida"}
+
+
+@ruta("POST", "/api/paper/responder")
+def r_paper_responder(usuario, q, d, h):
+    respuesta = str(d.get("respuesta") or "").strip()
+    if not dominio.lectura(usuario, int(d.get("id") or 0)) or len(respuesta) < 3:
+        return {"error": "datos inválidos"}
+    t = ia.nuevo("corregir", lambda ctx: dominio.corregir_respuesta(ctx, usuario, int(d["id"]), int(d.get("i", 0)),
+                                                                   respuesta[:4000]), 0, usuario, f"paper:{d['id']}")
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("POST", "/api/aporte")
+def r_aporte(usuario, q, d, h):
+    oid = str(d.get("objetivo", ""))
+    texto = str(d.get("texto") or "").strip()
+    if not oid.isdigit() or not fila("SELECT 1 FROM objetivo WHERE id=? AND usuario=?", (int(oid), usuario)) \
+            or len(texto) < 20:
+        return {"error": "escribe tu idea (al menos una frase completa)"}
+    t = ia.nuevo("aporte", lambda ctx: dominio.evaluar_aporte(ctx, usuario, perfil_ia(usuario), oid, texto[:4000]),
+                 0, usuario, oid)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+# ------------------------------------------------- fuentes verificadas y comparador
+@ruta("POST", "/api/verificar/leccion")
+def r_verificar_leccion(usuario, q, d, h):
+    tid = d.get("tema", "")
+    if not cur.tema(tid, usuario) or not fila("SELECT 1 FROM leccion WHERE usuario=? AND tema=?", (usuario, tid)):
+        return {"error": "la lección aún no existe"}
+    t = encolar_verificacion(usuario, tid, 0)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("POST", "/api/verificar")
+def r_verificar(usuario, q, d, h):
+    texto = str(d.get("texto") or "").strip()
+    if len(texto) < 10:
+        return {"error": "escribe la afirmación o la pregunta (al menos una frase)"}
+    t = ia.nuevo("verificar", lambda ctx: vf.verificar_texto(ctx, usuario, texto[:3000]), 0, usuario, "texto")
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("GET", "/api/verificar")
+def r_verificar_ver(usuario, q, d, h):
+    clave = q.get("clave", "")
+    if clave:
+        return vf.de(usuario, clave) or {"error": "no existe"}
+    pend = [x.publico() for x in ia.cola.trabajos.values() if x.tipo == "verificar" and x.usuario == usuario
+            and x.etiqueta == "texto" and x.estado in ("cola", "corriendo", "conflicto")]
+    return {"historial": vf.historial(usuario), "pendientes": pend}
+
+
+# ------------------------------------------------- rutas vivas: preparar todo y actualizar
+def _ruta_area(usuario, d):
+    """La ruta pedida como id de área: un área ({area}) o la de una meta ({objetivo} → obj<N>)."""
+    if d.get("objetivo") not in (None, ""):
+        oid = str(d["objetivo"])
+        if not oid.isdigit() or not fila("SELECT 1 FROM objetivo WHERE id=? AND usuario=?", (int(oid), usuario)):
+            return None
+        return f"obj{oid}"
+    a = str(d.get("area") or "")
+    return a if a in cur.areas_de(usuario) and a in cur.areas(usuario) else None
+
+
+def _temas_ruta(usuario, area_id):
+    """Todos los temas de una ruta; en una meta, también los de sus requisitos de otras áreas."""
+    if area_id.startswith("obj"):
+        o = fila("SELECT * FROM objetivo WHERE id=? AND usuario=?", (int(area_id[3:]), usuario))
+        if not o:
+            return []
+        return [t["id"] for p in cur.estado_objetivo(usuario, o)["pasos"] for t in p["faltan"]]
+    avs = cur.avances(usuario)
+    return [t["id"] for m in sorted(cur.areas(usuario)[area_id]["modulos"], key=lambda m: m["nivel"])
+            for t in m["temas_obj"] if cur.dominio_tema(avs.get(t["id"])) < cur.UMBRAL_DOMINIO]
+
+
+PRIORIDAD_RUTA = 2   # «preparar toda la ruta» va detrás de lo diario (noticias, mercado, lecciones del día)
+
+
+@ruta("POST", "/api/ruta/preparar")
+def r_ruta_preparar(usuario, q, d, h):
+    area_id = _ruta_area(usuario, d)
+    if not area_id:
+        return {"error": "ruta desconocida"}
+    marcadas = set(kv_get(f"preparar_ruta:{usuario}") or [])
+    marcadas.add(area_id)
+    kv_set(f"preparar_ruta:{usuario}", sorted(marcadas))   # la actualización diaria re-encola lo que falte
+    tids = _temas_ruta(usuario, area_id)
+    n = preparar_lecciones(usuario, tids, PRIORIDAD_RUTA, bool(perfil_de(usuario).get("dia_maxima")))
+    return {"ok": True, "encoladas": n, "temas": len(tids)}
+
+
+def actualizar_ruta(ctx, usuario, area_id, forzar=False):
+    """Nivel profesional (referente del mercado) → revisión de la ruta → lecciones de lo nuevo. En una meta, el
+    mapa de la frontera hace de referente."""
+    area = cur.areas(usuario).get(area_id)
+    if not area and not area_id.startswith("obj"):
+        raise ValueError("ruta desconocida")
+    dias_m = float(config.C.get("mercado_cada_dias") or 30)
+    if area_id.startswith("obj"):
+        f = dominio.ultima_frontera(int(area_id[3:]))
+        if not f or forzar and time.time() - f["creada"] > 86400:
+            dominio.generar_frontera(ctx, usuario, perfil_ia(usuario), int(area_id[3:]))
+        area = cur.areas(usuario).get(area_id)   # la frontera puede haber creado el área propia de la meta
+        if not area:
+            return {"area": area_id, "agregados": [], "resumen": "La meta usa solo rutas del catálogo: se revisan en "
+                                                                 "cada área; su frontera quedó al día."}
+    elif not area.get("idioma") and area.get("grupo") != "Idiomas":
+        r = kv_get(f"mercado:{area_id}")
+        if not r or time.time() - r["fecha"] > (1 if forzar else dias_m) * 86400 - 3600:
+            mercado.referente(ctx, area_id, usuario)
+    res = revision.revisar(ctx, usuario, perfil_ia(usuario), area_id)
+    nuevos = [i for x in res["agregados"] for i in x.get("ids", [])]
+    if nuevos:
+        preparar_lecciones(usuario, nuevos, PRIORIDAD_RUTA, bool(perfil_de(usuario).get("dia_maxima")))
+    ad.invalidar(usuario)
+    return res
+
+
+def _ruta_en_cola(usuario, area_id):
+    return next((x for x in ia.cola.trabajos.values() if x.tipo == "ruta" and x.usuario == usuario
+                 and x.etiqueta == area_id and x.estado in ("cola", "corriendo", "conflicto")), None)
+
+
+@ruta("POST", "/api/ruta/actualizar")
+def r_ruta_actualizar(usuario, q, d, h):
+    area_id = _ruta_area(usuario, d)
+    if not area_id:
+        return {"error": "ruta desconocida"}
+    t = _ruta_en_cola(usuario, area_id)
+    if t:
+        if t.prioridad > 0 and t.estado == "cola":
+            ia.cola.subir(t)
+        return trabajo_json(t)
+    t = ia.nuevo("ruta", lambda ctx: actualizar_ruta(ctx, usuario, area_id, True), 0, usuario, area_id)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("GET", "/api/ruta/estado")
+def r_ruta_estado(usuario, q, d, h):
+    area_id = _ruta_area(usuario, q)
+    if not area_id:
+        return {"error": "ruta desconocida"}
+    tids = _temas_ruta(usuario, area_id)
+    listas = sum(1 for t in tids if fila("SELECT 1 FROM leccion WHERE usuario=? AND tema=? AND ejercicios IS NOT NULL",
+                                          (usuario, t)))
+    en_cola = sum(1 for x in ia.cola.trabajos.values() if x.tipo == "leccion" and x.usuario == usuario
+                  and x.etiqueta in set(tids) and x.estado in ("cola", "corriendo", "conflicto"))
+    m = kv_get(f"mercado:{area_id}")
+    t = _ruta_en_cola(usuario, area_id)
+    return {"revision": revision.estado(usuario, area_id), "mercado_fecha": m["fecha"] if m else None,
+            "preparar": area_id in (kv_get(f"preparar_ruta:{usuario}") or []), "pendientes": len(tids),
+            "listas": listas, "en_cola": en_cola, "trabajo": t.publico() if t else None}
 
 
 @ruta("POST", "/api/area/nueva")
@@ -1701,6 +2324,7 @@ def r_objetivo_estado(usuario, q, d, h):
     if d.get("estado") == "borrar":
         ejecutar("DELETE FROM objetivo WHERE id=? AND usuario=?", (d["id"], usuario))
         ejecutar("DELETE FROM area_extra WHERE id=? AND usuario=?", (f"obj{d['id']}", usuario))
+        kv_set(f"programa:{usuario}:{d['id']}", None)
     else:
         ejecutar("UPDATE objetivo SET estado=? WHERE id=? AND usuario=?", (d["estado"], d["id"], usuario))
     return {"ok": True}
@@ -2023,6 +2647,209 @@ def r_chequeo_dia(usuario, q, d, h):
     return {"ok": True, "dia": dia}
 
 
+
+# ---------------------------------------------------------------- acciones
+# Cada persona ve solo SU lista, sus pronósticos y sus alertas; precios, mapa y noticias de un símbolo son caché común.
+def _pronostico_en_cola(usuario, simbolo, tipos=("pronostico", "relaciones")):
+    return next((x for x in ia.cola.trabajos.values() if x.tipo in tipos and x.usuario == usuario
+                 and x.etiqueta == simbolo and x.estado in ("cola", "corriendo", "conflicto")), None)
+
+
+def _encolar_relaciones(usuario, s, prioridad=1):
+    """Mapa de relaciones de fondo. Al correr se salta si ya está fresco (p. ej. lo hizo un pronóstico antes)."""
+    if _pronostico_en_cola(usuario, s, ("relaciones",)):
+        return None
+    return ia.nuevo("relaciones", lambda ctx: ac.relaciones(ctx, s) if ac.necesita_relaciones(s) else {"omitido": True},
+                    prioridad, usuario, s)
+
+
+def _seguro(fn, *args):
+    """Un dato opcional (p. ej. la beta, que pide el índice a internet) nunca tumba la vista entera."""
+    try:
+        return fn(*args)
+    except Exception:
+        traceback.print_exc()
+        return None
+
+
+def _simbolo(d):
+    s = str(d.get("simbolo") or d.get("s") or "").strip()
+    if not ac.valido(s):
+        raise ValueError("símbolo inválido")
+    return s if s.startswith("^") else s.upper()
+
+
+@ruta("GET", "/api/acciones")
+def r_acciones(usuario, q, d, h):
+    rapido = q.get("rapido") == "1"   # «Hoy»: solo lo guardado, sin esperar a internet
+    if not rapido:
+        try:
+            ac.evaluar(usuario)
+        except Exception:   # sin internet o Yahoo caído: se cierran en la próxima visita
+            traceback.print_exc()
+    lista = ac.resumen(usuario, refrescar=not rapido)
+    pend = {x.etiqueta: x.publico() for x in ia.cola.trabajos.values()
+            if x.tipo in ("pronostico", "relaciones") and x.usuario == usuario and x.estado in ("cola", "corriendo", "conflicto")}
+    for a in lista:
+        a["trabajo"] = pend.get(a["simbolo"])
+    try:
+        cartera = ac.cartera(usuario) if not rapido else None
+    except Exception:
+        traceback.print_exc()
+        cartera = None
+    return {"acciones": lista, "calibracion": ac.calibracion(usuario), "descargo": ac.DESCARGO,
+            "horizontes": ac.HORIZONTES, "cartera": cartera}
+
+
+@ruta("GET", "/api/acciones/buscar")
+def r_acciones_buscar(usuario, q, d, h):
+    mias = set(ac.simbolos_de(usuario))
+    return {"resultados": [dict(x, vigilada=x["simbolo"] in mias) for x in ac.buscar(q.get("q", ""))]}
+
+
+@ruta("POST", "/api/acciones/vigilar")
+def r_acciones_vigilar(usuario, q, d, h):
+    s = ac.vigilar(usuario, _simbolo(d), d)
+    if ac.necesita_relaciones(s) and not _pronostico_en_cola(usuario, s):   # el mapa (para noticias indirectas), de fondo
+        _encolar_relaciones(usuario, s)
+    threading.Thread(target=ac.actualizar_noticias, args=(s,), daemon=True).start()
+    registrar(usuario, "accion", detalle={"simbolo": s, "que": "vigilar"})
+    return {"ok": True, "simbolo": s}
+
+
+@ruta("POST", "/api/acciones/quitar")
+def r_acciones_quitar(usuario, q, d, h):
+    ejecutar("DELETE FROM accion_vigilada WHERE usuario=? AND simbolo=?", (usuario, _simbolo(d)))
+    return {"ok": True}
+
+
+@ruta("POST", "/api/acciones/ajustar")
+def r_acciones_ajustar(usuario, q, d, h):
+    s = _simbolo(d)
+    if not fila("SELECT 1 FROM accion_vigilada WHERE usuario=? AND simbolo=?", (usuario, s)):
+        return {"error": "esa acción no está en tu lista"}
+
+    def num(k):
+        v = d.get(k)
+        return None if v in (None, "") else float(v)
+    cantidad, compra = num("cantidad"), num("precio_compra")
+    if (cantidad is not None and cantidad < 0) or (compra is not None and compra < 0):
+        return {"error": "la cantidad y el precio de compra no pueden ser negativos"}
+    ejecutar("""UPDATE accion_vigilada SET alerta_arriba=?, alerta_abajo=?, alerta_pct=?, nota=?, cantidad=?, precio_compra=?
+                WHERE usuario=? AND simbolo=?""",
+             (num("alerta_arriba"), num("alerta_abajo"), num("alerta_pct"), str(d.get("nota") or "")[:500],
+              cantidad, compra, usuario, s))
+    return {"ok": True}
+
+
+@ruta("POST", "/api/acciones/orden")
+def r_acciones_orden(usuario, q, d, h):
+    for k, s in enumerate(d.get("simbolos", [])[:60]):
+        if ac.valido(str(s)):
+            ejecutar("UPDATE accion_vigilada SET orden=? WHERE usuario=? AND simbolo=?", (k, usuario, s))
+    return {"ok": True}
+
+
+@ruta("GET", "/api/accion")
+def r_accion(usuario, q, d, h):
+    """Detalle de un símbolo. Si no está en la lista de la persona es una vista previa (sin pronósticos ni alertas)."""
+    s = _simbolo(q)
+    err = ac.cotizar([s])
+    i = ac.info(s)
+    if not i:
+        return {"error": err.get(s) or "símbolo desconocido"}
+    vig = fila("SELECT * FROM accion_vigilada WHERE usuario=? AND simbolo=?", (usuario, s))
+    if vig:
+        ejecutar("UPDATE accion_vigilada SET visto=? WHERE usuario=? AND simbolo=?", (time.time(), usuario, s))
+    ind = ac.indicadores(i)
+    t = _pronostico_en_cola(usuario, s, ("pronostico",)) or _pronostico_en_cola(usuario, s, ("relaciones",))
+    return {"simbolo": s, "nombre": i["nombre"], "moneda": i["moneda"], "bolsa": i["bolsa"], "tipo": i["tipo"],
+            "sector": i.get("sector") if i.get("sector") != "-" else "", "industria": i.get("industria"),
+            "meta": i["meta"], "serie": [[x[0], x[1]] for x in i["serie"] or []], "indicadores": ind,
+            "lectura": ac.explicar_indicadores(ind), "relaciones": i.get("relaciones"),
+            "mercado": _seguro(ac.frente_al_mercado, i),
+            "noticias": ac.noticias(s), "noticias_fecha": i.get("noticias_fecha"),
+            "vigilada": vig, "alertas": ac.alertas_de(vig, i["meta"] or {}) if vig else [],
+            "pronosticos": ac.pronosticos(usuario, s) if vig else [], "conceptos": ac.conceptos(usuario),
+            "trabajo": t.publico() if t else None, "descargo": ac.DESCARGO, "horizontes": ac.HORIZONTES,
+            "error": err.get(s)}
+
+
+@ruta("POST", "/api/accion/noticias")
+def r_accion_noticias(usuario, q, d, h):
+    return ac.actualizar_noticias(_simbolo(d), forzar=True)
+
+
+@ruta("POST", "/api/accion/pronostico")
+def r_accion_pronostico(usuario, q, d, h):
+    s = _simbolo(d)
+    if not fila("SELECT 1 FROM accion_vigilada WHERE usuario=? AND simbolo=?", (usuario, s)):
+        return {"error": "agrega primero la acción a tu lista"}
+    x = _pronostico_en_cola(usuario, s, ("pronostico",))
+    if x:
+        if x.prioridad > 0 and x.estado == "cola":
+            ia.cola.subir(x)
+        return trabajo_json(x)
+    dias = int(d.get("dias") or 30)
+    pu = d.get("p_usuario")
+    pu = None if pu in (None, "") else max(1.0, min(99.0, float(pu)))
+    t = ia.nuevo("pronostico", lambda ctx: ac.pronosticar(ctx, usuario, s, dias, pu), 0, usuario, s)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("POST", "/api/accion/relaciones")
+def r_accion_relaciones(usuario, q, d, h):
+    s = _simbolo(d)
+    if not fila("SELECT 1 FROM accion_vigilada WHERE usuario=? AND simbolo=?", (usuario, s)):
+        return {"error": "agrega primero la acción a tu lista"}
+    t = _pronostico_en_cola(usuario, s, ("relaciones",))
+    if t:
+        if t.prioridad > 0 and t.estado == "cola":
+            ia.cola.subir(t)
+        return trabajo_json(t)
+    ejecutar("UPDATE accion_info SET relaciones_fecha=0 WHERE simbolo=?", (s,))   # pedido a mano: se rehace
+    return trabajo_json(_encolar_relaciones(usuario, s, 0))
+
+
+def acciones_diarias(u):
+    """Actualización diaria: cierra los pronósticos vencidos y, para cada acción vigilada, noticias + pronóstico a
+    30 días (de fondo, detrás de lo de estudio) si el último tiene más de 20 h. `acciones_pronostico_diario`: False
+    = solo noticias y alertas."""
+    simbolos = ac.simbolos_de(u)
+    if not simbolos:
+        return
+    try:
+        ac.cotizar(simbolos)   # precios al día para el resumen de la mañana (Hermes) y «Hoy»
+        ac.evaluar(u)
+    except Exception:
+        traceback.print_exc()
+    diario = config.C.get("acciones_pronostico_diario", True)
+    for s in simbolos:
+        if _pronostico_en_cola(u, s):
+            continue
+        ult = fila("SELECT creado FROM accion_pronostico WHERE usuario=? AND simbolo=? ORDER BY creado DESC LIMIT 1", (u, s))
+        if diario and (not ult or time.time() - ult["creado"] > 20 * 3600):
+            ia.nuevo("pronostico", lambda ctx, s=s: ac.pronosticar(ctx, u, s, 30), 1, u, s)
+        elif ac.necesita_relaciones(s):
+            _encolar_relaciones(u, s)
+
+
+def lineas_acciones(u, refrescar=True):
+    """Para Hermes: alertas activas y movimientos de la lista de la persona."""
+    lista = ac.resumen(u, refrescar=refrescar)
+    out = []
+    for a in lista:
+        if a["precio"] is None:
+            continue
+        marca = "🔔 " if a["alertas"] else ""
+        pr = a["pronostico"]
+        out.append(f"{marca}{a['simbolo']} {a['precio']:.2f} {a['moneda'] or ''} ({a['cambio'] or 0:+.1f} %)"
+                   + (f" — {', '.join(x['texto'] for x in a['alertas'])}" if a["alertas"] else "")
+                   + (f" · pronóstico {pr['dias']} d: {pr['p_sube']:.0f} % de subir" if pr else ""))
+    return out, any(a["alertas"] for a in lista)
+
+
 # ---------------------------------------------------------------- Hermes
 @ruta("GET", "/api/hermes/resumen")
 def r_hermes(usuario, q, d, h):
@@ -2057,6 +2884,17 @@ def resumen_hermes(usuario):
     if pr["debiles"]:
         lineas += ["", "## Puntos débiles (más fallos en repasos, 30 días)"] + [
             f"- {x['t']} ({x['fallos']} fallos)" for x in pr["debiles"]]
+    lineas += ["", "## Adaptación (lo que dicen sus datos)"] + [f"- {a}" for a in hoy["adaptacion"]["ajustes"]]
+    reforzar = [t for t in hoy["temas"] if t["tipo"] == "recuperar"]
+    if reforzar:
+        lineas += ["", "## Reforzar (si estudian juntos, empieza por aquí)"] + [
+            f"- {t['t']} (id `{t['id']}`): {t.get('motivo') or 'olvidado'}" for t in reforzar]
+    try:
+        acc, _ = lineas_acciones(usuario)
+        if acc:
+            lineas += ["", "## Acciones que vigila (precio, cambio del día, alertas y último pronóstico)"] + [f"- {x}" for x in acc]
+    except Exception:
+        traceback.print_exc()
     notas = filas("SELECT texto, fecha FROM nota WHERE usuario=? ORDER BY id DESC LIMIT 10", (usuario,))
     if notas:
         lineas += ["", "## Notas guardadas"] + [f"- {n['texto']}" for n in notas]
@@ -2074,6 +2912,90 @@ def r_hermes_nota(usuario, q, d, h):
 def r_hermes_tarjetas(usuario, q, d, h):
     return {"agregadas": agregar_tarjetas(_hermes_para(h, d, usuario), d.get("tarjetas", []), d.get("tema"),
                                           d.get("area"), d.get("idioma"), "hermes")}
+
+
+@ruta("GET", "/api/hermes/siguiente")
+def r_hermes_siguiente(usuario, q, d, h):
+    """Mensaje corto para Telegram: lo que más rinde hoy (reforzar, temas, repaso, enfoque)."""
+    u = _hermes_para(h, q, usuario)
+    hoy = r_hoy(u, {}, {}, None)
+    hz = aa.horizonte(u, perfil_de(u))
+    lineas = ["🎓 Academia — lo que más rinde hoy"]
+    reforzar = [t for t in hoy["temas"] if t["tipo"] == "recuperar" and not t["hecho"]]
+    nuevos = [t for t in hoy["temas"] if t["tipo"] != "recuperar" and not t["hecho"]]
+    if reforzar:
+        lineas += ["♻️ Primero reforzar:"] + [f"  • {t['t']} — {t.get('motivo') or 'olvidado'}" for t in reforzar]
+    if nuevos:
+        lineas += ["📚 Nuevo:"] + [f"  • {t['area']} › {t['t']}" for t in nuevos]
+    pend = hoy["repaso"]["vencidas"]
+    if pend:
+        lineas.append(f"🔁 {pend} tarjetas por repasar — escríbeme «repasemos» y te pregunto aquí.")
+    if not (reforzar or nuevos or pend):
+        lineas.append("✅ Hoy ya está todo hecho.")
+    if hz["consejo"]:
+        lineas.append("🔭 " + hz["consejo"][0])
+    try:
+        acc, alerta = lineas_acciones(u, refrescar=False)   # los precios los renovó la actualización diaria
+        if alerta:   # en Telegram solo si alguna acción disparó una alerta
+            lineas += ["💹 Acciones con alerta:"] + [f"  • {x}" for x in acc if x.startswith("🔔")]
+    except Exception:
+        traceback.print_exc()
+    return h.texto("\n".join(lineas) + "\n", "text/plain; charset=utf-8")
+
+
+@ruta("GET", "/api/hermes/acciones")
+def r_hermes_acciones(usuario, q, d, h):
+    """Texto para Telegram con TODA la lista vigilada (precio, cambio, alertas, pronóstico)."""
+    acc, _ = lineas_acciones(_hermes_para(h, q, usuario))
+    return h.texto("💹 Tus acciones\n" + ("\n".join(f"• {x}" for x in acc) or "No vigilas ninguna acción.") + "\n",
+                   "text/plain; charset=utf-8")
+
+
+@ruta("GET", "/api/hermes/alertas")
+def r_hermes_alertas(usuario, q, d, h):
+    """Para el cron de Hermes en horario de bolsa: SOLO las alertas que aún no avisó hoy (texto vacío = nada nuevo,
+    y Hermes no manda nada). Cada alerta (símbolo + tipo) se avisa una vez al día."""
+    u = _hermes_para(h, q, usuario)
+    hoy_ = datetime.now().strftime("%Y-%m-%d")
+    clave = f"alertas_avisadas:{u}"
+    avisadas = kv_get(clave) or {}
+    avisadas = {k: v for k, v in avisadas.items() if v == hoy_}
+    nuevas = []
+    for a in ac.resumen(u):
+        for x in a["alertas"]:
+            k = f"{a['simbolo']}:{x['tipo']}"
+            if k not in avisadas:
+                avisadas[k] = hoy_
+                nuevas.append(f"🔔 {a['simbolo']} {a['precio']:.2f} {a['moneda'] or ''} ({a['cambio'] or 0:+.1f} %): {x['texto']}")
+    kv_set(clave, avisadas)
+    return h.texto("💹 Alertas de tus acciones\n" + "\n".join(nuevas) + "\n" if nuevas else "", "text/plain; charset=utf-8")
+
+
+@ruta("GET", "/api/hermes/repaso")
+def r_hermes_repaso(usuario, q, d, h):
+    """Tarjetas para repasar por chat (Telegram): primero las vencidas, si no, las más débiles. Hermes muestra el
+    frente, espera la respuesta, muestra el reverso y manda la nota (1 = no la recordé … 4 = fácil)."""
+    u = _hermes_para(h, q, usuario)
+    n = max(1, min(int(q.get("n") or 5), 20))
+    cola, venc, _ = cola_repaso(u, perfil_de(u))
+    tarjetas = [t for t in cola if t["estabilidad"] is not None][:n]
+    origen = "vencidas"
+    if not tarjetas:
+        tarjetas, origen = ad.pulso(u, n), "pulso"
+    return {"origen": origen, "vencidas": venc, "tarjetas": [
+        {"id": t["id"], "frente": t["frente"], "reverso": t["reverso"], "tema": t["tema"], "area": t["area"]}
+        for t in tarjetas]}
+
+
+@ruta("POST", "/api/hermes/repaso")
+def r_hermes_repasar(usuario, q, d, h):
+    u = _hermes_para(h, d, usuario)
+    t = fila("SELECT * FROM tarjeta WHERE id=? AND usuario=?", (d.get("id"), u))
+    if not t or int(d.get("nota", 0)) not in (1, 2, 3, 4):
+        return {"error": "tarjeta o nota inválida"}
+    p = an.aplicar_repaso(u, t, int(d["nota"]), d.get("segundos"), "hermes")
+    ad.invalidar(u)
+    return {"ok": True, "vuelve_en_dias": round((p["vence"] - time.time()) / 86400, 1)}
 
 
 @ruta("GET", "/api/hermes/buscar_tema")
@@ -2113,9 +3035,7 @@ def actualizacion_diaria():
     ahora = time.time()
     kv_set("diaria_ultima", ahora)
     nt.descargar(regiones_en_uso())
-    # Noticias a la MÁXIMA profundidad, solo a esta hora (como todo lo demás): las que cada persona verá de sus
-    # áreas pasan por análisis completo → comparación entre medios → explicación; y después las síntesis.
-    ia.nuevo("noticias", lambda ctx: _profundizar_noticias(), 1, None, "elegir a fondo")
+    pendientes_rutas = []
     for r in filas("SELECT usuario FROM perfil"):
         u = r["usuario"]
         perfil = perfil_de(u)
@@ -2130,17 +3050,51 @@ def actualizacion_diaria():
         ad.actualizar_niveles(u)   # sube/baja de nivel profesional → historial
         ad.invalidar(u)
         plan = ad.plan_del_dia(u, perfil)
-        # Por adelantado, no por cuota: como máximo `lecciones_adelantadas` listas sin leer por persona
-        faltan = [t for t in plan["recuperar"] + plan["temas"]
-                  if not fila("SELECT 1 FROM leccion WHERE usuario=? AND tema=?", (u, t))]
-        preparar_lecciones(u, faltan[:max(0, adelantadas() - sin_leer(u))], 1)
+        if perfil.get("dia_maxima"):
+            # Pedido de la persona: al levantarse, TODAS las sesiones del día ya escritas a máxima profundidad
+            # (sin tope de adelantadas; las que estaban a profundidad normal se reescriben).
+            preparar_lecciones(u, plan["recuperar"] + plan["temas"] + plan["extra"], 1, True)
+        else:
+            # Por adelantado, no por cuota: como máximo `lecciones_adelantadas` listas sin leer por persona
+            faltan = [t for t in plan["recuperar"] + plan["temas"]
+                      if not fila("SELECT 1 FROM leccion WHERE usuario=? AND tema=?", (u, t))]
+            preparar_lecciones(u, faltan[:max(0, adelantadas() - sin_leer(u))], 1)
+        if aa.formato(u)["recomendado"] == "esencial":   # no termina las lecciones largas: ruta rápida de cada una
+            for t in plan["recuperar"] + plan["temas"] + plan["extra"]:
+                aa.preparar_rapida(u, perfil_ia(u), t, 1)
+        for oid in dominio.fronteras_vencidas(u)[:1]:   # frontera viva: cada meta se re-mapea cada 30 días
+            if not _frontera_en_cola(u, oid):
+                ia.nuevo("frontera", lambda ctx, oid=oid, u=u: dominio.generar_frontera(ctx, u, perfil_ia(u), oid),
+                         1, u, str(oid))
         profundizar_lecciones(u, 1)   # las lecciones antiguas (cortas) se reescriben a fondo, 1 por día
-        for a in mercado.pendientes(u, perfil, 1):   # referente del mercado actual: 1 área por día, cada 30 días
-            if not any(x.tipo == "mercado" and x.etiqueta == a and x.estado in ("cola", "corriendo", "conflicto")
-                       for x in ia.cola.trabajos.values()):
-                ia.nuevo("mercado", lambda ctx, a=a, u=u: mercado.referente(ctx, a, u), 1, u, a)
+        pendientes_rutas.append((u, perfil))   # se encolan después de las noticias (no las retrasan horas)
+    # Noticias a la MÁXIMA profundidad, solo a esta hora (como todo lo demás): las que cada persona verá de sus
+    # áreas pasan por análisis completo → comparación entre medios → explicación; y después las síntesis.
+    # Van DESPUÉS de las lecciones del día en la cola: lo primero que se lee al levantarse son las lecciones.
+    ia.nuevo("noticias", lambda ctx: _profundizar_noticias(), 1, None, "elegir a fondo")
+    for u, perfil in pendientes_rutas:
+        rutas_vivas(u, perfil)
+        acciones_diarias(u)
     if any(not kv_get(f"consulta_en:{r}") for r, _ in cur.catalogo_modulos()):
         ia.nuevo("ciencia", lambda ctx: ciencia.traducir_modulos(ctx), 1, None, "consultas científicas")
+
+
+def rutas_vivas(u, perfil):
+    """Cada día, para cada ruta de la persona (áreas con prioridad > 0 y metas activas): nivel profesional vs.
+    mercado (cada `mercado_cada_dias`) y revisión de la ruta (cada `revision_rutas_cada_dias`), en una sola tarea
+    por ruta; y las rutas marcadas «preparar todo» re-encolan las lecciones que falten."""
+    dias_r = float(config.C.get("revision_rutas_cada_dias") or 7)
+    metas = cur.areas_de_metas(u)
+    rutas = [a["id"] for a in cur.areas(u).values() if a["id"] in cur.areas_de(u) and not a.get("objetivo")
+             and not a.get("idioma") and a.get("grupo") != "Idiomas" and cur.peso(a, perfil.get("pesos", {}), u, metas) > 0]
+    rutas += [f"obj{o['id']}" for o in filas("SELECT id FROM objetivo WHERE usuario=? AND estado='activo'", (u,))
+              if f"obj{o['id']}" in cur.areas(u)]
+    for a in rutas:
+        if revision.vencida(u, a, dias_r) and not _ruta_en_cola(u, a):
+            ia.nuevo("ruta", lambda ctx, a=a, u=u: actualizar_ruta(ctx, u, a), 1, u, a)
+    for a in kv_get(f"preparar_ruta:{u}") or []:
+        if a in cur.areas(u):
+            preparar_lecciones(u, _temas_ruta(u, a), PRIORIDAD_RUTA, bool(perfil.get("dia_maxima")))
 
 
 def noticias_por_persona():
@@ -2168,9 +3122,10 @@ def sin_leer(usuario):
                         if x.tipo == "leccion" and x.usuario == usuario and x.estado in ("cola", "corriendo", "conflicto"))
 
 
-def _profundizar_noticias():
+def _profundizar_noticias(solo_pendientes=False):
     """Elige las noticias de hoy que verá cada persona (las n que más pesan en SUS áreas; la unión de todas) y encola
-    cada una a máxima profundidad. Las síntesis van al final, cuando ya hay material a fondo."""
+    cada una a máxima profundidad. Las síntesis van al final, cuando ya hay material a fondo. `solo_pendientes`
+    (al reanudar tras un reinicio): solo las síntesis que no se escribieron desde la última actualización diaria."""
     elegidas = []
     for r in filas("SELECT usuario FROM perfil"):
         if not activo(r["usuario"]):
@@ -2188,17 +3143,70 @@ def _profundizar_noticias():
         s = nt.sintesis_guardada(p)
         # día y semana se reescriben a diario; el mes cada semana; el año cada mes
         edad = {"dia": 0, "semana": 0, "mes": 7, "anio": 30}[p] * 86400
-        if not s or ahora - s["creada"] >= edad:
+        if solo_pendientes and s and s["creada"] >= kv_get("diaria_ultima", 0):
+            continue
+        en_cola = any(x.tipo == "sintesis" and x.etiqueta == p and x.estado in ("cola", "corriendo", "conflicto")
+                      for x in ia.cola.trabajos.values())
+        if not en_cola and (not s or ahora - s["creada"] >= edad):
             ia.nuevo("sintesis", lambda ctx, p=p: nt.sintesis(ctx, p), 1, None, p)
     return {"a_fondo": len(elegidas)}
+
+
+def reanudar():
+    """La cola de la IA vive en memoria: al reiniciar el servidor se perdía todo lo pendiente (2026-10-28: 291 tareas,
+    con ~12 reinicios en un día). Al arrancar se vuelve a encolar el trabajo de fondo que se puede reconstruir desde la
+    base: lecciones a medio escribir, las del plan de hoy, las rutas marcadas «preparar todo», el contraste de fuentes
+    de las lecciones recientes, los pronósticos de acciones del día y las noticias a fondo y síntesis que faltan. Lo que
+    ya está hecho se salta solo (preparar_lecciones mira la base, a_profundizar descarta las noticias completas)."""
+    n = 0
+    for r in filas("SELECT usuario FROM perfil"):
+        u = r["usuario"]
+        if not activo(u):
+            continue
+        try:
+            perfil = perfil_de(u)
+            maxima = bool(perfil.get("dia_maxima"))
+            a_medias = [x["tema"] for x in filas("SELECT tema FROM leccion WHERE usuario=? AND completa=0", (u,))]
+            n += preparar_lecciones(u, a_medias, 1, maxima)
+            plan = ad.plan_del_dia(u, perfil)
+            del_dia = plan["recuperar"] + plan["temas"] + (plan["extra"] if maxima else [])
+            if not maxima:
+                del_dia = [t for t in del_dia if not fila("SELECT 1 FROM leccion WHERE usuario=? AND tema=?", (u, t))]
+                del_dia = del_dia[:max(0, adelantadas() - sin_leer(u))]
+            n += preparar_lecciones(u, del_dia, 1, maxima)
+            for a in kv_get(f"preparar_ruta:{u}") or []:
+                if a in cur.areas(u):
+                    n += preparar_lecciones(u, _temas_ruta(u, a), PRIORIDAD_RUTA, maxima)
+            if config.C.get("verificar_lecciones"):
+                for x in filas("""SELECT l.tema FROM leccion l LEFT JOIN verificacion v ON v.usuario=l.usuario
+                                  AND v.clave='tema:' || l.tema WHERE l.usuario=? AND l.completa!=0 AND l.creado>?
+                                  AND v.clave IS NULL""", (u, time.time() - 3 * 86400)):
+                    if not _verif_en_cola(u, f"tema:{x['tema']}"):
+                        encolar_verificacion(u, x["tema"], 2)
+                        n += 1
+            acciones_diarias(u)   # pronósticos de acciones que no alcanzaron a hacerse hoy
+        except Exception:
+            traceback.print_exc()
+    try:   # noticias de hoy a máxima profundidad y síntesis que faltan (comunes a todas las personas)
+        ia.nuevo("noticias", lambda ctx: _profundizar_noticias(solo_pendientes=True), 1, None, "elegir a fondo")
+    except Exception:
+        traceback.print_exc()
+    if n:
+        print(f"reanudadas {n} tareas de fondo tras el arranque", flush=True)
+    return n
 
 
 def trabajador():
     """Revisa cada minuto si ya pasó la hora diaria (config/academia.json,
     «hora_diaria», 06:00 por defecto). Si el PC estaba apagado a esa hora,
-    se pone al día apenas arranca."""
+    se pone al día apenas arranca; si no, reanuda lo pendiente (reanudar)."""
     escaneo.purgar(config.DATOS)
     time.sleep(20)
+    try:
+        if kv_get("diaria_ultima", 0) >= ultima_hora_programada():
+            reanudar()
+    except Exception:
+        traceback.print_exc()
     while True:
         try:
             escaneo.purgar(config.DATOS)          # el escaneo del PC no vive más de 24 h

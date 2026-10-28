@@ -166,6 +166,9 @@ def _reubicar_imagenes():
 def iniciar():
     with _bloqueo:
         db().executescript(ESQUEMA)
+        db().executescript("""CREATE TABLE IF NOT EXISTS trabajo_hecho (
+            id TEXT PRIMARY KEY, usuario TEXT, tipo TEXT, etiqueta TEXT, estado TEXT, resultado TEXT, error TEXT,
+            terminado REAL)""")   # resultados de la IA, 7 días (ia.guardar_resultado)
         db().executescript("""CREATE TABLE IF NOT EXISTS tarea (
             id INTEGER PRIMARY KEY AUTOINCREMENT, usuario TEXT, tema TEXT, area TEXT, titulo TEXT,
             dificultad TEXT, enfoque TEXT, ejercicios TEXT, creado REAL)""")

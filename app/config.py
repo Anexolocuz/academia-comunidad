@@ -37,6 +37,15 @@ DEFECTO = {
     "noticias_a_fondo_por_persona": 8,            # noticias diarias a máxima profundidad (las que verá cada persona)
     "regiones_por_defecto": {"global": 2},        # regiones de noticias (prioridad 0-3) de quien aún no eligió las suyas
     "lecciones_adelantadas": 2,                   # lecciones listas sin leer que se preparan por adelantado por persona
+    "mercado_cada_dias": 30,                      # cada cuántos días se renueva el nivel profesional vs. mercado de cada ruta
+    "revision_rutas_cada_dias": 7,                # cada cuántos días se revisa cada ruta (temas que faltan o cambiaron)
+    "acciones_pronostico_diario": True,           # 💹 cada día, pronóstico a 30 días de cada acción vigilada (False = solo
+                                                  # noticias y alertas; el pronóstico se pide a mano)
+    "verificar_lecciones": False,                 # True = cada lección nueva se contrasta sola con fuentes verificadas
+    "modelos_cedibles": [],                       # modelos de otras apps que ceden el turno a lo que PIDES tú cuando llevan
+                                                  # 20 s sin procesar (p. ej. el de un servicio de memoria); [] = siempre esperar
+    "supermemory_estado_url": "",                 # opcional: URL de otra app que devuelva JSON {"en_curso": true|false}
+                                                  # (p. ej. un servicio de memoria): no se le corta un trabajo a medias
     "permitir_interrumpir": False,                # False (por defecto) = si otra app usa la IA, tu tarea espera en la cola;
                                                   # True = te pregunta si quieres interrumpirla (su tarea en curso fallaría)
     "usuarios_permitidos": None,                  # cuentas de Tailscale; None = las del portal (si existe), [] = cualquiera del tailnet

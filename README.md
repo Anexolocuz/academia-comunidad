@@ -25,11 +25,19 @@ metas con ruta completa de requisitos, noticias de tus áreas **comparadas entre
 
 ## ✨ Lo que la hace distinta
 
+- 🎓 **Hasta la frontera, de verdad** — cada meta con plazo, hitos y una **frontera viva** (investigación actual
+  de OpenAlex y arXiv, renovada cada mes), lectura guiada de papers y evaluación de tus propias ideas.
+- 🧭 **Se adapta a ti de verdad** — ruta rápida de 10-15 min por lección, paso a paso con «¿lo entendiste?» y
+  reexplicación de otra forma, diagnóstico antes de leer, refuerzo de lo que se te olvida, ritmo real y horizonte
+  de cuánto te falta para cada nivel.
 - 🔒 **Privada de verdad** — sin nube, sin cuentas, sin telemetría. Cerrada a la red por defecto.
 - 🪄 **Se configura sola** — un botón escanea tu PC (con tu permiso, sí/no), te dice qué puedes usar y cómo, y aplica
   la mejor configuración. El escaneo se borra solo a las 24 h.
 - 🧠 **Cualquier IA local** — Ollama, LM Studio, llama.cpp, llama-swap, vLLM, Jan… o la de otro PC tuyo.
 - 📱 **En todos tus equipos** — PC, celular y tablet (instalable como app), por Tailscale o con clave en tu casa.
+- 💹 **Acciones bajo vigilancia** — tu lista con alertas, noticias directas e indirectas (competidores, proveedores,
+  economía) y pronóstico por escenarios de «muy probable» a «muy poco probable», anclado a la estadística y medido
+  contra lo que de verdad pasó (puedes competir con tu propia estimación). Educativo, no asesoría financiera.
 - 🌍 **Noticias por región** — Global + las regiones que elijas (Latinoamérica, tu país…), cada una con tu prioridad; agrega o quita regiones y fuentes.
 - 🎨 **A tu gusto** — claro/oscuro, 6 paletas (incluida alto contraste), color de acento y tamaño de letra.
 - 🧩 **Cruda y legible** — Python estándar + HTML/JS sin frameworks: ideal para aprender cómo se construye.

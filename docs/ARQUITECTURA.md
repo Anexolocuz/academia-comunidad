@@ -21,17 +21,33 @@ app/
   fsrs.py        FSRS-4.5 (repetición espaciada)
   analitica.py   panel «Cómo aprendes», chequeo semanal
   adaptacion.py  pulso, largo plazo, plan adaptativo, plan del día, instantáneas, niveles profesionales, reportes, exportación
+  adaptativo.py  motor adaptativo: dominio vivo (FSRS), requisitos olvidados, partes no entendidas, ritmo real,
+                 formato recomendado, ruta rápida (tabla leccion_rapida), «¿lo entendiste?» por parte
+                 (parte_estado), reexplicaciones (reexplicacion), diagnóstico (kv diag:<u>:<tema>), horizonte,
+                 ubicación (inferir_requisitos) y aprendizaje externo (kv externo:<u>)
+  dominio.py     programa de dominio por meta: plazo (kv programa:<u>:<oid>), frontera viva (tabla frontera_meta,
+                 versiones; ciencia.frontera = revisiones/citados/arXiv), lectura guiada (lectura_paper) y aportes (aporte)
+  revision.py    rutas vivas: revisar(ctx, usuario, perfil, area) con mercado/frontera → aplicar() agrega temas y
+                 módulos upd<N> (catálogo: capa propia en ruta_extra que curriculo.areas(usuario) mezcla; propias:
+                 area_extra); registro en kv revision:<u>:<area>
+  verificacion.py fiabilidad(url), buscar_fuentes() agresiva, comparar() afirmaciones↔fuentes, verificar_leccion/
+                 verificar_texto (tabla verificacion); noticias.fuentes_de y lecciones._fuentes_* la usan
   lectura.py     sesiones de lectura medidas (tabla `lectura`): velocidad por idioma y fórmulas, lecturas
                  terminadas, avance por actividad (/api/lectura/sesion; la interfaz lo mide en web/app.js «LECT»)
   noticias.py    regiones (config() = config/fuentes.json + datos/regiones.json; ranking(regiones={id: 0-3})), RSS, agrupación, análisis (lee el artículo completo), síntesis, lecturas en idiomas,
                  comparar() entre medios y explicar() a fondo (columna noticia.profundo)
   ciencia.py     documentos científicos de OpenAlex (caché 30 días en kv papers:<consulta>, consultas en inglés por módulo)
   mercado.py     referente de lo que pide hoy el mercado por área (kv mercado:<area>, 30 días) y nivel de mercado
+  acciones.py    💹 acciones vigiladas: Yahoo Finance (buscar, cotizar: serie diaria de 2 años en accion_info),
+                 indicadores y tasa_base (sin IA), noticias directas/indirectas (Yahoo RSS, Google Noticias, tabla
+                 noticia; accion_noticia), relaciones() y pronosticar() con la IA (clasifica noticias, escenarios,
+                 p_sube anclada a la tasa base ±20), evaluar()/calibracion() (Brier), lista por persona (accion_vigilada)
 pruebas/humo.py  arranca en carpeta temporal y comprueba páginas, versión y protecciones de seguridad
+pruebas/unidad.py unittest sin internet ni IA: cálculos de acciones (RSI, tasa base, cartera, margen) y caché de áreas
 Dockerfile, docker-compose.yml, docker/   imagen sin root + perfiles ollama/buscador + GPU NVIDIA/AMD + asistentes
 instalar.py      instalador (Windows/macOS/Linux) con auto-escaneo, --auto y arranque automático
 web/temas/       paletas de color (JSON de tokens CSS) e index.json
-web/             index.html, app.js (vistas por hash #/…), cuaderno.js (lienzo S Pen), estilo.css, vendor/ (KaTeX, marked, DOMPurify)
+web/             index.html, app.js (vistas por hash #/…), cuaderno.js (lienzo S Pen), acciones.js (💹), estilo.css, vendor/ (KaTeX, marked, DOMPurify)
 curriculo/       un JSON por área
 config/          fuentes.json
 ```
@@ -78,6 +94,23 @@ Cabeceras `nosniff`, `SAMEORIGIN`, `no-referrer` en `end_headers()`.
 - **Plan del día congelado** en `kv` (`plan:<usuario>:<fecha>`), sesiones extra se agregan.
 - **Prompts**: todos en `lecciones.py` / `analitica.py` / `noticias.py`; salida estructurada con JSON Schema.
 
+- **Motor adaptativo** (`adaptativo.py`, 2026-10-27): `plan_adaptativo` usa `ritmo()` (tope de temas nuevos),
+  `partes_no_entendidas()` y `requisitos_olvidados()` (van a `recuperar` con `motivo`; el plan guarda `motivos`) y
+  `formato()`; `curriculo.recomendar` multiplica por `1 + 0,1·dependientes` (módulos de tus áreas que lo necesitan) y
+  da 1,5 a los requisitos de tus metas. `mapa()` trae `memoria` por tema. La interfaz parte la lección por `## Parte N`
+  (`adaptarLectura` en `web/app.js`): pliega capas opcionales, agrega el control por parte y el paso a paso;
+  `ofrecerDiagnostico` relaciona cada pregunta con su parte por palabras en común. La ruta rápida se encola detrás de
+  cada lección del plan (`_leccion_y_rapida`) y en la actualización diaria si `formato()` recomienda «esencial».
+
+- **Caché de áreas** (2026-10-28): `curriculo.areas(usuario)` se arma una vez por persona y se reutiliza mientras no
+  cambie su versión (tabla `areas_version`, la suben triggers de SQLite en cada INSERT/UPDATE/DELETE de `area_extra`
+  y `ruta_extra`, las escriba quien las escriba). Lo devuelto es de solo lectura: para cambiar un área se lee su fila
+  de la base (como `revision.aplicar` y `dominio`). «Hoy» pasó de 2,6 s a 0,14 s.
+- **Respuestas comprimidas**: `Manejador._comprimir` manda gzip (texto/JSON de más de 2 KB) si el navegador lo acepta
+  (`app.js` 270 → 80 KB, el mapa 300 → 64 KB). Los cortes de conexión (`BrokenPipeError`) ya no ensucian el registro.
+- **Búsqueda web con frenado automático** (`ia.buscar_web`): si SearXNG avisa de un motor suspendido, el intervalo
+  entre consultas se duplica (hasta 6 s) y vuelve poco a poco a 1,2 s.
+
 ## API principal
 
 `GET /api/hoy · /api/mapa · /api/tema?id= · /api/noticia?id= · /api/ciencia?ref=|q= · /api/leccion/anterior?tema= · /api/repaso · /api/analitica · /api/niveles · /api/largo_plazo ·
@@ -86,8 +119,40 @@ Cabeceras `nosniff`, `SAMEORIGIN`, `no-referrer` en `end_headers()`.
 /api/objetivos · /api/area/nueva · /api/chequeo/crear · /api/pulso · /api/hoy/extra · /api/config`
 Las tareas de IA devuelven `{trabajo}`; se consulta con `GET /api/trabajo?id=`.
 
-Integración con agentes (Hermes): `GET /api/hermes/resumen` (markdown), `GET /api/hermes/buscar_tema?q=`,
-`POST /api/hermes/tarjetas`, `POST /api/hermes/nota`.
+Adaptativo: `POST /api/parte {tema, parte, estado: sabido|dudoso|no} · /api/reexplicar {tema, parte, estilo: simple|ejemplo|esquema, duda}
+· /api/rapida {tema} · /api/diagnostico {tema, bien, total, flojas} · /api/enfoque {areas, resto} · /api/ubicacion/inferir {ref}
+· /api/externo {texto}` y `GET /api/horizonte?enfoque= · /api/externo`; `/api/tema` trae `formato` y `partes`.
+
+Programa de dominio: `GET /api/dominio?objetivo=` · `POST /api/programa {objetivo, semanas}` · `/api/frontera {objetivo}`
+· `/api/paper/guia {objetivo, paper}` · `GET /api/paper?id=` · `POST /api/paper/responder {id, i, respuesta}` ·
+`/api/aporte {objetivo, texto}`; `POST /api/objetivos` acepta `semanas` y encola la frontera detrás del plan; la
+actualización diaria renueva 1 frontera vencida (30 días) por persona; `curriculo.refs_con_plazo` da ×3 en `recomendar`.
+
+Rutas vivas: `GET /api/ruta/estado?area=|objetivo=` · `POST /api/ruta/preparar {area|objetivo}` (prioridad 2, kv
+`preparar_ruta:<u>`) · `POST /api/ruta/actualizar {area|objetivo}` (tarea `ruta` = `actualizar_ruta`: mercado o
+frontera → `revision.revisar` → lecciones de lo nuevo); la actualización diaria llama `rutas_vivas(u)`.
+
+Innovación: `POST /api/ramas {objetivo}` (dominio.mapear_ramas; plan.ramas) · `POST /api/ideas {objetivo, enfoque}`
+(dominio.idear + _chequeo_novedad; tabla idea) · `POST /api/idea/elegir|presentacion|pares {idea}`;
+`dominio.refs_proyecto` da ×2 en `recomendar`. Prioridad: `ia.otros_modelos(usuario_espera=)` + `GET /api/prioridad`.
+
+Verificación: `POST /api/verificar/leccion {tema}` · `POST /api/verificar {texto}` · `GET /api/verificar[?clave=]`.
+Persistencia: `ia.guardar_resultado` (tabla `trabajo_hecho`, 7 días; `GET /api/trabajo` cae ahí si ya no está en
+memoria); pruebas en `prueba_nivel` (`POST /api/prueba` retoma la abierta, `GET /api/prueba?id=`,
+`POST /api/prueba/respuesta {id,i,j}`, `POST /api/prueba/resultado {id}`, `GET /api/pruebas`); Ubícame en
+kv `ubicacion:<u>:<clave>` (`GET/POST /api/ubicacion/estado`).
+
+Acciones: `GET /api/acciones[?rapido=1]` (lista + calibración; rapido = sin pedir precios) · `GET /api/acciones/buscar?q=`
+· `POST /api/acciones/vigilar|quitar {simbolo}` · `/api/acciones/ajustar {simbolo, alerta_arriba, alerta_abajo,
+alerta_pct, nota}` · `/api/acciones/orden {simbolos}` · `GET /api/accion?s=` (vista previa si no es de tu lista) ·
+`POST /api/accion/noticias {simbolo}` · `/api/accion/pronostico {simbolo, dias, p_usuario?}` · `/api/accion/relaciones
+{simbolo}`. Tareas de IA `pronostico` y `relaciones` (de la persona, enmascaradas para los demás en ⏳). La
+actualización diaria llama `acciones_diarias(u)`.
+
+Integración con agentes (Hermes): `GET /api/hermes/resumen` (markdown), `GET /api/hermes/siguiente` (texto para
+Telegram), `GET /api/hermes/repaso?n=` y `POST /api/hermes/repaso {id, nota}` (repaso por chat), `GET /api/hermes/buscar_tema?q=`,
+`POST /api/hermes/tarjetas`, `POST /api/hermes/nota`, `GET /api/hermes/acciones` (lista vigilada en texto) y
+`GET /api/hermes/alertas` (solo alertas no avisadas hoy; vacío = nada).
 
 ## Probar sin tocar tus datos
 

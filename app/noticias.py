@@ -627,6 +627,9 @@ def _guardar_profundo(nid, clave, valor):
     ejecutar("UPDATE noticia SET profundo=? WHERE id=?", (json.dumps(pr, ensure_ascii=False), nid))
 
 
+MIN_FUENTES = 5   # con menos medios que esto, se buscan más (antes 3)
+
+
 def fuentes_de(nid, buscar_mas=True, largo=2600):
     """Cada medio que cuenta la historia, con el texto de su artículo. Si el grupo
     tiene menos de 3 medios, busca la misma historia en otros medios con SearXNG."""
@@ -644,17 +647,32 @@ def fuentes_de(nid, buscar_mas=True, largo=2600):
         out.append({"fuente": g["fuente"], "titulo": g["titulo"], "url": g["url"], "resumen": g["resumen"], "origen": "rss"})
         if len(out) >= 6:
             break
-    if buscar_mas and len(out) < 3:
-        for r in ia.buscar_web(cab["titulo"], n=8):
-            d = _dominio(r["url"])
-            if d in vistos or len(out) >= 5:
+    if buscar_mas and len(out) < MIN_FUENTES:
+        # búsqueda agresiva (verificacion.py): la misma historia en español e inglés, fuentes primarias
+        # (oficiales/académicas) y verificadores de datos; máximo 2 por dominio, sin redes sociales
+        import verificacion as vf
+        a = json.loads(cab["analisis"]) if cab["analisis"] else {}
+        es = [cab["titulo"]] + ([a["titulo_es"]] if a.get("titulo_es") and a["titulo_es"] != cab["titulo"] else [])
+        en = [cab["titulo"]] if cab["titulo"].isascii() else []
+        clave = _tokens(cab["titulo"]) | (_tokens(a["titulo_es"]) if a.get("titulo_es") else set())
+        for f in vf.buscar_fuentes(es, en, n=8, verificadores=True, academicas=False, leer=False,
+                                   excluir={g["url"] for g in out}):
+            d = f["fiabilidad"]["dominio"]
+            if d in vistos or len(out) >= 7:
+                continue
+            # que sea la MISMA historia y no una parecida: comparte una buena parte de las palabras del titular
+            comunes = clave & (_tokens(f["titulo"]) | _tokens(f["texto"][:400]))
+            if len(comunes) < max(2, round(len(clave) * 0.35)):
                 continue
             vistos.add(d)
-            out.append({"fuente": d, "titulo": r["titulo"], "url": r["url"], "resumen": r["texto"], "origen": "web"})
+            out.append({"fuente": d, "titulo": f["titulo"], "url": f["url"], "resumen": f["texto"], "origen": "web"})
     with ThreadPoolExecutor(6) as ex:
         textos = list(ex.map(lambda f: _texto_articulo(f["url"], largo), out))
     for f, t in zip(out, textos):
         f["texto"] = t or f["resumen"]
+        f["leido"] = bool(t)
+    import verificacion as vf
+    vf.marcar_fuentes(out)
     return cab, out
 
 
@@ -689,7 +707,8 @@ def comparar(ctx, nid):
                                               "solo_una": True, "creado": time.time()})
         return {"solo_una": True}
     k = len(fs)
-    bloque = "\n\n".join(f"### FUENTE {i}: {f['fuente']}\nTítulo: {f['titulo']}\n{f['texto']}" for i, f in enumerate(fs))
+    bloque = "\n\n".join(f"### FUENTE {i}: {f['fuente']} ({f['fiabilidad']['tipo']}, fiabilidad "
+                         f"{f['fiabilidad']['nivel']}/4)\nTítulo: {f['titulo']}\n{f['texto']}" for i, f in enumerate(fs))
     prompt = (
         _hoy() +
         f"La misma noticia contada por {k} medios distintos. Compáralos con rigor de verificador de datos.\n\n{bloque}\n\n"
@@ -699,7 +718,8 @@ def comparar(ctx, nid):
         "lo que solo cuenta una.\n- diferencias: cifras distintas, fechas, nombres o encuadres que no coinciden, "
         "citando qué fuente dice qué.\n- enfoques: uno por fuente (fuente = índice): su ángulo en una frase, su tono y "
         "qué omite que otras sí cuentan.\n- contradicciones: afirmaciones incompatibles entre fuentes (si no hay, []).\n"
-        "- conclusion: 2-3 frases: qué está bien establecido, qué es dudoso y qué falta saber. JSON compacto.")
+        "- conclusion: 2-3 frases: qué está bien establecido, qué es dudoso y qué falta saber. Pesa más lo que dicen "
+        "las fuentes oficiales, académicas y los verificadores de datos (fiabilidad 3-4) que un medio general. JSON compacto.")
     ctx.fase(f"Comparando {k} fuentes")
     r = ctx.chat([{"role": "system", "content": SISTEMA_BASE}, {"role": "user", "content": prompt}],
                  max_tokens=3500, temperatura=0.2, esquema=esquema_comparacion(k))
@@ -707,9 +727,14 @@ def comparar(ctx, nid):
         a["fuentes"] = sorted({i for i in a["fuentes"] if 0 <= i < k})
         n = len(a["fuentes"])
         a["nivel"] = "todas" if n == k else "varias" if n >= 2 else "una"
+        niv = [fs[i]["fiabilidad"]["nivel"] for i in a["fuentes"]]
+        # respaldo: cuántas fuentes y de qué calidad (una oficial/académica pesa más que tres blogs)
+        a["respaldo"] = "alto" if (n >= 3 and max(niv or [0]) >= 3) or (n >= 2 and max(niv or [0]) >= 4) else \
+            "medio" if niv and max(niv) >= 3 else "bajo"
     r["afirmaciones"] = [a for a in r["afirmaciones"] if a["fuentes"]]
     r["afirmaciones"].sort(key=lambda a: -len(a["fuentes"]))   # de lo más común a lo menos común
-    r["fuentes"] = [{x: f[x] for x in ("fuente", "titulo", "url", "origen")} | {"leido": bool(f["texto"])} for f in fs]
+    r["fuentes"] = [{x: f[x] for x in ("fuente", "titulo", "url", "origen", "fiabilidad")} | {"leido": f.get("leido", bool(f["texto"]))}
+                    for f in fs]
     r["creado"] = time.time()
     _guardar_profundo(nid, "comparacion", r)
     return r

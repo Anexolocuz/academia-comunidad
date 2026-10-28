@@ -265,3 +265,60 @@ details.avanzado > summary::before { content: "▸ "; color: var(--suave); }
 details.avanzado[open] > summary::before { content: "▾ "; }
 details.region { border-top: 1px solid var(--borde); padding: .5rem 0; }
 details.region > summary { cursor: pointer; }
+
+/* lectura adaptativa (2026-10-27) */
+details.capa { border: 1px dashed var(--borde); border-radius: 10px; padding: .3rem .7rem; margin: .6rem 0; }
+details.capa > summary { cursor: pointer; font-weight: 600; }
+.control-parte { margin: 1rem 0 1.4rem; padding: .7rem .8rem; border-radius: 10px; background: var(--panel2); border: 1px solid var(--borde); }
+.control-parte .reex-caja { margin: .6rem 0 0; }
+.barra-lectura .chips { flex-wrap: wrap; }
+.tabla-h { overflow-x: auto; }
+.tabla-h table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.tabla-h th, .tabla-h td { text-align: left; padding: .3rem .4rem; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+/* barra con más atajos (🔎 📝 🔭): en pantallas angostas se desplaza en vez de desbordar */
+@media (max-width: 600px) {
+  .atajos { overflow-x: auto; max-width: 64vw; scrollbar-width: none; }
+  .atajos::-webkit-scrollbar { display: none; }
+  .atajos button { padding: .3rem .32rem; font-size: 1.12rem; flex: 0 0 auto; }
+}
+
+/* 💹 acciones (web/acciones.js): arriba/abajo llevan signo y flecha además del color */
+.ac-sube { color: var(--bien); } .ac-baja { color: var(--mal); } .ac-igual { color: var(--suave); }
+.ac-lista li { gap: .8rem; }
+.ac-sim { min-width: 0; flex: 1 1 8rem; overflow: hidden; text-overflow: ellipsis; }
+.ac-sim .peq { white-space: nowrap; }
+.ac-precio { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ac-extra { display: flex; flex-wrap: wrap; gap: .3rem; flex: 1 1 100%; justify-content: flex-end; }
+.ac-extra:empty { display: none; }
+.ac-spark { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+@media (min-width: 720px) { .ac-extra { flex: 0 1 22rem; } }
+@media (max-width: 420px) { .ac-spark { display: none; } }
+.ac-cabeza { margin: .5rem 0 .8rem; display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.ac-grande { font-size: 1.9rem; font-variant-numeric: tabular-nums; }
+.graf-precio { position: relative; width: 100%; overflow: hidden; }
+.graf-precio svg { display: block; touch-action: pan-y; }
+.gp-red { stroke: var(--borde); stroke-width: 1; }
+.gp-eje { fill: var(--suave); font-size: 11px; font-variant-numeric: tabular-nums; }
+.gp-linea { fill: none; stroke: var(--acento); stroke-width: 2; stroke-linejoin: round; }
+.gp-media { fill: none; stroke: var(--suave); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.gp-cono { fill: color-mix(in srgb, var(--acento) 14%, transparent); }
+.gp-cono-borde { stroke: var(--acento); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.gp-cruz { stroke: var(--suave); stroke-width: 1; }
+.gp-punto { fill: var(--acento); stroke: var(--panel); stroke-width: 2; }
+.gp-leyenda { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: .3rem; }
+.gp-leyenda i { display: inline-block; width: 16px; height: 0; vertical-align: middle; margin-right: .35rem; border-top: 2px solid var(--acento); }
+.gp-leyenda .gp-l-media { border-top: 2px dashed var(--suave); }
+.gp-leyenda .gp-l-cono { height: 10px; border: 1px dashed var(--acento); background: color-mix(in srgb, var(--acento) 14%, transparent); }
+.ac-prob { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; margin: .3rem 0; }
+.ac-prob > b { font-size: 2rem; font-variant-numeric: tabular-nums; }
+.ac-barra { position: relative; height: 10px; overflow: visible; }
+.ac-barra u { position: absolute; top: -3px; width: 2px; height: 16px; background: var(--texto); }
+.ac-escenario { border-left-width: 4px; }
+.ac-escenario.ac-bien { border-left-color: var(--bien); } .ac-escenario.ac-medio { border-left-color: var(--medio); }
+.ac-escenario.ac-mal { border-left-color: var(--mal); }
+.ac-irrelevante { opacity: .6; }
+.ac-peso { display: grid; grid-template-columns: minmax(4rem, 7rem) 1fr 3rem; gap: .4rem; align-items: center; font-size: .82rem; margin: .2rem 0; }
+.ac-peso span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ac-peso b { text-align: right; font-variant-numeric: tabular-nums; }
+/* barra de arriba: en pantallas angostas, lo menos usado va a «⋯» */
+#masAtajos { display: none; }
+@media (max-width: 720px) { .atajos .extra { display: none; } #masAtajos { display: inline-block; } .atajos { max-width: none; } }

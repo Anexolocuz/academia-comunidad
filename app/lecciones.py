@@ -42,13 +42,13 @@ SISTEMA_BASE = (
 
 
 def _fuentes_para(t, area):
+    """Fuentes de partida de una lección: búsqueda agresiva (verificacion.py) en español, con Wikipedia, .edu y .gov,
+    ordenada por fiabilidad y con máximo 2 por dominio."""
     if area.get("grupo") == "Idiomas":
         return []
+    import verificacion as vf
     q = f'{t["t"]} {t["d"]}'.strip()
-    res = ia.buscar_web(q, n=5)
-    if len(res) < 3:
-        res += ia.buscar_web(f'{t["t"]} {area["nombre"]}', n=5 - len(res))
-    return res[:5]
+    return vf.buscar_fuentes([q, f'{t["t"]} {area["nombre"]}'], n=6, academicas=False, leer=False)
 
 
 def contexto_tema(tid, usuario):
@@ -146,8 +146,9 @@ ESQUEMA_PLAN = {"type": "object", "properties": {
 
 
 def _fuentes_web(texto, vistas, n):
+    import verificacion as vf
     out = []
-    for f in ia.buscar_web(texto, n=n + 3):
+    for f in vf.buscar_fuentes([texto], n=n + 3, academicas=False, leer=False):
         if f["url"] not in vistas:
             vistas.add(f["url"])
             out.append(f)
@@ -369,6 +370,9 @@ def corregir(ctx, tid, usuario, pregunta, modelo_resp, respuesta, modo="abierta"
 
 
 # ------------------------------------------------------------ prueba de nivel
+ejecutar("""CREATE TABLE IF NOT EXISTS prueba_nivel (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, usuario TEXT, ref TEXT, datos TEXT, respuestas TEXT DEFAULT '{}',
+  estado TEXT DEFAULT 'lista', resultado TEXT, creada REAL, terminada REAL)""")   # lista | terminada
 APROBAR_PRUEBA = 0.95   # % mínimo para dar por superado el módulo completo
 PREGUNTAS_POR_TEMA = 2  # un tema cuenta como sabido solo si acierta todas sus preguntas
 
@@ -426,6 +430,9 @@ def prueba_nivel(ctx, ref, usuario):
     r["ya_sabidos"] = [t["t"] for t in todos if t not in temas]
     r["intento"] = len(hechas) // max(1, len(temas) * PREGUNTAS_POR_TEMA) + 1
     r["aprobar"] = APROBAR_PRUEBA
+    # guardada en la base: se puede cerrar la ventana, cambiar de equipo y retomarla donde iba
+    r["id"] = ejecutar("INSERT INTO prueba_nivel(usuario,ref,datos,creada) VALUES(?,?,?,?)",
+                       (usuario, ref, json.dumps(r, ensure_ascii=False), time.time())).lastrowid
     return r
 
 

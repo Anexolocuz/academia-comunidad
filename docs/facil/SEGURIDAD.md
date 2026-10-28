@@ -6,7 +6,7 @@
 - **Cada quien en su PC:** quien descarga la Academia la corre en su propio computador.
 - **Cerrada por defecto:** solo tu PC puede abrirla. Para el celular, usa **Tailscale** (cifrado) o una **clave** en tu casa.
 - **La IA es tuya:** corre en tu PC (o en otro PC tuyo).
-- **A internet solo sale:** noticias, búsquedas web (si las activas) y búsquedas de artículos científicos. Nunca tus datos.
+- **A internet solo sale:** noticias, búsquedas web (si las activas), búsquedas de artículos científicos y, si usas 💹 Acciones, los símbolos que vigilas (para pedir precios y titulares). Nunca tus datos: tu cartera, alertas y notas se quedan en tu PC.
 - **El escaneo del PC** pide permiso (sí/no), no mira tus archivos y **se borra solo en 24 horas**.
 
 ## 3 consejos
