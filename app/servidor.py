@@ -46,6 +46,8 @@ import base
 from base import ejecutar, fila, filas, kv_get, kv_set, registrar
 
 base.iniciar()
+import ejecucion as ejc  # noqa: E402
+import estados as est  # noqa: E402
 import lectura  # noqa: E402
 lectura.iniciar()
 
@@ -686,6 +688,166 @@ def r_reporte(usuario, q, d, h):
     return r
 
 
+# ---------------------------------------------------------------- 💻 práctica con código
+def _ejercicio_de(usuario, eid):
+    try:
+        return fila("SELECT * FROM codigo_ejercicio WHERE id=? AND usuario=?", (int(eid), usuario))
+    except (TypeError, ValueError):
+        return None
+
+
+def _codigo_en_cola(usuario, tid):
+    return next((x for x in ia.cola.trabajos.values() if x.tipo == "codigo" and x.usuario == usuario and x.etiqueta == tid
+                 and x.estado in ("cola", "corriendo", "conflicto")), None)
+
+
+@ruta("GET", "/api/codigo/estado")
+def r_codigo_estado(usuario, q, d, h):
+    tid = q.get("tema", "")
+    t = cur.tema(tid, usuario)
+    if not t:
+        return {"error": "tema desconocido"}
+    ok, motivo = ejc.disponible()
+    area = t.get("area") or tid.split(".")[0]
+    exs = []
+    for r in filas("SELECT id, datos, creado, vio_solucion FROM codigo_ejercicio WHERE usuario=? AND tema=? ORDER BY id DESC LIMIT 10", (usuario, tid)):
+        it = fila("SELECT COUNT(*) n, MAX(aprobado) ap, MAX(CASE WHEN aprobado=1 AND vio_solucion=0 THEN 1 ELSE 0 END) limpio "
+                  "FROM codigo_intento WHERE usuario=? AND ejercicio=?", (usuario, r["id"]))
+        exs.append({"id": r["id"], "titulo": json.loads(r["datos"]).get("titulo"), "creado": r["creado"], "intentos": it["n"],
+                    "aprobado": bool(it["ap"]), "limpio": bool(it["limpio"]), "vio_solucion": bool(r["vio_solucion"])})
+    tr = _codigo_en_cola(usuario, tid)
+    return {"disponible": ok, "motivo": motivo, "area_ok": area in ejc.AREAS_CODIGO, "ejercicios": exs,
+            "trabajo": tr.publico() if tr else None}
+
+
+@ruta("POST", "/api/codigo/nuevo")
+def r_codigo_nuevo(usuario, q, d, h):
+    tid = str(d.get("tema", ""))
+    t = cur.tema(tid, usuario)
+    if not t:
+        return {"error": "tema desconocido"}
+    if (t.get("area") or tid.split(".")[0]) not in ejc.AREAS_CODIGO:
+        return {"error": "la práctica con código es para las áreas de sistemas, ciberseguridad, tecnología, mecatrónica y matemáticas"}
+    ok, motivo = ejc.disponible()
+    if not ok:
+        return {"error": motivo}
+    x = _codigo_en_cola(usuario, tid)
+    if x:
+        return trabajo_json(x)
+    perfil = perfil_ia(usuario)
+    tr = ia.nuevo("codigo", lambda ctx: ejc.generar(ctx, usuario, tid, perfil, None), 0, usuario, tid)
+    tr.permiso = d.get("permiso")
+    return trabajo_json(tr)
+
+
+@ruta("GET", "/api/codigo/ejercicio")
+def r_codigo_ejercicio(usuario, q, d, h):
+    r = _ejercicio_de(usuario, q.get("id"))
+    if not r:
+        return {"error": "ejercicio no encontrado"}
+    ult = fila("SELECT codigo FROM codigo_intento WHERE usuario=? AND ejercicio=? ORDER BY id DESC LIMIT 1", (usuario, r["id"]))
+    return dict(ejc.publico(r), ultimo_codigo=ult["codigo"] if ult else None,
+                intentos=fila("SELECT COUNT(*) n FROM codigo_intento WHERE usuario=? AND ejercicio=?", (usuario, r["id"]))["n"],
+                pista=json.loads(r["datos"]).get("pista"))
+
+
+@ruta("POST", "/api/codigo/ejecutar")
+def r_codigo_ejecutar(usuario, q, d, h):
+    r = _ejercicio_de(usuario, d.get("id"))
+    if not r:
+        return {"error": "ejercicio no encontrado"}
+    codigo = str(d.get("codigo") or "")
+    if not codigo.strip():
+        return {"error": "escribe tu código primero"}
+    res = ejc.evaluar(usuario, r, codigo)
+    if res.get("error"):
+        return res
+    aprobado = res["aprobados"] == res["total"] and not res.get("error_carga")
+    ejecutar("INSERT INTO codigo_intento(usuario,ejercicio,codigo,aprobados,total,aprobado,vio_solucion,fecha) VALUES(?,?,?,?,?,?,?,?)",
+             (usuario, r["id"], codigo[:ejc.CODIGO_MAX], res["aprobados"], res["total"], int(aprobado), int(bool(r["vio_solucion"])), time.time()))
+    t = cur.tema(r["tema"], usuario)
+    registrar(usuario, "codigo", r["tema"], (t or {}).get("area"), res["aprobados"] / max(1, res["total"]),
+              {"ejercicio": r["id"], "vio_solucion": bool(r["vio_solucion"]), "aprobado": aprobado})
+    res["aprobado"] = aprobado
+    return res
+
+
+@ruta("POST", "/api/codigo/solucion")
+def r_codigo_solucion(usuario, q, d, h):
+    """Pedir la solución es válido para aprender, pero queda anotado: un ejercicio resuelto después no cuenta como evidencia."""
+    r = _ejercicio_de(usuario, d.get("id"))
+    if not r:
+        return {"error": "ejercicio no encontrado"}
+    ejecutar("UPDATE codigo_ejercicio SET vio_solucion=1 WHERE id=?", (r["id"],))
+    return {"solucion": json.loads(r["datos"])["solucion"]}
+
+
+# ---------------------------------------------------------------- 🧬 dominio medido: estados 0-5 y prueba diferida (modo sombra)
+def _diferida_en_cola(usuario, tid):
+    return next((x for x in ia.cola.trabajos.values() if x.tipo == "diferida" and x.usuario == usuario and x.etiqueta == tid
+                 and x.estado in ("cola", "corriendo", "conflicto")), None)
+
+
+@ruta("GET", "/api/dominio/tema")
+def r_dominio_tema(usuario, q, d, h):
+    tid = q.get("tema", "")
+    if not cur.tema(tid, usuario):
+        return {"error": "tema desconocido"}
+    cal = est.calendario(usuario, tid)
+    sig = next((c for c in cal if not c["hecha"]), None)
+    lista = fila("SELECT id, etapa FROM prueba_diferida WHERE usuario=? AND tema=? AND estado='lista' ORDER BY id DESC LIMIT 1", (usuario, tid))
+    tr = _diferida_en_cola(usuario, tid)
+    return {"estado": est.estado_tema(usuario, tid), "calendario": cal, "siguiente": sig, "lista": dict(lista) if lista else None,
+            "trabajo": tr.publico() if tr else None, "estados": est.ESTADOS, "dias": est.DIAS_ETAPA}
+
+
+@ruta("GET", "/api/dominio/estados")
+def r_dominio_estados(usuario, q, d, h):
+    return est.estados_persona(usuario)
+
+
+@ruta("POST", "/api/diferida/preparar")
+def r_diferida_preparar(usuario, q, d, h):
+    tid = str(d.get("tema", ""))
+    if not cur.tema(tid, usuario):
+        return {"error": "tema desconocido"}
+    sig = est.siguiente_cita(usuario, tid)
+    if not sig:
+        return {"error": "este tema aún no cuenta como dominado (o ya hiciste las tres pruebas diferidas)"}
+    if not sig["disponible"]:
+        return {"error": "todavía no toca: la prueba de los %d días está disponible desde el %s" % (
+            sig["dias"], datetime.fromtimestamp(sig["desde"]).strftime("%d/%m/%Y"))}
+    x = fila("SELECT id FROM prueba_diferida WHERE usuario=? AND tema=? AND etapa=? AND estado='lista'", (usuario, tid, sig["etapa"]))
+    if x:
+        return {"lista": x["id"]}
+    en = _diferida_en_cola(usuario, tid)
+    if en:
+        return trabajo_json(en)
+    perfil = perfil_ia(usuario)
+    t = ia.nuevo("diferida", lambda ctx: est.generar_banco(ctx, usuario, tid, sig["etapa"], perfil), 0, usuario, tid)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t)
+
+
+@ruta("GET", "/api/diferida/prueba")
+def r_diferida_prueba(usuario, q, d, h):
+    r = fila("SELECT * FROM prueba_diferida WHERE id=? AND usuario=?", (q.get("id"), usuario))
+    return est.publica(r) if r else {"error": "prueba no encontrada"}
+
+
+@ruta("POST", "/api/diferida/responder")
+def r_diferida_responder(usuario, q, d, h):
+    r = fila("SELECT * FROM prueba_diferida WHERE id=? AND usuario=?", (d.get("id"), usuario))
+    if not r:
+        return {"error": "prueba no encontrada"}
+    return est.responder(usuario, r, d.get("respuestas"))
+
+
+@ruta("GET", "/api/tablero")
+def r_tablero(usuario, q, d, h):
+    return ad.tablero(usuario, perfil_de(usuario))
+
+
 @ruta("GET", "/api/reporte.md")
 def r_reporte_md(usuario, q, d, h):
     texto = ad.reporte_markdown(ad.datos_reporte(usuario, perfil_de(usuario)))
@@ -719,14 +881,15 @@ def r_reporte_ia(usuario, q, d, h):
         ctx.fase("Analizando tu reporte")
         texto = ctx.chat([{"role": "system", "content": lec.SISTEMA_BASE}, {"role": "user", "content": (
             lec.texto_perfil(perfil) + "\nEres su director académico. Lee este reporte con datos reales y escribe "
-            "un análisis (markdown, 400-650 palabras): ## Diagnóstico (desarrollo real vs metas) ## Fortalezas "
-            "## Necesidades y riesgos ## Cómo está aprendiendo y qué cambió ## Recomendaciones para las próximas "
-            "4 semanas (concretas: qué áreas, cuántos minutos, qué métodos, a qué hora). En el diagnóstico, REEVALÚA su "
+            "un análisis (markdown, 400-650 palabras) con estas cinco secciones, cada título en su propia línea y con un solo "
+            "«##» al inicio (sin repetirlo): «Diagnóstico (desarrollo real vs metas)», «Fortalezas», «Necesidades y riesgos», "
+            "«Cómo está aprendiendo y qué cambió» y «Recomendaciones para las próximas 4 semanas» (concretas: qué áreas, "
+            "cuántos minutos, qué métodos, a qué hora). En el diagnóstico, REEVALÚA su "
             "nivel real comparando lo que domina con lo que el mercado pide HOY (sección «Nivel frente al mercado de "
             "hoy»): lo que se exige ahora no es lo de hace 5 años; señala qué competencias nuevas o en alza le faltan y "
             "cuáles de las que sabe van en declive. Usa SOLO estos datos; si son pocos, dilo. No inventes cifras.\n\n"
             + md_[:16000])}], max_tokens=2400, temperatura=0.4)
-        kv_set(f"reporte_ia:{usuario}", {"texto": texto, "fecha": time.time()})
+        kv_set(f"reporte_ia:{usuario}", {"texto": ad.limpiar_titulos(texto), "fecha": time.time(), "kpi": ad.kpi_reporte(r["analitica"])})
         return {"ok": True}
 
     t = ia.nuevo("reporte", fn, 0, usuario, "reporte")
@@ -747,7 +910,7 @@ NOMBRE_TRABAJO = {
     "verificar": "🔎 Contrastar fuentes", "ruta": "🔄 Actualizar una ruta", "ramas": "🌳 Mapa de sub-ramas",
     "ideas": "🚀 Ideas en la frontera", "presentacion": "🎤 Preparar presentación", "pares": "🧑‍⚖️ Revisión de pares", "frontera": "🔭 Frontera de una meta", "paper": "📄 Lectura guiada de paper", "aporte": "💡 Evaluar tu aporte",
     "reexplicar": "🔄 Explicación de otra forma", "externo": "📥 Lo que estudiaste fuera", "aportada": "📎 Analizar una fuente que aportaste", "rapida": "⚡ Ruta rápida",
-    "pronostico": "💹 Pronóstico de una acción", "relaciones": "💹 Mapa de una acción", "acciones": "💹 Acciones vigiladas",
+    "codigo": "💻 Ejercicio de código", "diferida": "🧬 Prueba diferida", "pronostico": "💹 Pronóstico de una acción", "relaciones": "💹 Mapa de una acción", "acciones": "💹 Acciones vigiladas",
 }
 
 
@@ -1574,6 +1737,19 @@ def r_resultado(usuario, q, d, h):
     for k, v in campos.items():
         registrar(usuario, k, d["tema"], t["area"] if t else None, v)
     return {"ok": True, "avance": nuevo}
+
+
+@ruta("POST", "/api/confianza")
+def r_confianza(usuario, q, d, h):
+    """Confianza declarada ANTES de ver si acertó («seguro», «dudo», «adivino») y el acierto: mide si tu seguridad coincide
+    con la realidad (Brier). Solo registra: no cambia el dominio ni el repaso."""
+    p = ad.NIVELES_CONFIANZA.get(str(d.get("confianza", "")))
+    t = cur.tema(d.get("tema", ""), usuario)
+    if p is None or not t:
+        return {"error": "confianza o tema no válidos"}
+    registrar(usuario, "calibracion", t["id"], t["area"], 1.0 if d.get("acierto") else 0.0,
+              {"p": p, "nivel": d["confianza"], "origen": str(d.get("origen") or "quiz")[:20]})
+    return {"ok": True}
 
 
 @ruta("POST", "/api/dominado")
@@ -2759,7 +2935,7 @@ def r_noticias(usuario, q, d, h):
         q = dict(q, area="")
     pendientes = sum(1 for x in ia.cola.trabajos.values() if x.tipo == "a_fondo" and x.estado in ("cola", "corriendo", "conflicto"))
     return {"periodo": p, "ranking": nt.ranking(p, q.get("area") or None, areas=mias, solo_a_fondo=True, regiones=regiones_de(usuario)) if mias else [],
-            "preparando": pendientes, "hora_diaria": "%02d:%02d" % hora_diaria(),
+            "preparando": pendientes, "hora_diaria": "%02d:%02d" % hora_diaria(), "admin": es_admin(h, usuario),
             "impacto": [x for x in nt.impacto_por_area(p) if x["area"] in mias],
             "mis_areas": [a for a in nt.AREAS_NOTICIAS if a in mias],
             "organizaciones": [o for o in nt.organizaciones(p, limite=60) if set(o["areas"]) & mias][:15],
@@ -3051,6 +3227,8 @@ def r_accion(usuario, q, d, h):
     return {"simbolo": s, "nombre": i["nombre"], "moneda": i["moneda"], "bolsa": i["bolsa"], "tipo": i["tipo"],
             "sector": i.get("sector") if i.get("sector") != "-" else "", "industria": i.get("industria"),
             "meta": i["meta"], "serie": [[x[0], x[1]] for x in i["serie"] or []], "indicadores": ind,
+            "velas": ac.velas(i["serie"]), "patrones": ac.patrones_velas(i["serie"]),
+            "familia": _seguro(ac.familia, s, usuario), "con_composicion": bool(ac.REPRESENTANTE.get(s) or i["tipo"] == "ETF"),
             "lectura": ac.explicar_indicadores(ind), "relaciones": i.get("relaciones"),
             "mercado": _seguro(ac.frente_al_mercado, i),
             "noticias": ac.noticias(s), "noticias_fecha": i.get("noticias_fecha"),
@@ -3058,6 +3236,20 @@ def r_accion(usuario, q, d, h):
             "pronosticos": ac.pronosticos(usuario, s) if vig else [], "conceptos": ac.conceptos(usuario),
             "trabajo": t.publico() if t else None, "descargo": ac.DESCARGO, "horizontes": ac.HORIZONTES,
             "error": err.get(s)}
+
+
+@ruta("GET", "/api/accion/composicion")
+def r_accion_composicion(usuario, q, d, h):
+    """Qué empresas componen un fondo o índice y con qué porcentaje (datos públicos, en caché una semana)."""
+    return {"composicion": ac.composicion(_simbolo(q))}
+
+
+@ruta("POST", "/api/acciones/familia")
+def r_acciones_familia(usuario, q, d, h):
+    """Pone en vigilancia el S&P 500 y todas sus alternativas y competencia."""
+    hechos, fallidos = ac.agregar_familia(usuario)
+    registrar(usuario, "accion", detalle={"que": "familia", "agregados": len(hechos)})
+    return {"ok": True, "agregados": hechos, "fallidos": fallidos}
 
 
 @ruta("POST", "/api/accion/noticias")
@@ -3111,7 +3303,7 @@ def acciones_diarias(u):
         traceback.print_exc()
     diario = config.C.get("acciones_pronostico_diario", True)
     for s in simbolos:
-        if _pronostico_en_cola(u, s):
+        if _pronostico_en_cola(u, s) or ac.pronostico_bajo_demanda(s):
             continue
         ult = fila("SELECT creado FROM accion_pronostico WHERE usuario=? AND simbolo=? ORDER BY creado DESC LIMIT 1", (u, s))
         if diario and (not ult or time.time() - ult["creado"] > 20 * 3600):
@@ -3281,6 +3473,79 @@ def r_hermes_repasar(usuario, q, d, h):
     p = an.aplicar_repaso(u, t, int(d["nota"]), d.get("segundos"), "hermes")
     ad.invalidar(u)
     return {"ok": True, "vuelve_en_dias": round((p["vence"] - time.time()) / 86400, 1)}
+
+
+@ruta("GET", "/api/hermes/examen")
+def r_hermes_examen(usuario, q, d, h):
+    """Material para que Hermes EXAMINE a la persona sobre un tema por chat (tutor examinador): preguntas de la propia lección con
+    su respuesta modelo y los errores típicos (los distractores del quiz), para que repregunte hacia el error sin soltar la
+    respuesta. Primero salen las preguntas que menos veces se han preguntado. No gasta IA: solo lee la lección ya escrita."""
+    u = _hermes_para(h, q, usuario)
+    tid = q.get("tema", "")
+    t = cur.tema(tid, u)
+    if not t:
+        return {"error": "tema desconocido: busca el id con /api/hermes/buscar_tema"}
+    r = fila("SELECT ejercicios FROM leccion WHERE usuario=? AND tema=? AND completa!=0", (u, tid))
+    quiz = (json.loads(r["ejercicios"]).get("quiz") if r and r["ejercicios"] else None) or []
+    if not quiz:
+        return {"error": "este tema aún no tiene lección con preguntas: pídele a la persona que lo abra en la Academia o prepáralo"}
+    previas = {}
+    for x in filas("SELECT detalle FROM actividad WHERE usuario=? AND tipo='examen' AND tema=?", (u, tid)):
+        k = (json.loads(x["detalle"] or "{}")).get("pregunta_id")
+        if k is not None:
+            previas[k] = previas.get(k, 0) + 1
+    preguntas = []
+    for i, p in enumerate(quiz):
+        if p.get("tipo") == "opcion" and p.get("opciones"):
+            ok = p["opciones"][p["correcta"]] if 0 <= p.get("correcta", -1) < len(p["opciones"]) else ""
+            modelo = f"{ok}. {p.get('explicacion') or ''}".strip()
+            errores = [o for k, o in enumerate(p["opciones"]) if k != p.get("correcta")]
+        else:
+            modelo, errores = p.get("explicacion") or "", []
+        preguntas.append({"pregunta_id": i, "pregunta": p["pregunta"], "respuesta_modelo": modelo, "errores_tipicos": errores,
+                          "veces_preguntada": previas.get(i, 0)})
+    preguntas.sort(key=lambda x: (x["veces_preguntada"], x["pregunta_id"]))
+    n = max(1, min(int(q.get("n") or 3), 8))
+    return {"tema": tid, "titulo": t["t"], "area": t["area"], "preguntas": preguntas[:n],
+            "protocolo": "Una pregunta a la vez; NO des la respuesta modelo ni los errores típicos. Si falla, repregunta hacia el error con "
+                         "una pista (hasta 3). Puntúa de 0 a 1 con la respuesta modelo y manda la evidencia a POST /api/hermes/evidencia."}
+
+
+@ruta("POST", "/api/hermes/evidencia")
+def r_hermes_evidencia(usuario, q, d, h):
+    """Hermes entrega lo que vio al examinar: puntaje 0-1, cuántas pistas hicieron falta y cuántas repreguntas. Queda como evidencia
+    DIRECTA en la línea de tiempo (métrica `examen_tutor`); NO cambia el dominio del tema todavía (modo sombra, como pide el plan).
+    Si fue floja (< 0,6) y trae la respuesta modelo, la pregunta pasa a tus tarjetas de repaso."""
+    u = _hermes_para(h, d, usuario)
+    tid = str(d.get("tema", ""))
+    t = cur.tema(tid, u)
+    try:
+        puntaje = float(d.get("puntaje"))
+    except (TypeError, ValueError):
+        puntaje = None
+    if not t or puntaje is None or not 0 <= puntaje <= 1:
+        return {"error": "hace falta un tema válido y un puntaje entre 0 y 1"}
+    ayudas = max(0, min(3, int(d.get("ayudas") or 0)))
+    repreguntas = max(0, min(5, int(d.get("repreguntas") or 0)))
+    registrar(u, "examen", tid, t["area"], puntaje,
+              {"pregunta_id": d.get("pregunta_id"), "pregunta": str(d.get("pregunta") or "")[:300], "ayudas": ayudas,
+               "repreguntas": repreguntas, "origen": "hermes"})
+    out = {"ok": True, "tarjeta": 0}
+    conf = ad.NIVELES_CONFIANZA.get(str(d.get("confianza") or ""))
+    if conf is not None:
+        registrar(u, "calibracion", tid, t["area"], 1.0 if puntaje >= 0.6 else 0.0, {"p": conf, "nivel": d["confianza"], "origen": "examen"})
+    if puntaje < 0.6 and d.get("pregunta") and d.get("respuesta_modelo"):
+        out["tarjeta"] = agregar_tarjetas(u, [{"frente": str(d["pregunta"])[:400], "reverso": str(d["respuesta_modelo"])[:800]}],
+                                          tid, t["area"], None, "examen")
+    return out
+
+
+@ruta("GET", "/api/hermes/semanal")
+def r_hermes_semanal(usuario, q, d, h):
+    """Resumen ejecutivo de la semana en texto, SIN IA (semáforos, tiempo frente a la semana anterior, metas con fecha
+    estimada y un siguiente paso). Lo recoge el cron semanal de Hermes y lo entrega a Telegram."""
+    u = _hermes_para(h, q, usuario)
+    return h.texto(ad.resumen_semanal(u, perfil_de(u)), "text/plain; charset=utf-8")
 
 
 @ruta("GET", "/api/hermes/buscar_tema")

@@ -65,7 +65,7 @@ def _json(texto):
 
 
 # Qué tipos de la tabla actividad son explícitos de la persona (el resto son rastros de su comportamiento).
-DIRECTAS = {"quiz", "prueba", "practica", "apunte_eval", "chequeo_tema", "pulso", "pulso_sesion", "nivel", "chequeo", "feynman"}
+DIRECTAS = {"quiz", "prueba", "practica", "apunte_eval", "chequeo_tema", "pulso", "pulso_sesion", "nivel", "chequeo", "feynman", "calibracion", "codigo", "examen", "diferida"}
 
 
 # ------------------------------------------------------------------ proyección desde las tablas que ya existen

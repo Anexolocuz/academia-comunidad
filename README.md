@@ -36,7 +36,8 @@ metas con ruta completa de requisitos, noticias de tus áreas **comparadas entre
 - 🧠 **Cualquier IA local** — Ollama, LM Studio, llama.cpp, llama-swap, vLLM, Jan… o la de otro PC tuyo.
 - 📱 **En todos tus equipos** — PC, celular y tablet (instalable como app), por Tailscale o con clave en tu casa.
 - 💹 **Acciones bajo vigilancia** — tu lista con alertas, noticias directas e indirectas (competidores, proveedores,
-  economía) y pronóstico por escenarios de «muy probable» a «muy poco probable», anclado a la estadística y medido
+  economía), velas y martillos, composición de fondos e índices (qué empresas y qué porcentaje), alternativas y
+  competencia del S&P 500 y pronóstico del peor al mejor caso con escenarios de «muy probable» a «muy poco probable», anclado a la estadística y medido
   contra lo que de verdad pasó (puedes competir con tu propia estimación). Educativo, no asesoría financiera.
 - ☁️ **API de IA opcional** — para esperar menos y, a veces, subir la calidad: OpenAI, Claude, Gemini, OpenRouter, Groq,
   DeepSeek, Mistral… o la tuya. Apagada por defecto, por persona, con tope de gasto, sin tu nombre y con regreso solo a la IA local.

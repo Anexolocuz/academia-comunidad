@@ -12,7 +12,9 @@
 import csv
 import io
 import json
+import math
 import random
+import re
 import time
 import zipfile
 from datetime import datetime, timedelta
@@ -20,6 +22,8 @@ from pathlib import Path
 
 import adaptativo as aa
 import analitica as an
+import estados  # noqa: F401  (crea la tabla de las pruebas diferidas)
+import ejecucion  # noqa: F401  (crea las tablas de la práctica con código, que el reporte y la exportación leen)
 import curriculo as cur
 from base import ejecutar, fila, filas, kv_get, kv_set
 
@@ -378,12 +382,277 @@ DICCIONARIO = [
      "Detecta olvidos (vuelven al repaso), evalúa el largo plazo, alimenta el plan adaptativo."),
     ("instantanea", "Foto semanal de tu forma de aprender (retención, horarios, métodos, sesiones).",
      "Muestra cómo cambia tu forma de aprender con el tiempo."),
+    ("codigo_ejercicio / codigo_intento", "Ejercicios de código de la práctica (enunciado, casos) y tus intentos: tu código, cuántos casos pasó y si viste la solución.",
+     "Verificación objetiva (el código se ejecuta); métrica «ejercicios resueltos sin ver la solución»."),
+    ("prueba_diferida", "Pruebas diferidas (a los 3, 14 y 45 días de dominar un tema): sus preguntas, tus respuestas y el resultado.",
+     "Estado de dominio 5 «domina» y la métrica de pruebas diferidas aprobadas."),
     ("nota", "Notas sobre ti guardadas por Hermes o por ti.", "Contexto adicional para Hermes."),
     ("noticia / sintesis", "Noticias descargadas y su análisis (no son datos personales).",
      "Pestaña Noticias."),
 ]
 TABLAS_USUARIO = ["perfil", "avance", "tarjeta", "repaso", "actividad", "cuaderno", "entrega", "tarea", "chat", "objetivo", "area_extra",
-                  "chequeo", "instantanea", "nota"]
+                  "chequeo", "instantanea", "nota", "codigo_ejercicio", "codigo_intento", "prueba_diferida"]
+
+
+
+# ------------------------------------------------------------------ series y calibración para el reporte
+SEMANAS_REPORTE = 12
+
+
+def limpiar_titulos(texto):
+    """Los modelos a veces escriben «## ## Título» (el prompt enumeraba los títulos en una sola línea): se deja uno."""
+    return re.sub(r"(?m)^(#{1,6})[ \t]+#{1,6}[ \t]+", r"\1 ", texto or "")
+
+
+def series_reporte(usuario, semanas=SEMANAS_REPORTE):
+    """Lo que dibuja el reporte, desde los datos crudos (no desde las fotos diarias de `metrica_valor`, que son nuevas):
+    minutos por día (calendario de actividad), minutos y retención por semana. Cada lista trae también sus fechas."""
+    hoy = datetime.now().date()
+    dias_n = semanas * 7
+    lunes = hoy - timedelta(days=hoy.weekday())
+    inicio = lunes - timedelta(weeks=semanas - 1)
+    t0 = datetime.combine(inicio, datetime.min.time()).timestamp()
+    dia_de = lambda ts: (datetime.fromtimestamp(ts - 4 * 3600)).date()   # la madrugada cuenta para el día anterior  # noqa: E731
+    minutos = {}
+    for e in filas("SELECT ts, valor FROM evento WHERE usuario=? AND tipo='tiempo' AND ts>=? AND valor>0", (usuario, t0)):
+        minutos[dia_de(e["ts"])] = minutos.get(dia_de(e["ts"]), 0) + e["valor"] / 60
+    activos = {dia_de(e["ts"]) for e in filas(
+        "SELECT ts FROM evento WHERE usuario=? AND ts>=? AND tipo IN ('tiempo','repaso','lectura','quiz','prueba','practica','entrega','apunte','leccion','chequeo_tema','pulso')",
+        (usuario, t0))}
+    dias = []
+    for k in range(dias_n):
+        d = inicio + timedelta(days=k)
+        if d > hoy:
+            break
+        dias.append({"fecha": d.isoformat(), "min": round(minutos.get(d, 0), 1), "activo": d in activos or minutos.get(d, 0) > 0})
+    sem = []
+    for k in range(semanas):
+        a = inicio + timedelta(weeks=k)
+        ds = [x for x in dias if a.isoformat() <= x["fecha"] < (a + timedelta(days=7)).isoformat()]
+        ta = datetime.combine(a, datetime.min.time()).timestamp()
+        rp = filas("SELECT nota FROM repaso WHERE usuario=? AND fecha>=? AND fecha<?", (usuario, ta, ta + 7 * 86400))
+        sem.append({"desde": a.isoformat(), "min": round(sum(x["min"] for x in ds)), "dias_activos": sum(1 for x in ds if x["activo"]),
+                    "repasos": len(rp), "retencion": round(sum(1 for r in rp if (r["nota"] or 0) >= 2) / len(rp), 3) if len(rp) >= 5 else None})
+    return {"dias": dias, "semanas": sem}
+
+
+NIVELES_CONFIANZA = {"adivino": 0.3, "dudo": 0.6, "seguro": 0.9}
+
+
+def calibracion(usuario, dias=90):
+    """¿Tu seguridad coincide con tu acierto? Brier de las respuestas con confianza declarada (0 = perfecto; 0,25 = decir
+    siempre «50 %»), la sobreconfianza (seguridad media menos acierto medio) y el acierto real por nivel declarado."""
+    desde = time.time() - dias * 86400
+    rows = filas("SELECT valor, detalle FROM actividad WHERE usuario=? AND tipo='calibracion' AND fecha>=? AND valor IS NOT NULL",
+                 (usuario, desde))
+    pares = []
+    for r in rows:
+        try:
+            p = float(json.loads(r["detalle"] or "{}").get("p"))
+        except (TypeError, ValueError):
+            continue
+        pares.append((p, 1.0 if r["valor"] >= 0.5 else 0.0))
+    if not pares:
+        return {"n": 0, "niveles": [], "brier": None, "sobreconfianza": None}
+    niveles = []
+    for nombre, p in NIVELES_CONFIANZA.items():
+        g = [a for q, a in pares if abs(q - p) < 1e-6]
+        niveles.append({"nivel": nombre, "p": p, "n": len(g), "acierto": round(sum(g) / len(g), 3) if g else None})
+    return {"n": len(pares), "niveles": niveles, "brier": round(sum((p - a) ** 2 for p, a in pares) / len(pares), 3),
+            "sobreconfianza": round(sum(p for p, _ in pares) / len(pares) - sum(a for _, a in pares) / len(pares), 3)}
+
+
+
+# ------------------------------------------------------------------ tablero: metas con fecha estimada, dominio en el tiempo
+def _primeras_fechas(usuario):
+    """Cuándo se dominó y cuándo se exploró por primera vez cada tema. `avance.actualizado` no sirve para esto: cambia con
+    cada repetición de un quiz o cada nueva marca, y un tema dominado en septiembre y repasado hoy parecería progreso de hoy.
+    Se usa el historial de actividad (el primer quiz ≥ umbral; el primer rastro de estudio) y solo si no hay se cae a `avance`."""
+    dom = {r["tema"]: r["t"] for r in filas(
+        "SELECT tema, MIN(fecha) t FROM actividad WHERE usuario=? AND tipo='quiz' AND valor>=? AND tema IS NOT NULL GROUP BY tema",
+        (usuario, cur.UMBRAL_DOMINIO))}
+    exp = {r["tema"]: r["t"] for r in filas(
+        "SELECT tema, MIN(fecha) t FROM actividad WHERE usuario=? AND tema IS NOT NULL "
+        "AND tipo IN ('quiz','leccion','lectura','practica','feynman','prueba') GROUP BY tema", (usuario,))}
+    return dom, exp
+
+
+def _fechas_dominio(usuario):
+    """{tema: fecha del primer dominio} de los temas dominados ESTUDIANDO (los «probados» en una prueba de nivel no cuentan:
+    costaron casi nada e inflarían el ritmo, igual que en `aa.ritmo`)."""
+    dom, _ = _primeras_fechas(usuario)
+    return {r["tema"]: dom.get(r["tema"]) or r["actualizado"] or 0 for r in filas(
+        "SELECT tema, actualizado FROM avance WHERE usuario=? AND estado='dominado'", (usuario,))}
+
+
+def _ritmo_temas(usuario, dias):
+    """Temas dominados estudiando por semana en los últimos `dias` (el ritmo real, con las semanas en blanco incluidas)."""
+    desde = time.time() - dias * 86400
+    return sum(1 for t in _fechas_dominio(usuario).values() if t > desde) / (dias / 7)
+
+
+def _semanas_con_avance(usuario, semanas=8):
+    """En cuántas de las últimas semanas se dominó al menos un tema: un ritmo hecho de una sola racha no es un ritmo."""
+    desde = time.time() - semanas * 7 * 86400
+    return len({int((t - desde) // (7 * 86400)) for t in _fechas_dominio(usuario).values() if t > desde})
+
+
+def _fecha_logro(faltan, ritmo_sem, hoy=None):
+    hoy = hoy or datetime.now().date()
+    if faltan <= 0:
+        return hoy
+    if ritmo_sem <= 0:
+        return None
+    return hoy + timedelta(days=math.ceil(faltan / ritmo_sem * 7 - 1e-9))   # si falta algo, no es hoy
+
+
+def proyeccion_metas(usuario):
+    """Para cada meta activa: avance, temas que faltan y la fecha estimada en que se completaría a tu ritmo real.
+    Da un rango (ritmo de las últimas 2 semanas, de 4 y de 8: el más rápido y el más lento) y dice cuánta confianza
+    merece: con menos de 3 temas dominados en 8 semanas es una cifra frágil y se rotula así."""
+    r2, r4, r8 = _ritmo_temas(usuario, 14), _ritmo_temas(usuario, 28), _ritmo_temas(usuario, 56)
+    base = r4 if r4 > 0 else r8
+    min_tema = aa.ritmo(usuario)["min_por_tema"]
+    out = []
+    for o in filas("SELECT * FROM objetivo WHERE usuario=? AND estado='activo' ORDER BY id", (usuario,)):
+        e = cur.estado_objetivo(usuario, o)
+        faltan = e["temas_total"] - e["temas_hechos"]
+        rs = [x for x in (r2, r4, r8) if x > 0]
+        optim, pesim = (max(rs), min(rs)) if rs else (0, 0)
+        f_base, f_op, f_pe = _fecha_logro(faltan, base), _fecha_logro(faltan, optim), _fecha_logro(faltan, pesim)
+        dominados_8, sem_av = round(r8 * 8), _semanas_con_avance(usuario)
+        out.append({"id": e["id"], "titulo": e["titulo"], "progreso": e["progreso"], "temas_total": e["temas_total"],
+                    "temas_hechos": e["temas_hechos"], "faltan": faltan, "ritmo_semana": round(base, 2),
+                    "fecha": f_base.isoformat() if f_base else None, "pronto": f_op.isoformat() if f_op else None,
+                    "tarde": f_pe.isoformat() if f_pe else None,
+                    "confianza": "alta" if dominados_8 >= 8 and sem_av >= 4 else "media" if dominados_8 >= 3 and sem_av >= 2 else "baja",
+                    "semanas_con_avance": sem_av,
+                    "para_12_meses": {"temas_semana": round(faltan / 52, 1), "min_semana": round(faltan / 52 * min_tema),
+                                      "min_por_tema": min_tema},
+                    "nota": ("Sin temas dominados en las últimas semanas: no hay ritmo para proyectar una fecha." if not rs else
+                             f"A {base:.1f} temas dominados estudiando por semana (últimas 4 semanas; avanzaste en {sem_av} de las últimas 8).")})
+    return out
+
+
+def dominio_en_el_tiempo(usuario, semanas=SEMANAS_REPORTE):
+    """Temas dominados y explorados acumulados al final de cada semana, por la fecha de su PRIMER dominio / primera exploración
+    (no por la última vez que se tocaron)."""
+    hoy = datetime.now().date()
+    lunes = hoy - timedelta(days=hoy.weekday())
+    inicio = lunes - timedelta(weeks=semanas - 1)
+    dom, exp = _primeras_fechas(usuario)
+    fechas_dom, fechas_exp = [], []
+    for r in filas("SELECT tema, estado, actualizado, visto FROM avance WHERE usuario=?", (usuario,)):
+        if r["estado"] in ("dominado", "probado"):
+            fechas_dom.append(dom.get(r["tema"]) or r["actualizado"] or 0)
+        if r["estado"] in ("visto", "dominado", "probado"):
+            fechas_exp.append(min([x for x in (exp.get(r["tema"]), r["visto"]) if x] or [r["actualizado"] or 0]))
+    out = []
+    for k in range(semanas):
+        fin = datetime.combine(inicio + timedelta(weeks=k + 1), datetime.min.time()).timestamp()
+        out.append({"hasta": (inicio + timedelta(weeks=k + 1) - timedelta(days=1)).isoformat(),
+                    "dominados": sum(1 for t in fechas_dom if t < fin), "explorados": sum(1 for t in fechas_exp if t < fin)})
+    return out
+
+
+def tablero(usuario, perfil):
+    d = an.analitica(usuario)
+    lp = largo_plazo(usuario)
+    plan = plan_adaptativo(usuario, perfil)
+    return {"generado": time.time(), "series": series_reporte(usuario), "dominio_tiempo": dominio_en_el_tiempo(usuario),
+            "metas": proyeccion_metas(usuario), "calibracion": calibracion(usuario), "estados": estados.estados_persona(usuario),
+            "curva_edad": lp["curva_edad"], "analitica": {k: d[k] for k in ("minutos_30", "dias_activos_14")},
+            "resultados": d["resultados"], "pendientes": plan["pendientes"]}
+
+
+
+def semaforos(d, plan, calib, dominio):
+    """Los cinco indicadores del resumen ejecutivo (reporte en pantalla y resumen semanal): estado «ok / atencion / riesgo / nd»,
+    siempre con su palabra y su umbral. Una sola fuente de verdad para la web y para el mensaje del celular."""
+    def nivel(v, ok, at, mayor=True):
+        if v is None:
+            return "nd"
+        return "ok" if (v >= ok if mayor else v <= ok) else "atencion" if (v >= at if mayor else v <= at) else "riesgo"
+    ret, pend, dias = d["resultados"].get("repaso"), (plan or {}).get("pendientes"), d["dias_activos_14"]
+    dom, exp = dominio["dominados"], dominio["explorados"]
+    cal_n = calib["n"]
+    return [
+        {"id": "constancia", "nombre": "Constancia", "valor": f"{dias}/14 días", "estado": nivel(dias, 10, 6),
+         "lectura": "días activos en 2 semanas", "tip": "Verde desde 10 días; ámbar de 6 a 9; rojo con menos de 6."},
+        {"id": "retencion", "nombre": "Retención en repasos", "valor": "—" if ret is None else f"{round(ret * 100)}%", "estado": nivel(ret, 0.85, 0.7),
+         "lectura": "de lo repasado se recordó", "tip": "Verde desde 85 %; ámbar de 70 a 84 %; rojo por debajo."},
+        {"id": "atrasados", "nombre": "Repasos atrasados", "valor": "—" if pend is None else str(pend), "estado": "nd" if pend is None else nivel(pend, 20, 50, False),
+         "lectura": "tarjetas vencidas", "tip": "Verde hasta 20; ámbar hasta 50; rojo con más."},
+        {"id": "dominado", "nombre": "Dominado vs. explorado", "valor": f"{dom}/{exp}", "estado": "nd" if exp < 5 else nivel(dom / exp, 0.5, 0.25),
+         "lectura": "temas dominados de los que abriste", "tip": "Abrir un tema no es dominarlo. Verde desde la mitad dominada."},
+        {"id": "calibracion", "nombre": "Calibración de tu seguridad", "valor": "—" if calib["brier"] is None else f"{calib['brier']:.2f}".replace(".", ","),
+         "estado": "nd" if cal_n < 10 else nivel(calib["brier"], 0.15, 0.25, False),
+         "lectura": (f"{cal_n} de 10 respuestas con confianza" if cal_n < 10 else "tiendes a creer que sabes más" if calib["sobreconfianza"] > 0.08
+                     else "sabes más de lo que crees" if calib["sobreconfianza"] < -0.08 else "tu seguridad coincide con tu acierto"),
+         "tip": "Brier: 0 es perfecto y 0,25 equivale a decir siempre «50 %». Verde por debajo de 0,15."},
+    ]
+
+
+ICONO_SEMAFORO = {"ok": "✔", "atencion": "▲", "riesgo": "✖", "nd": "…"}
+PALABRA_SEMAFORO = {"ok": "Bien", "atencion": "Atención", "riesgo": "Riesgo", "nd": "Sin datos aún"}
+
+
+def resumen_semanal(usuario, perfil, hoy=None):
+    """Texto corto (sin IA) del resumen ejecutivo de la semana, para el celular: semáforos, tiempo frente a la semana anterior,
+    metas con fecha estimada y un siguiente paso. Lo recoge el cron semanal de Hermes y lo entrega a tu Telegram."""
+    r = datos_reporte(usuario, perfil)
+    s = r["series"]["semanas"]
+    esta, previa = s[-1], (s[-2] if len(s) > 1 else None)
+    hoy = hoy or datetime.now().date()
+    lunes = hoy - timedelta(days=hoy.weekday())
+    meses = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+    f = lambda d_: f"{d_.day} {meses[d_.month - 1]}"  # noqa: E731
+    L = [f"📊 Tu semana en la Academia ({f(lunes)} – {f(lunes + timedelta(days=6))})", ""]
+    for x in r["semaforos"]:
+        L.append(f"{ICONO_SEMAFORO[x['estado']]} {x['nombre']}: " + (f"{x['valor']} — {PALABRA_SEMAFORO[x['estado']].lower()} ({x['lectura']})"
+                                                                  if x["valor"] != "—" else f"sin datos aún ({x['lectura']})"))
+    delta = ""
+    if previa is not None and (previa["min"] or esta["min"]):
+        dif = esta["min"] - previa["min"]
+        delta = f" ({'+' if dif >= 0 else ''}{dif} min frente a la semana anterior)"
+    L += ["", f"⏱️ Esta semana: {esta['min']} min en {esta['dias_activos']} días{delta}."]
+    metas = proyeccion_metas(usuario)
+    if metas:
+        L += ["", "🎯 Metas:"]
+        for m in metas:
+            if m["fecha"]:
+                a = (datetime.fromisoformat(m["fecha"]).date() - hoy).days / 365
+                cuando = "a este ritmo, más de 5 años" if a > 5 else "a este ritmo, hacia " + datetime.fromisoformat(m["fecha"]).strftime("%m/%Y")
+            else:
+                cuando = "sin ritmo con el que proyectar una fecha"
+            L.append(f"• {m['titulo'] if len(m['titulo']) <= 50 else m['titulo'][:49] + '…'}: {round(m['progreso'] * 100)} % ({m['faltan']} temas faltan) — {cuando} · confianza {m['confianza']}.")
+    if r["necesidades"]:
+        L += ["", "👉 Lo primero: " + r["necesidades"][0]]
+    L += ["", "Todo sale de tus datos; las fechas son estimaciones, no promesas."]
+    return "\n".join(L) + "\n"
+
+
+def kpi_reporte(d):
+    """Cifras con las que se escribió un análisis: sirven para avisar cuando el texto ya no describe la realidad."""
+    return {"minutos_30": d["minutos_30"], "dias_activos_14": d["dias_activos_14"]}
+
+
+def _informe_ia(usuario, d):
+    """El análisis guardado, con los títulos arreglados, su antigüedad y si las cifras de hoy se alejaron de las de entonces."""
+    r = kv_get(f"reporte_ia:{usuario}")
+    if not r:
+        return None
+    r = dict(r, texto=limpiar_titulos(r.get("texto")))
+    r["dias"] = max(0, int((time.time() - (r.get("fecha") or 0)) // 86400))
+    antes, ahora = r.get("kpi"), kpi_reporte(d)
+    cambio = False
+    if antes:
+        cambio = any(abs((ahora[k] or 0) - (antes.get(k) or 0)) > max(30 if k == "minutos_30" else 3, 0.5 * (antes.get(k) or 0))
+                     for k in ahora)
+    r["desactualizado"] = r["dias"] >= 7 or cambio
+    r["motivo"] = (f"se escribió hace {r['dias']} días" if r["dias"] >= 7 else "") + (
+        (" y " if r["dias"] >= 7 else "") + "tus cifras cambiaron mucho desde entonces" if cambio else "")
+    return r
 
 
 def datos_reporte(usuario, perfil):
@@ -419,11 +688,16 @@ def datos_reporte(usuario, perfil):
     areas = sorted(({"nombre": a["nombre"], "dominio": a["dominio"], "grupo": a["grupo"],
                      "dominados": sum(1 for m in a["modulos"] for t in m["temas"] if t["dominio"] >= 0.8),
                      "temas": sum(len(m["temas"]) for m in a["modulos"])} for a in mapa), key=lambda x: -x["dominio"])
+    calib = calibracion(usuario)
+    dominio = {"dominados": sum(a["dominados"] for a in areas), "temas": sum(a["temas"] for a in areas),
+               "explorados": fila("SELECT COUNT(*) n FROM avance WHERE usuario=? AND estado IN ('visto','dominado','probado')", (usuario,))["n"]}
     return {"generado": time.time(), "usuario": usuario, "perfil": {k: perfil.get(k) for k in ("nombre", "situacion", "metas", "estilo")},
             "analitica": d, "largo_plazo": lp, "plan": plan, "cambios": cambios(usuario), "areas": areas,
             "necesidades": necesidades, "diccionario": conteos,
             "chequeos": an.historial(usuario)[:12],
-            "informe_ia": kv_get(f"reporte_ia:{usuario}"), "niveles": niveles(usuario)}
+            "informe_ia": _informe_ia(usuario, d), "niveles": niveles(usuario),
+            "series": series_reporte(usuario), "calibracion": calib, "dominio": dominio,
+            "semaforos": semaforos(d, plan, calib, dominio)}
 
 
 def reporte_markdown(r):

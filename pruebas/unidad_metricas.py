@@ -224,7 +224,7 @@ class CadaMetrica(unittest.TestCase):
     """Criterio de la fase F1: cada métrica del catálogo tiene prueba. Se siembran datos de TODAS las fuentes y cada una debe dar valor."""
     SIN_FIXTURE = {"gasto_api"}      # depende de la API opcional (nube.py), que se prueba en su propio módulo
 
-    def test_las_54_dan_valor_con_datos_de_todas_las_fuentes(self):
+    def test_todas_dan_valor_con_datos_de_todas_las_fuentes(self):
         import json
         limpiar()
         for tema, est, fey in (("a.1", "dominado", 0.8), ("a.2", "probado", None), ("a.3", "visto", None)):
@@ -236,6 +236,14 @@ class CadaMetrica(unittest.TestCase):
         for k in range(30):
             for sesion in range(2):     # dos bloques por día separados por más de 30 min
                 act(A, "tiempo", valor=600, t=AHORA - k * DIA - sesion * 7200 - 100)
+        for k in range(4):          # pruebas diferidas: 3 aprobadas y una no
+            act(A, "diferida", f"a.{k % 3 + 1}", "a", [1.0, 0.75, 0.9, 0.5][k], {"etapa": 1, "aprobada": k < 3}, t=AHORA - k * 900)
+        for k in range(6):          # tutor examinador: 4 buenas sin pistas, una con pistas y una floja
+            act(A, "examen", f"a.{k % 3 + 1}", "a", [0.9, 1.0, 0.8, 0.85, 0.9, 0.3][k], {"ayudas": 1 if k == 4 else 0, "repreguntas": 1}, t=AHORA - k * 800)
+        for k in range(4):          # práctica con código: 3 resueltos sin ver la solución y uno con la solución a la vista
+            act(A, "codigo", f"a.{k % 3 + 1}", "a", 1.0, {"ejercicio": k, "vio_solucion": k == 3}, t=AHORA - k * 700)
+        for k in range(10):         # confianza declarada: «seguro» (0,9) con 7 aciertos de 10
+            act(A, "calibracion", f"a.{k % 3 + 1}", "a", 1.0 if k < 7 else 0.0, {"p": 0.9}, t=AHORA - k * 600)
         for tipo, v in (("quiz", 0.8), ("prueba", 0.7), ("practica", 0.9), ("apunte", None)):
             for k in range(6):
                 act(A, tipo, f"a.{k % 3 + 1}", "a", v, t=AHORA - k * 600)
@@ -321,6 +329,40 @@ class Ajustes(unittest.TestCase):
             self.assertGreater(len(rs), 40)
         finally:
             del metricas.CATALOGO["_rota"]
+
+
+class Calibracion(unittest.TestCase):
+    """Confianza declarada («seguro», «dudo», «adivino») antes de ver el resultado: Brier y sobreconfianza."""
+
+    def _resp(self, u, p, acierto, n=1, t=AHORA - DIA):
+        for _ in range(n):
+            act(u, "calibracion", "mat.alg.0", "mat", 1.0 if acierto else 0.0, {"p": p}, t)
+
+    def test_con_pocas_respuestas_se_muestra_pero_no_decide(self):
+        limpiar()
+        self._resp(A, 0.9, True, 4)
+        eventos.sincronizar()
+        r = m(A, "calibracion_brier")
+        self.assertEqual(r["n"], 4)
+        self.assertAlmostEqual(r["valor"], 0.01, places=3)
+        self.assertFalse(r["usable"])
+
+    def test_con_muestra_suficiente_decide_y_distingue_sobreconfianza(self):
+        limpiar()
+        self._resp(A, 0.9, True, 6)
+        self._resp(A, 0.9, False, 4)        # «seguro» pero acierta 6 de 10
+        eventos.sincronizar()
+        b, s = m(A, "calibracion_brier"), m(A, "sobreconfianza")
+        self.assertTrue(b["usable"])
+        self.assertAlmostEqual(b["valor"], round((6 * 0.01 + 4 * 0.81) / 10, 3), places=3)
+        self.assertAlmostEqual(s["valor"], 0.3, places=3)        # 0,9 de seguridad − 0,6 de acierto
+        self.assertEqual(m(B, "calibracion_brier")["confianza"], "sin datos")   # nada de otra persona
+
+    def test_es_una_metrica_directa(self):
+        limpiar()
+        self._resp(A, 0.6, True)
+        eventos.sincronizar()
+        self.assertEqual(fila("SELECT directo FROM evento WHERE usuario=? AND tipo='calibracion'", (A,))["directo"], 1)
 
 
 if __name__ == "__main__":

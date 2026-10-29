@@ -537,7 +537,8 @@ VISTAS.ruta = async ([areaId]) => {
           <div class="suave peq" style="margin-top:.2rem">${Math.round(a.dominio * 100)}% dominado</div></div>`).join("")}</div>`).join("");
     vista.innerHTML = `<h1>🗺️ Tu ruta</h1>
       <p class="suave">De lo más básico a la frontera del conocimiento (horizonte). Cada módulo se desbloquea al dominar sus prerrequisitos al 60 %; si ya sabes algo, haz la <b>prueba de nivel</b> y sáltalo.</p>
-      <div class="fila" style="margin-bottom:.6rem"><button class="btn peq" onclick="ir('pruebas')">📝 Mis pruebas de nivel</button></div>
+      <div class="fila" style="margin-bottom:.6rem"><button class="btn peq" onclick="ir('pruebas')">📝 Mis pruebas de nivel</button>
+        <button class="btn peq" id="btnProfundizar" title="Reescribe a fondo, en segundo plano, las lecciones de versiones antiguas">📚 Profundizar lecciones antiguas</button><span id="profEstado" class="suave peq"></span></div>
       <details class="tarjeta" id="extCaja"><summary><b>📥 Ya estudié cosas fuera de la Academia</b> <span class="suave peq">(Coursera, Platzi, DataCamp, universidad, trabajo…)</span></summary>
         <p class="suave peq">Pega la lista de cursos, certificados o materias que terminaste (con el nivel o la nota si la tienes). La IA los relaciona con tu ruta y te propone una prueba de nivel corta por módulo: lo que ya sabes no lo vuelves a estudiar, pero se verifica.</p>
         <textarea id="extTexto" placeholder="Ej.: Coursera — Machine Learning Specialization (Stanford), terminada&#10;Platzi — Curso de Python intermedio&#10;Universidad — Cálculo diferencial (4,2/5)"></textarea>
@@ -750,6 +751,11 @@ function pintarLeccion(d) {
       <textarea id="feynman" style="min-height:220px" placeholder="Explícalo aquí con tus palabras…"></textarea>
       <div class="fila" style="margin-top:.5rem"><button class="btn pri" id="btnFeynman">Corregir mi explicación</button>
       <button class="btn" onclick="ir('cuaderno/nueva?tema=${d.tema.id}')">✍️ Explicarlo a mano (S Pen)</button></div><div id="feynmanRes"></div></div>
+    <div id="codigoCaja"></div>
+    <div id="dominioCaja"></div>
+    <details class="tarjeta"><summary><b>🎤 Que te examinen en vivo (Hermes)</b></summary>
+      <p class="suave peq">Por Telegram, tu tutor puede <b>examinarte</b> sobre este tema con preguntas abiertas: te pregunta, esperas tu respuesta, repregunta hacia tu error con pistas (sin darte la respuesta) y deja la evidencia aquí
+        (métrica «preguntas del tutor resueltas sin pistas»). Escríbele: <code>examíname de ${esc(d.tema.t)}</code></p></details>
     ${!d.area.idioma && L.completa ? (L.version >= 3
       ? `<div class="tarjeta"><span class="etq bien">🔬 Máxima profundidad</span> <span class="suave peq">Esta lección ya está en su versión más profunda.</span></div>`
       : `<div class="tarjeta"><b>🔬 ¿Quieres más profundidad?</b><p class="suave peq">La IA la reescribe en 6-8 partes, con más fuentes y documentos científicos, la demostración o derivación completa de cada resultado, de dónde viene cada idea y 8 ejercicios. Tarda 1-1.5 h (de fondo); la actual queda como versión anterior.</p>
@@ -766,6 +772,8 @@ function pintarLeccion(d) {
   repintarLeccion(d, L.contenido);
   LECT.iniciar($("#textoLeccion"), { tema: d.tema.id, area: d.area.id, metodo: "leccion", idioma: d.area.idioma || "es" });
   if (!preparando) ofrecerDiagnostico(d, ej.quiz || []);
+  if ($("#codigoCaja") && typeof montarCodigo === "function") montarCodigo(d.tema.id, $("#codigoCaja"));
+  if ($("#dominioCaja") && typeof montarDominio === "function") montarDominio(d.tema.id, $("#dominioCaja"));
   if (L.completa && !d.area.idioma) { montarVerificacionLeccion(d); montarAportadas(d); }
   $("#btnVisto").onclick = async () => {
     const r = await api("visto", { tema: d.tema.id });
@@ -1191,6 +1199,12 @@ async function montarExterno() {
   if (r.externo) { $("#extTexto").value = r.externo.texto; $("#extRes").innerHTML = htmlExterno(r.externo); }
   const enlazar = () => $$("[data-verif]", z).forEach((b) => (b.onclick = () => pruebaNivel(b.dataset.verif)));
   enlazar();
+  $("#btnProfundizar").onclick = async () => {
+    const b = $("#btnProfundizar"); b.disabled = true;
+    try { const r = await api("lecciones/profundizar", {}); $("#profEstado").textContent = r.encoladas ? `${r.encoladas} lecciones en la cola de la IA (mira ⏳)` : "No hay lecciones antiguas por reescribir."; }
+    catch (e) { $("#profEstado").textContent = "Error: " + e.message; }
+    b.disabled = false;
+  };
   $("#extBtn").onclick = async () => {
     const texto = $("#extTexto").value.trim(); if (texto.length < 5) return aviso("Cuenta qué estudiaste");
     const est = $("#extRes"); est.innerHTML = `<span class="cargando"></span> Relacionando con tu ruta…`;
@@ -1312,7 +1326,8 @@ function pintarQuiz(d, quiz) {
   if (nuevas < 3) cuentan.fill(true);
   c.innerHTML = (vistas.size ? `<p class="suave peq">${nuevas >= 3 ? `Las ${vistas.size} preguntas que respondiste antes de leer están marcadas y <b>no cuentan</b> en la nota (ya viste su respuesta).` : `Ya viste casi todas estas preguntas en el diagnóstico: la nota sale inflada. Para medirte de verdad crea una <b>🏋️ tarea de quiz</b> con preguntas nuevas (🔁 Repasar).`}</p>` : "") +
     quiz.map((p, i) => `<div class="pregunta" data-i="${i}">${vistas.has(i) && nuevas >= 3 ? `<span class="etq">vista antes de leer · no cuenta</span>` : ""}<div class="pq"></div>
-    ${p.tipo === "opcion" && p.opciones.length ? p.opciones.map((o, j) => `<button class="opcion" data-j="${j}"></button>`).join("")
+    ${p.tipo === "opcion" && p.opciones.length ? `<div class="conf peq" role="group" aria-label="Qué tan seguro estás"><span class="suave">¿Qué tan seguro estás? (opcional)</span>
+        ${[["seguro", "💪 Seguro"], ["dudo", "🤔 Dudo"], ["adivino", "🎲 Adivino"]].map(([k, t]) => `<button class="chip" data-conf="${k}" aria-pressed="false">${t}</button>`).join("")}</div>` + p.opciones.map((o, j) => `<button class="opcion" data-j="${j}"></button>`).join("")
       : `<textarea placeholder="Tu respuesta…"></textarea><button class="btn peq" style="margin-top:.4rem" data-corregir>Corregir</button>`}
     <div class="exp"></div></div>`).join("") + `<div id="quizFin" class="nota-ia" hidden></div>`;
   const cerrar = () => {
@@ -1329,9 +1344,16 @@ function pintarQuiz(d, quiz) {
     const caja = $(`[data-i="${i}"]`, c);
     pintarMd($(".pq", caja), `**${i + 1}.** ${p.pregunta}`, d.area.idioma);
     if (p.tipo === "opcion" && p.opciones.length) {
+      let conf = null;
+      $$("[data-conf]", caja).forEach((b) => (b.onclick = () => {
+        if (res[i] != null) return;
+        conf = b.dataset.conf; $$("[data-conf]", caja).forEach((x) => { x.classList.toggle("activo", x === b); x.setAttribute("aria-pressed", x === b); });
+      }));
       $$(".opcion", caja).forEach((b, j) => { pintarMd(b, p.opciones[j] || ""); b.onclick = () => {
         if (res[i] != null) return;
         res[i] = j === p.correcta ? 1 : 0;
+        $$("[data-conf]", caja).forEach((x) => (x.disabled = true));
+        if (conf) api("confianza", { tema: d.tema.id, confianza: conf, acierto: res[i] === 1, origen: "quiz" }).catch(() => {});
         $$(".opcion", caja)[p.correcta]?.classList.add("ok"); if (j !== p.correcta) b.classList.add("no");
         pintarMd($(".exp", caja), "💡 " + p.explicacion); cerrar();
       }; });
@@ -1641,8 +1663,13 @@ VISTAS.noticias = async ([periodo = "dia"], q) => {
       <b>una vez al día, a las ${esc(d.hora_diaria || "06:00")}</b> (la hora de la actualización diaria). Solo ves noticias ya
       procesadas a máxima profundidad: el artículo completo analizado, comparado entre medios y explicado a fondo. Última descarga: ${ult}.
       ${d.preparando ? `<br>⏳ ${d.preparando} noticias preparándose a fondo ahora (aparecen al terminar; mira ⏳).` : ""}</p>
+    <div class="fila no-imprimir" style="margin-top:.6rem">
+      ${d.admin ? `<button class="btn peq" id="btnNotDescargar" title="Descarga ahora los titulares de todos los medios (se hace solo cada día)">⬇️ Descargar noticias ahora</button>` : ""}
+      <button class="btn peq" id="btnNotAnalizar" title="La IA lee y analiza las noticias que aún no ha leído (de a 10; se hace sola cada día)">🧠 Analizar noticias pendientes${d.sin_analizar ? ` (${d.sin_analizar})` : ""}</button>
+      ${!d.admin ? "" : `<span class="suave peq">Solo el administrador descarga.</span>`}<span id="notEstado2" class="suave peq"></span></div>
     <div class="tarjeta" style="margin-top:1rem"><h2 style="margin:0">🧭 Síntesis ${{ dia: "del día", semana: "de la semana", mes: "del mes", anio: "del año" }[periodo]}</h2>
-      <div id="sintTexto" class="leccion"></div></div>
+      <div id="sintTexto" class="leccion"></div>
+      ${d.sintesis ? "" : `<div class="fila no-imprimir" style="margin-top:.5rem"><button class="btn peq" id="btnSintesis">🧭 Escribir la síntesis ahora (IA)</button><span id="notEstado" class="suave peq"></span></div>`}</div>
     <h2>🏆 Top ${PERIODOS[periodo].toLowerCase()}</h2><div id="ranking">${d.ranking.map(tarjetaNoticia).join("") || `<p class="vacio">${areasN.length ? "Sin noticias de tus áreas en este periodo." : SIN_AREAS.replace("Aún no tienes áreas.", "Aquí verás las noticias de tus áreas.")}</p>`}</div>
     <h2>📊 Dónde pega: impacto por área</h2>
     <p class="suave peq">Para cada área, las noticias que más la afectan (nivel de impacto × importancia). Áreas ordenadas por presión total.</p>
@@ -1660,13 +1687,20 @@ VISTAS.noticias = async ([periodo = "dia"], q) => {
     $$("[data-lect]").forEach((b) => (b.onclick = () => estudiarLectura(b.dataset.lect)));
   }
   if (!areasN.length) return;
+  if ($("#btnNotDescargar")) $("#btnNotDescargar").onclick = async () => {
+    const b = $("#btnNotDescargar"), e = $("#notEstado2"); b.disabled = true; e.innerHTML = `<span class="cargando"></span> Descargando…`;
+    try { const r = await api("noticias/actualizar", {}); if (r.error) throw new Error(r.error);
+      aviso("⬇️ Noticias descargadas"); refrescar(); } catch (x) { e.textContent = "Error: " + x.message; b.disabled = false; }
+  };
+  if ($("#btnNotAnalizar")) $("#btnNotAnalizar").onclick = () => { $("#btnNotAnalizar").disabled = true; trabajoNoticias("noticias/analizar", { n: 10 }); };
+  if ($("#btnSintesis")) $("#btnSintesis").onclick = () => { $("#btnSintesis").disabled = true; trabajoNoticias("noticias/sintesis", { periodo }); };
   if (d.sintesis) pintarMd($("#sintTexto"), d.sintesis.texto); else $("#sintTexto").innerHTML = `<p class="suave">Aún no hay síntesis para este periodo: se escribe sola en la actualización diaria, después de procesar las noticias a fondo.</p>`;
 };
 async function trabajoNoticias(ruta, datos) {
-  const e = $("#notEstado");
+  const e = $("#notEstado") || $("#notEstado2");
   try {
     const j = await api(ruta, datos);
-    await esperarTrabajo(j.trabajo, (t) => { if ($("#notEstado")) $("#notEstado").innerHTML = `<span class="cargando"></span> ${esc(textoEstado(t))}`; });
+    await esperarTrabajo(j.trabajo, (t) => { const x = $("#notEstado") || $("#notEstado2"); if (x) x.innerHTML = `<span class="cargando"></span> ${esc(textoEstado(t))}`; });
     refrescar();
   } catch (x) { if (e) e.textContent = "Error: " + x.message; }
 }
@@ -2449,20 +2483,61 @@ function resultadoChequeo(c) {
 })();
 
 /* =============================== REPORTE =============================== */
+/* ---------- reporte: semáforos, gráficos (una sola tinta: la de la app) y calibración ---------- */
+function reporteSemaforos(r) { return r.semaforos; }   // se calculan en el servidor (adaptacion.semaforos): una sola fuente para la web y el mensaje del celular
+const acNum2 = (x) => Number(x).toLocaleString(LOC, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function reporteGraficos(s) {
+  if (!s || !s.dias.length) return `<p class="vacio">Aún no hay historia suficiente para dibujar tendencias.</p>`;
+  const sem = s.semanas, hayMin = sem.some((x) => x.min > 0);
+  if (!hayMin) return `<p class="vacio">Todavía no hay minutos registrados: las tendencias aparecen con tu primera semana de estudio.</p>`;
+  const max = Math.max(...s.dias.map((x) => x.min), 1);
+  const nivelCelda = (m) => (m <= 0 ? 0 : m < max * 0.25 ? 1 : m < max * 0.5 ? 2 : m < max * 0.75 ? 3 : 4);
+  const primero = new Date(s.dias[0].fecha + "T12:00:00").getDay(), lunes0 = (primero + 6) % 7;   // lunes = fila 0
+  const celdas = Array(lunes0).fill(`<i class="rp-c vacia"></i>`).concat(s.dias.map((x) => `<i class="rp-c n${nivelCelda(x.min)}"${tip(`${new Date(x.fecha + "T12:00:00").toLocaleDateString(LOC, { weekday: "long", day: "numeric", month: "short" })}: ${Math.round(x.min)} min${x.activo ? "" : " · sin actividad"}`)}></i>`));
+  const fsem = (x) => new Date(x.desde + "T12:00:00").toLocaleDateString(LOC, { day: "numeric", month: "short" });
+  return `<div class="tarjeta rp-graf"><h3 style="margin-top:0">Minutos por semana</h3>
+      ${barrasV(sem, { alto: 120, etiqueta: fsem, valor: (x) => x.min, tipTxt: (x) => `Semana del ${fsem(x)}: ${x.min} min · ${x.dias_activos} días activos`, cada: 2 })}
+      <h3>Retención de los repasos por semana</h3>
+      ${sem.some((x) => x.retencion != null) ? barrasV(sem, { alto: 100, max: 1, etiqueta: fsem, valor: (x) => x.retencion, tipTxt: (x) => `Semana del ${fsem(x)}: ${x.retencion == null ? "pocos repasos para medir (menos de 5)" : pct(x.retencion) + " de " + x.repasos + " repasos"}`, cada: 2 })
+        : `<p class="suave peq">Aún no hay semanas con 5 repasos o más para medir la retención.</p>`}
+      <h3>Calendario de actividad (12 semanas)</h3>
+      <div class="rp-cal" role="img" aria-label="Calendario de actividad: cada cuadro es un día, más oscuro = más minutos">${celdas.join("")}</div>
+      <div class="rp-leyenda peq suave">menos <i class="rp-c n0"></i><i class="rp-c n1"></i><i class="rp-c n2"></i><i class="rp-c n3"></i><i class="rp-c n4"></i> más · cada columna es una semana (de lunes a domingo)</div>
+      <details class="peq" style="margin-top:.5rem"><summary class="suave">Ver como tabla</summary><table class="tabla"><tr><th>Semana del</th><th>Minutos</th><th>Días activos</th><th>Repasos</th><th>Retención</th></tr>
+        ${sem.map((x) => `<tr><td>${fsem(x)}</td><td>${x.min}</td><td>${x.dias_activos}</td><td>${x.repasos}</td><td>${pct(x.retencion)}</td></tr>`).join("")}</table></details></div>`;
+}
+function reporteCalibracion(c) {
+  return `<h2>🎯 ¿Sabes lo que sabes?</h2><div class="tarjeta">${c.n ? `
+    <div class="stats" style="margin-top:0"><div class="stat"><b>${acNum2(c.brier)}</b><span>Brier (0 = perfecto · 0,25 = azar)</span></div>
+      <div class="stat"><b>${c.sobreconfianza > 0 ? "+" : ""}${Math.round(c.sobreconfianza * 100)} pts</b><span>${c.sobreconfianza > 0.02 ? "sobreconfianza" : c.sobreconfianza < -0.02 ? "subconfianza" : "bien calibrado"}</span></div>
+      <div class="stat"><b>${c.n}</b><span>respuestas con confianza (90 d)</span></div></div>
+    <table class="tabla"><tr><th>Dijiste</th><th>Esperado</th><th>Acertaste</th><th>Veces</th></tr>${c.niveles.map((n) => `<tr><td>${{ seguro: "💪 Seguro", dudo: "🤔 Dudo", adivino: "🎲 Adivino" }[n.nivel]}</td><td>~${Math.round(n.p * 100)} %</td><td><b>${pct(n.acierto)}</b></td><td>${n.n}</td></tr>`).join("")}</table>
+    <p class="suave peq">Si dices «seguro» y aciertas menos del 90 %, ese tema se siente dominado pero no lo está: es el mejor candidato a repasar.</p>`
+    : `<p class="suave">Aún no hay datos. En cada pregunta de opción múltiple de los quizzes, antes de responder, marca <b>seguro</b>, <b>dudo</b> o <b>adivino</b>: así la Academia mide si tu seguridad coincide con tu acierto (lo que de verdad separa saber de creer que se sabe).</p>`}</div>`;
+}
 VISTAS.reporte = async () => {
   const r = await api("reporte");
   const d = r.analitica, L = r.largo_plazo;
   vista.innerHTML = `<div class="fila entre no-imprimir"><button class="btn fantasma peq" onclick="ir('progreso')">← Cómo aprendes</button>
       <div class="fila"><a class="btn peq" href="api/exportar">⬇️ Todos mis datos (ZIP)</a><a class="btn peq" href="api/reporte.md">⬇️ Reporte (.md)</a><button class="btn peq" onclick="window.print()">🖨️ Imprimir / PDF</button></div></div>
-    <h1>📄 Reporte de desarrollo</h1>
-    <p class="suave">${esc(r.perfil.nombre || r.usuario)} · generado ${new Date(r.generado * 1000).toLocaleString(LOC)}</p>
+    <header class="rp-portada"><div class="rp-sello">🎓 Academia · Reporte de desarrollo</div>
+      <h1>${esc(r.perfil.nombre || r.usuario)}</h1>
+      <p class="suave">${esc(r.perfil.situacion || "")}</p>
+      <div class="rp-meta"><span>Generado el ${new Date(r.generado * 1000).toLocaleDateString(LOC, { day: "numeric", month: "long", year: "numeric" })}</span>
+        <span>Ventana principal: últimos 30 días · tendencia: 12 semanas</span><span>Datos solo de tu equipo</span></div></header>
+    <h2>🧭 Resumen ejecutivo</h2>
+    <div class="rp-semaforos">${reporteSemaforos(r).map((x) => `<div class="rp-sem rp-${x.estado}"${tip(x.tip)}><span class="rp-ico" aria-hidden="true">${{ ok: "✔", atencion: "▲", riesgo: "✖", nd: "…" }[x.estado]}</span>
+      <div><b>${esc(x.valor)}</b><span class="suave peq">${esc(x.nombre)}</span><span class="rp-et">${esc({ ok: "Bien", atencion: "Atención", riesgo: "Riesgo", nd: "Sin datos aún" }[x.estado])} · ${esc(x.lectura)}</span></div></div>`).join("")}</div>
     <div class="stats">
       <div class="stat"><b>${d.minutos_30}</b><span>minutos (30 d)</span></div><div class="stat"><b>${d.dias_activos_14}/14</b><span>días activos</span></div>
       <div class="stat"><b>${pct(d.resultados.repaso)}</b><span>retención</span></div><div class="stat"><b>${pct(L.retencion_1dia)}</b><span>a 1-2 días</span></div>
       <div class="stat"><b>${L.recuerdo_mas_antiguo ? L.recuerdo_mas_antiguo.dias + " d" : "—"}</b><span>recuerdo más antiguo</span></div>
-      <div class="stat"><b>${r.areas.reduce((s, a) => s + a.dominados, 0)}</b><span>temas dominados</span></div></div>
+      <div class="stat"${tip("Dominado = quiz ≥ 80 % o marcado por ti. Explorado = lo que abriste o leíste (no prueba que lo domines).")}><b>${r.dominio.dominados}<small> / ${r.dominio.explorados}</small></b><span>dominados / explorados</span></div></div>
+    <h2>📈 Tendencia</h2>
+    ${reporteGraficos(r.series)}
+    ${reporteCalibracion(r.calibracion)}
     <h2>🧑‍💼 Análisis de la IA</h2>
-    <div class="tarjeta">${r.informe_ia ? `<div class="suave peq">Escrito el ${new Date(r.informe_ia.fecha * 1000).toLocaleString(LOC)}</div><div class="leccion" id="repIA"></div>` : `<p class="suave">Aún no hay análisis escrito.</p>`}
+    <div class="tarjeta">${r.informe_ia ? `${r.informe_ia.desactualizado ? `<div class="rp-aviso" role="status">⚠️ <b>Este análisis puede estar desactualizado:</b> ${esc(r.informe_ia.motivo)}. Lo que dice no tiene por qué coincidir con las cifras de arriba. Pulsa «Rehacer» para escribirlo con los datos de hoy.</div>` : ""}<div class="suave peq">Escrito el ${new Date(r.informe_ia.fecha * 1000).toLocaleString(LOC)} (hace ${r.informe_ia.dias} d)</div><div class="leccion" id="repIA"></div>` : `<p class="suave">Aún no hay análisis escrito.</p>`}
       <div class="fila no-imprimir"><button class="btn peq" id="repGen">${r.informe_ia ? "Rehacer" : "Escribir"} análisis con IA (3-5 min)</button><span id="repEstado" class="suave peq">${r.trabajo ? esc(textoEstado(r.trabajo)) : ""}</span></div></div>
     <h2>🚩 Necesidades</h2><div class="tarjeta">${r.necesidades.length ? `<ul class="consejos">${r.necesidades.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "<p>Nada urgente.</p>"}</div>
     <h2>✅ Recomendaciones</h2><div class="tarjeta"><ul class="consejos">${[...d.consejos.map((c) => md(c).replace(/^<p>|<\/p>\s*$/g, "")), ...r.plan.ajustes.map(esc)].map((c) => `<li>${c}</li>`).join("")}</ul></div>

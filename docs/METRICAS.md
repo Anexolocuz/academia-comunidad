@@ -50,7 +50,7 @@ entera**. Una métrica marcada, ignorada o apagada deja de poder decidir. Los aj
 línea base de la fase F0 usa la misma. (El valor de 128 min por tema que menciona [Propósito](PROPOSITO.md) venía de otra definición; este manual manda.)
 Ojo: «probado» hoy significa que pasó una prueba de nivel; la exigencia de **prueba diferida** llega en la fase F3.
 
-## 3. Catálogo (54 métricas)
+## 3. Catálogo (59 métricas)
 
 D = directa · I = indirecta. Las que dependen de datos que aún no existen (prueba diferida, calibración de confianza, dispositivo) se añadirán en las fases F3 y siguientes.
 
@@ -68,6 +68,11 @@ D = directa · I = indirecta. Las que dependen de datos que aún no existen (pru
 | **Dificultad media de las tarjetas** (`dificultad_fsrs`) | indirecta | Promedio de la dificultad FSRS (1 fácil – 10 difícil) de las tarjetas ya repasadas. | acumulado | Qué temas reforzar y con qué formato | 10 |
 | **Acierto medio en quizzes** (`acierto_quiz`) | directa | Promedio del puntaje (0-1) de los quizzes de lección de los últimos 90 días. | 90 días | Cuándo dar por comprendido un tema | 5 |
 | **Acierto medio en pruebas de nivel** (`acierto_prueba`) | directa | Promedio del puntaje (0-1) de las pruebas de nivel de los últimos 90 días. | 90 días | Ubicar el nivel real y saltar lo que ya sabe | 3 |
+| **Pruebas diferidas aprobadas** (`prueba_diferida`) | directa | De las pruebas diferidas (3, 14 y 45 días tras dominar un tema, con preguntas de aplicación distintas del quiz) respondidas en 180 días, la parte con 75 % o más. | 180 días | Estado 5 «domina»: solo con las tres aprobadas (F3) | 3 |
+| **Preguntas del tutor examinador resueltas sin pistas** (`examen_tutor`) | directa | De las preguntas que te hizo el tutor examinador (por chat, con Hermes) en 90 días, la parte con puntaje de 0,8 o más y ninguna pista. | 90 días | Estados 3 «comprende» y 4 «aplica» (F3) y qué reexplicar | 5 |
+| **Ejercicios de código resueltos sin ver la solución** (`codigo_aprobado`) | directa | Ejercicios de la práctica con código donde pasaste todos los casos (visibles y ocultos) sin pedir la solución, en 90 días. El código se ejecutó: es verificación objetiva. | 90 días | Estado 4 «aplica» y proyectos de software (F9) | 3 |
+| **Calibración de tu seguridad (Brier)** (`calibracion_brier`) | directa | Promedio de (confianza declarada − acierto)² en los quizzes donde marcaste «seguro» (0,9), «dudo» (0,6) o «adivino» (0,3) antes de ver el resultado. 0 = tu seguridad coincide con la realidad; 0,25 = como decir siempre 50 %. | 90 días | Estado 5 «domina» (F3): no se da por sabido lo que se acierta sin saberlo | 10 |
+| **Sobreconfianza (seguridad − acierto)** (`sobreconfianza`) | directa | Seguridad media declarada menos acierto medio en esas mismas preguntas: positivo = crees saber más de lo que sabes. | 90 días | Cuándo pedir una prueba diferida antes de dar un tema por dominado | 10 |
 | **Explicación con tus palabras (Feynman)** (`feynman_medio`) | directa | Promedio del mejor puntaje Feynman (0-1) de los temas donde se intentó. | acumulado | Estado 3 «comprende» (F3) | 3 |
 | **Tarjetas que fallas una y otra vez** (`errores_repetidos`) | indirecta | Número de tarjetas con 2 o más fallos (nota «Otra vez»). | acumulado | Reexplicar el concepto en vez de repetir la tarjeta | 5 |
 | **Tarjetas que ya probablemente olvidaste** (`olvido_estimado`) | indirecta | Fracción de tarjetas repasadas cuya probabilidad actual de recordarlas (FSRS) es menor de 80 %. | acumulado | Prioridad de repaso y requisitos por reponer | 10 |

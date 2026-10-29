@@ -165,6 +165,7 @@ Con `1` y `1` todo se renueva a diario (más horas de IA; la cola respeta a las 
 
 | Clave | De fábrica | Qué hace |
 |---|---|---|
+| `practica_codigo` | false | 💻 Activa los ejercicios de Python que se corrigen ejecutando tu código (ver [Seguridad](SEGURIDAD_Y_DATOS.md)). Necesita bubblewrap, `systemd-run --user` y Linux; si falta algo, queda apagada y lo dice. |
 | `acciones_pronostico_diario` | true | En la actualización diaria, un pronóstico a 30 días por cada acción vigilada de cada persona activa (si el último tiene más de 20 h; de fondo, detrás de lo de estudio). false = solo precios, noticias y alertas; el pronóstico se pide a mano. |
 
 Los precios vienen de Yahoo Finance y las noticias de Yahoo Finance y Google Noticias (RSS de búsqueda), sin claves.

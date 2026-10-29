@@ -26,7 +26,7 @@ import base  # noqa: E402
 base.iniciar()
 import curriculo as cur  # noqa: E402
 import acciones as ac  # noqa: E402
-from base import ejecutar  # noqa: E402
+from base import ejecutar, fila  # noqa: E402
 
 U = "persona@prueba"
 DIA = 86400
@@ -622,6 +622,530 @@ class PruebaDuracionLimite(unittest.TestCase):
         self.assertEqual(d(E("You exceeded your current quota, please check your plan and billing details. RESOURCE_EXHAUSTED")), 3 * 3600)
         self.assertEqual(d(E("GenerateRequestsPerDayPerProjectPerModel-FreeTier")), 3 * 3600)
         self.assertEqual(d(E("rate limit")), 900)
+
+class PruebaCasosVelasComposicion(unittest.TestCase):
+    """Zonas del peor al mejor caso, patrones de velas y lectura de la composición de un fondo (sin internet)."""
+
+    @staticmethod
+    def _serie(n=300, paso=0.4):
+        out, c = [], 100.0
+        for k in range(n):
+            c *= 1 + (0.012 if k % 2 else -0.011) + paso / 1000
+            out.append([1700000000 + k * 86400, round(c, 4), c * 1.01, c * 0.99, 1000, round(c * 0.998, 4)])
+        return out
+
+    def test_las_cinco_zonas_suman_100_y_marcan_la_mas_y_la_menos_probable(self):
+        serie = self._serie()
+        r = ac.casos(serie, 30, serie[-1][1], 0.2)
+        self.assertEqual([z["clave"] for z in r["zonas"]], ["peor", "pesimista", "central", "optimista", "mejor"])
+        self.assertEqual(sum(z["prob"] for z in r["zonas"]), 100)
+        self.assertEqual(sum(z["prob_estadistica"] for z in r["zonas"]), 100)
+        self.assertEqual(sum(1 for z in r["zonas"] if z.get("marca") == "más probable"), 1)
+        self.assertEqual(sum(1 for z in r["zonas"] if z.get("marca") == "menos probable"), 1)
+        self.assertTrue(all(z["prob"] >= 1 for z in r["zonas"]))
+
+    def test_las_zonas_se_ajustan_a_la_probabilidad_de_subir(self):
+        serie = self._serie()
+        sube = ac.casos(serie, 30, serie[-1][1], 0.2, 85)["zonas"]
+        baja = ac.casos(serie, 30, serie[-1][1], 0.2, 15)["zonas"]
+        arriba = lambda zs: sum(z["prob"] for z in zs if z["clave"] in ("optimista", "mejor"))
+        self.assertGreater(arriba(sube), arriba(baja))
+        self.assertEqual(sum(z["prob"] for z in sube), 100)
+        self.assertEqual(sum(z["prob"] for z in baja), 100)
+
+    def test_los_limites_de_precio_son_continuos_y_ordenados(self):
+        serie = self._serie()
+        z = ac.casos(serie, 90, 100.0, 0.3)["zonas"]
+        self.assertIsNone(z[0]["desde"])
+        self.assertIsNone(z[-1]["hasta"])
+        for a, b in zip(z, z[1:]):
+            self.assertAlmostEqual(a["hasta"], b["desde"])
+        self.assertLess(z[1]["desde"], 100.0)
+        self.assertGreater(z[3]["hasta"], 100.0)
+
+    def test_sin_datos_suficientes_no_inventa(self):
+        self.assertIsNone(ac.casos(self._serie(10), 30, 100.0, 0.2))
+        self.assertIsNone(ac.casos(self._serie(), 30, 100.0, None))
+
+    @staticmethod
+    def _con_vela(o, h, l, c, bajada=True):
+        """40 velas de fondo (caída o subida del 4 % en las 5 previas) y una vela final con la forma dada."""
+        v, p = [], 100.0
+        for k in range(40):
+            p *= 0.99 if bajada and k > 30 else 1.01 if not bajada and k > 30 else 1.0
+            v.append([1700000000 + k * 86400, p, p * 1.003, p * 0.997, 1, p])
+        base_ = v[-1][1]
+        f = base_ / 100
+        v.append([1700000000 + 40 * 86400, c * f, h * f, l * f, 1, o * f])
+        return v
+
+    def test_martillo_tras_caida_y_hombre_colgado_tras_subida(self):
+        martillo = (self._con_vela(95, 96.2, 92, 96, bajada=True))
+        nombres = [r["patron"] for r in ac.patrones_velas(martillo, 1)["recientes"]]
+        self.assertIn("martillo", nombres)
+        colgado = self._con_vela(95, 96.2, 92, 96, bajada=False)
+        nombres = [r["patron"] for r in ac.patrones_velas(colgado, 1)["recientes"]]
+        self.assertIn("hombre colgado", nombres)
+        self.assertNotIn("martillo", nombres)
+
+    def test_estrella_fugaz_doji_y_envolvente(self):
+        est = self._con_vela(100, 105, 99.8, 100.8, bajada=False)
+        self.assertIn("estrella fugaz", [r["patron"] for r in ac.patrones_velas(est, 1)["recientes"]])
+        doji = self._con_vela(100, 101, 99, 100.02, bajada=True)
+        self.assertIn("doji", [r["patron"] for r in ac.patrones_velas(doji, 1)["recientes"]])
+        env = self._con_vela(95.8, 97.4, 95.6, 97.2, bajada=True)
+        f = env[-3][1] / 100                                   # la vela previa es roja: abrió 97 y cerró 96
+        env[-2] = [env[-2][0], 96.0 * f, 97.2 * f, 95.9 * f, 1, 97.0 * f]
+        env[-1] = [env[-1][0], 97.2 * f, 97.4 * f, 95.6 * f, 1, 95.8 * f]
+        self.assertIn("envolvente alcista", [r["patron"] for r in ac.patrones_velas(env, 1)["recientes"]])
+
+    def test_datos_viejos_sin_apertura_usan_el_cierre_anterior(self):
+        serie = [[x[0], x[1], x[2], x[3], x[4]] for x in self._serie(60)]
+        v = ac.velas(serie)
+        self.assertEqual(len(v), 60)
+        self.assertAlmostEqual(v[10][1], serie[9][1])
+
+    def test_composicion_lee_la_tabla_y_calcula_el_resto(self):
+        html = ("<table><tbody><tr><td>1</td><td class='sym'><a href='/x'>NVDA</a></td><td>NVIDIA Corporation</td><td>7.92%</td><td>1</td></tr>"
+                "<tr><td>2</td><td><a>AAPL</a></td><td>Apple Inc.</td><td>7.61%</td><td>2</td></tr></tbody></table>"
+                'date:"Oct 27, 2026",count:505,trust')
+        original = ac._get
+        ac._get = lambda url, timeout=15: html.encode()
+        try:
+            d = ac._leer_composicion("SPY")
+        finally:
+            ac._get = original
+        self.assertEqual([f["simbolo"] for f in d["filas"]], ["NVDA", "AAPL"])
+        self.assertEqual(d["total"], 505)
+        self.assertEqual(d["fecha"], "Oct 27, 2026")
+        self.assertAlmostEqual(d["filas"][0]["peso"], 7.92)
+
+    def test_familia_del_sp500(self):
+        f = ac.familia("SPY")
+        self.assertIsNotNone(f)
+        self.assertIn("^GSPC", f["simbolos"] + ["^GSPC"])
+        self.assertIsNone(ac.familia("NVDA"))
+        self.assertTrue({"SPY", "VOO", "IVV", "RSP", "QQQ", "^DJI", "^RUT"} <= set(f["simbolos"]))
+
+
+class PruebaReporteCalibracion(unittest.TestCase):
+    """Títulos del análisis de la IA, calibración de la confianza declarada y series del reporte (sin internet ni IA)."""
+
+    def setUp(self):
+        import adaptacion
+        import eventos
+        eventos.iniciar_tablas()
+        self.ad = adaptacion
+        self.u = "calibra@prueba"
+        ejecutar("DELETE FROM actividad WHERE usuario=?", (self.u,))
+        ejecutar("DELETE FROM evento WHERE usuario=?", (self.u,))
+
+    def _resp(self, nivel, acierto, n=1):
+        p = self.ad.NIVELES_CONFIANZA[nivel]
+        for _ in range(n):
+            base.registrar(self.u, "calibracion", "t.x", "a", 1.0 if acierto else 0.0, {"p": p, "nivel": nivel})
+
+    def test_titulos_repetidos_se_arreglan_sin_tocar_lo_demas(self):
+        f = self.ad.limpiar_titulos
+        self.assertEqual(f("## ## Diagnóstico\ntexto con ## en medio"), "## Diagnóstico\ntexto con ## en medio")
+        self.assertEqual(f("# # Título\n### ## Otro"), "# Título\n### Otro")
+        self.assertEqual(f("## Ya bien"), "## Ya bien")
+        self.assertEqual(f(None), "")
+
+    def test_calibracion_sin_datos_no_inventa(self):
+        r = self.ad.calibracion(self.u)
+        self.assertEqual(r["n"], 0)
+        self.assertIsNone(r["brier"])
+
+    def test_calibracion_brier_y_sobreconfianza(self):
+        self._resp("seguro", True, 3)
+        self._resp("seguro", False, 1)       # dijo «seguro» y falló una de cuatro
+        self._resp("adivino", False, 2)
+        r = self.ad.calibracion(self.u)
+        esperado = (3 * (0.9 - 1) ** 2 + (0.9 - 0) ** 2 + 2 * (0.3 - 0) ** 2) / 6
+        self.assertEqual(r["n"], 6)
+        self.assertAlmostEqual(r["brier"], round(esperado, 3), places=3)
+        self.assertAlmostEqual(r["sobreconfianza"], round((3 * 0.9 + 0.9 + 2 * 0.3) / 6 - 3 / 6, 3), places=3)
+        seguro = next(n for n in r["niveles"] if n["nivel"] == "seguro")
+        self.assertEqual((seguro["n"], seguro["acierto"]), (4, 0.75))
+
+    def test_series_del_reporte_vacias_y_con_estudio(self):
+        s = self.ad.series_reporte(self.u)
+        self.assertTrue(all(x["min"] == 0 for x in s["dias"]))
+        self.assertEqual(len(s["semanas"]), self.ad.SEMANAS_REPORTE)
+        ejecutar("INSERT INTO evento(usuario,ts,fuente,tipo,valor,directo) VALUES(?,?,?,?,?,0)", (self.u, time.time(), "t", "tiempo", 1800))
+        s = self.ad.series_reporte(self.u)
+        self.assertAlmostEqual(sum(x["min"] for x in s["dias"]), 30, places=0)
+        self.assertEqual(s["semanas"][-1]["min"], 30)
+        self.assertTrue(s["dias"][-1]["activo"])
+
+    def test_analisis_desactualizado_por_edad_o_por_cifras(self):
+        d = {"minutos_30": 590, "dias_activos_14": 7}
+        base_ = {"texto": "## ## Algo", "fecha": time.time()}
+        kv = lambda v: __import__("base").kv_set(f"reporte_ia:{self.u}", v)  # noqa: E731
+        kv(dict(base_, kpi={"minutos_30": 590, "dias_activos_14": 7}))
+        r = self.ad._informe_ia(self.u, d)
+        self.assertFalse(r["desactualizado"])
+        self.assertEqual(r["texto"], "## Algo")
+        kv(dict(base_, kpi={"minutos_30": 60, "dias_activos_14": 1}))
+        self.assertTrue(self.ad._informe_ia(self.u, d)["desactualizado"])
+        kv(dict(base_, fecha=time.time() - 23 * 86400, kpi={"minutos_30": 590, "dias_activos_14": 7}))
+        r = self.ad._informe_ia(self.u, d)
+        self.assertTrue(r["desactualizado"])
+        self.assertIn("23 días", r["motivo"])
+
+
+class PruebaTablero(unittest.TestCase):
+    """Proyección de fecha de logro de las metas y dominio en el tiempo (sin internet ni IA)."""
+
+    def setUp(self):
+        import adaptacion
+        import eventos
+        eventos.iniciar_tablas()
+        self.ad = adaptacion
+        self.u = "tablero@prueba"
+        for t in ("avance", "objetivo"):
+            ejecutar(f"DELETE FROM {t} WHERE usuario=?", (self.u,))
+
+    def test_fecha_de_logro(self):
+        from datetime import date
+        hoy = date(2026, 10, 29)
+        self.assertEqual(self.ad._fecha_logro(0, 0, hoy), hoy)
+        self.assertIsNone(self.ad._fecha_logro(10, 0, hoy))
+        self.assertEqual(self.ad._fecha_logro(14, 7, hoy), date(2026, 11, 12))     # 2 semanas a 7 temas por semana
+        self.assertEqual(self.ad._fecha_logro(1, 100, hoy), date(2026, 10, 30))
+
+    def test_el_ritmo_no_cuenta_los_probados_en_pruebas_de_nivel(self):
+        ahora = time.time()
+        for k in range(8):
+            ejecutar("INSERT INTO avance(usuario,tema,estado,actualizado,visto) VALUES(?,?,?,?,?)", (self.u, f"x.p{k}", "probado", ahora - 3600, ahora - 3600))
+        ejecutar("INSERT INTO avance(usuario,tema,estado,actualizado,visto) VALUES(?,?,?,?,?)", (self.u, "x.d1", "dominado", ahora - 7200, ahora - 9000))
+        self.assertAlmostEqual(self.ad._ritmo_temas(self.u, 28), 1 / 4)
+        self.assertEqual(self.ad._semanas_con_avance(self.u), 1)
+
+    def test_un_tema_repetido_no_cuenta_como_progreso_nuevo(self):
+        """Dominado hace 40 días (quiz 0,9) y vuelto a tocar hoy: `avance.actualizado` es de hoy, pero el dominio es de hace 40 días."""
+        ahora = time.time()
+        ejecutar("DELETE FROM actividad WHERE usuario=?", (self.u,))
+        ejecutar("INSERT INTO actividad(usuario,tipo,tema,area,valor,fecha) VALUES(?,?,?,?,?,?)", (self.u, "quiz", "x.v", "x", 0.9, ahora - 40 * 86400))
+        ejecutar("INSERT INTO actividad(usuario,tipo,tema,area,valor,fecha) VALUES(?,?,?,?,?,?)", (self.u, "quiz", "x.v", "x", 1.0, ahora - 60))
+        ejecutar("INSERT INTO avance(usuario,tema,estado,quiz,actualizado,visto) VALUES(?,?,?,?,?,?)", (self.u, "x.v", "dominado", 1.0, ahora - 60, ahora - 40 * 86400))
+        self.assertEqual(self.ad._ritmo_temas(self.u, 28), 0)
+        self.assertEqual(self.ad._semanas_con_avance(self.u), 1)     # su semana es la de hace 40 días, no la de hoy
+        s = self.ad.dominio_en_el_tiempo(self.u)
+        semana_actual = s[-1]["dominados"]
+        hace_6 = s[-7]["dominados"]
+        self.assertEqual((hace_6, semana_actual), (1, 1))       # ya estaba dominado hace 6 semanas: la curva no salta hoy
+        ejecutar("DELETE FROM actividad WHERE usuario=?", (self.u,))
+
+    def test_dominio_en_el_tiempo_es_acumulado_y_crece(self):
+        ahora = time.time()
+        for k, (est, dias) in enumerate((("dominado", 40), ("visto", 30), ("dominado", 3))):
+            ejecutar("INSERT INTO avance(usuario,tema,estado,actualizado,visto) VALUES(?,?,?,?,?)", (self.u, f"x.t{k}", est, ahora - dias * 86400, ahora - dias * 86400))
+        s = self.ad.dominio_en_el_tiempo(self.u)
+        self.assertEqual(len(s), self.ad.SEMANAS_REPORTE)
+        self.assertEqual((s[-1]["dominados"], s[-1]["explorados"]), (2, 3))
+        for a, b in zip(s, s[1:]):
+            self.assertLessEqual(a["dominados"], b["dominados"])
+            self.assertLessEqual(a["explorados"], b["explorados"])
+
+
+class PruebaCodigoVista(unittest.TestCase):
+    """Lo que la persona ve de un ejercicio de código: sin la solución y con los casos ocultos enmascarados (sin ejecutar nada)."""
+
+    def setUp(self):
+        import ejecucion
+        self.ej = ejecucion
+        self.datos = {"titulo": "Doble", "enunciado": "x", "funcion": "f", "plantilla": "def f(x):\n    pass\n", "solucion": "def f(x):\n    return 2 * x\n",
+                      "pista": "p", "casos": [{"args": [k], "esperado": 2 * k} for k in range(6)]}
+        self.fila = {"id": 7, "tema": "sistemas.x.0", "datos": json.dumps(self.datos), "vio_solucion": 0}
+
+    def test_el_ejercicio_publico_no_trae_la_solucion_ni_los_casos_ocultos(self):
+        p = self.ej.publico(self.fila)
+        self.assertNotIn("solucion", p)
+        self.assertNotIn("pista", p)
+        self.assertEqual(len(p["visibles"]), self.ej.CASOS_VISIBLES)
+        self.assertEqual(p["ocultos"], 3)
+        self.assertNotIn("def f(x):\n    return 2", json.dumps(p))
+
+    def test_con_la_solucion_pedida_si_se_muestra(self):
+        self.assertIn("solucion", self.ej.publico(dict(self.fila, vio_solucion=1)))
+
+    def test_evaluar_enmascara_los_casos_ocultos(self):
+        original = self.ej.correr
+        self.ej.correr = lambda u, c, f, casos: {"casos": [{"ok": k % 2 == 0, "obtenido": 0, **({} if k % 2 == 0 else {})} for k in range(len(casos))],
+                                                  "salida": "", "error_carga": None}
+        try:
+            r = self.ej.evaluar("ana", self.fila, "codigo")
+        finally:
+            self.ej.correr = original
+        self.assertEqual((r["aprobados"], r["total"]), (3, 6))
+        ocultos = [c for c in r["casos"] if c["oculto"]]
+        self.assertEqual(len(ocultos), 3)
+        for c in ocultos:
+            self.assertNotIn("args", c)
+            self.assertNotIn("esperado", c)
+            self.assertNotIn("obtenido", c)
+        self.assertIn("esperado", r["casos"][0])
+
+    def test_apagada_por_defecto_en_la_configuracion(self):
+        import config
+        self.assertFalse(config.DEFECTO["practica_codigo"])
+
+
+class PruebaTutorExaminador(unittest.TestCase):
+    """Material y evidencia del tutor examinador (Hermes): sin IA, sobre una lección sembrada en la base temporal."""
+
+    def setUp(self):
+        import servidor
+        self.sv = servidor
+        self.u = "examen@prueba"
+        self.tema = "biologia.celula.0"
+        quiz = [{"tipo": "opcion", "pregunta": "¿Qué es una célula?", "opciones": ["Un órgano", "La unidad básica de la vida", "Un tejido", "Un átomo"],
+                 "correcta": 1, "explicacion": "Toda la vida está hecha de células."},
+                {"tipo": "abierta", "pregunta": "Explica la membrana.", "opciones": [], "correcta": 0, "explicacion": "Regula lo que entra y sale."}]
+        for t in ("leccion", "actividad", "tarjeta"):
+            ejecutar(f"DELETE FROM {t} WHERE usuario=?", (self.u,))
+        ejecutar("INSERT INTO leccion(usuario,tema,contenido,ejercicios,completa) VALUES(?,?,?,?,1)", (self.u, self.tema, "x", json.dumps({"quiz": quiz})))
+
+    def examen(self, **q):
+        return self.sv.r_hermes_examen(self.u, dict({"tema": self.tema}, **q), {}, None)
+
+    def evidencia(self, **d):
+        return self.sv.r_hermes_evidencia(self.u, {}, dict({"tema": self.tema}, **d), None)
+
+    def test_material_trae_modelo_y_errores_tipicos_sin_el_acierto(self):
+        r = self.examen(n="5")
+        op = next(x for x in r["preguntas"] if x["pregunta_id"] == 0)
+        self.assertIn("unidad básica de la vida", op["respuesta_modelo"])
+        self.assertIn("Toda la vida", op["respuesta_modelo"])
+        self.assertEqual(len(op["errores_tipicos"]), 3)
+        self.assertNotIn("La unidad básica de la vida", op["errores_tipicos"])
+        ab = next(x for x in r["preguntas"] if x["pregunta_id"] == 1)
+        self.assertEqual((ab["respuesta_modelo"], ab["errores_tipicos"]), ("Regula lo que entra y sale.", []))
+
+    def test_primero_salen_las_menos_preguntadas(self):
+        self.evidencia(puntaje=0.9, pregunta_id=0)
+        self.evidencia(puntaje=0.9, pregunta_id=0)
+        self.assertEqual([x["pregunta_id"] for x in self.examen(n="2")["preguntas"]], [1, 0])
+
+    def test_temas_y_puntajes_invalidos_se_rechazan(self):
+        self.assertIn("error", self.sv.r_hermes_examen(self.u, {"tema": "no.existe"}, {}, None))
+        for malo in (7, -0.1, "abc", None):
+            self.assertIn("error", self.evidencia(puntaje=malo))
+        self.assertIn("error", self.sv.r_hermes_evidencia(self.u, {}, {"tema": "no.existe", "puntaje": 0.5}, None))
+        ejecutar("DELETE FROM leccion WHERE usuario=?", (self.u,))
+        self.assertIn("error", self.examen())            # sin lección no hay material
+
+    def test_evidencia_buena_queda_directa_y_no_toca_el_dominio(self):
+        ejecutar("DELETE FROM avance WHERE usuario=?", (self.u,))
+        r = self.evidencia(puntaje=0.95, ayudas=9, repreguntas=2, pregunta_id=1, confianza="seguro")
+        self.assertTrue(r["ok"])
+        a = fila("SELECT valor, detalle FROM actividad WHERE usuario=? AND tipo='examen'", (self.u,))
+        self.assertEqual(json.loads(a["detalle"])["ayudas"], 3)          # tope
+        self.assertIsNotNone(fila("SELECT 1 FROM actividad WHERE usuario=? AND tipo='calibracion'", (self.u,)))
+        self.assertIsNone(fila("SELECT 1 FROM avance WHERE usuario=? AND tema=?", (self.u, self.tema)))   # solo mide
+
+    def test_evidencia_floja_con_modelo_crea_una_tarjeta_una_sola_vez(self):
+        for _ in range(2):
+            r = self.evidencia(puntaje=0.2, pregunta="Explica la membrana.", respuesta_modelo="Regula lo que entra y sale.")
+        self.assertEqual(fila("SELECT COUNT(*) n FROM tarjeta WHERE usuario=?", (self.u,))["n"], 1)
+        self.assertEqual(r["tarjeta"], 0)                                  # la segunda vez ya existía
+        self.assertEqual(self.evidencia(puntaje=0.9, pregunta="otra", respuesta_modelo="x")["tarjeta"], 0)   # buena: sin tarjeta
+
+
+class PruebaResumenSemanal(unittest.TestCase):
+    """Semáforos (una sola fuente para la web y el celular) y el texto del resumen semanal (sin IA)."""
+
+    def setUp(self):
+        import servidor  # noqa: F401  (crea todas las tablas, también las de lectura)
+        import adaptacion
+        self.ad = adaptacion
+
+    def sem(self, dias=12, ret=0.9, pend=10, dom=6, exp=10, brier=0.1, n=12, sobre=0.0):
+        d = {"resultados": {"repaso": ret}, "dias_activos_14": dias}
+        return {x["id"]: x for x in self.ad.semaforos(d, {"pendientes": pend}, {"n": n, "brier": brier, "sobreconfianza": sobre},
+                                                      {"dominados": dom, "explorados": exp})}
+
+    def test_umbrales_de_los_semaforos(self):
+        self.assertEqual(self.sem()["constancia"]["estado"], "ok")
+        self.assertEqual(self.sem(dias=7)["constancia"]["estado"], "atencion")
+        self.assertEqual(self.sem(dias=3)["constancia"]["estado"], "riesgo")
+        self.assertEqual(self.sem(ret=0.75)["retencion"]["estado"], "atencion")
+        self.assertEqual(self.sem(ret=0.5)["retencion"]["estado"], "riesgo")
+        self.assertEqual(self.sem(pend=35)["atrasados"]["estado"], "atencion")
+        self.assertEqual(self.sem(pend=80)["atrasados"]["estado"], "riesgo")
+        self.assertEqual(self.sem(dom=2, exp=10)["dominado"]["estado"], "riesgo")
+
+    def test_sin_datos_suficientes_dice_sin_datos_y_no_un_color(self):
+        s = self.sem(ret=None, pend=None, exp=3, n=4, brier=None)
+        for k in ("retencion", "atrasados", "dominado", "calibracion"):
+            self.assertEqual(s[k]["estado"], "nd", k)
+        self.assertEqual(s["calibracion"]["lectura"], "4 de 10 respuestas con confianza")
+
+    def test_calibracion_distingue_sobreconfianza(self):
+        self.assertIn("creer que sabes más", self.sem(brier=0.3, sobre=0.2)["calibracion"]["lectura"])
+        self.assertIn("más de lo que crees", self.sem(brier=0.3, sobre=-0.2)["calibracion"]["lectura"])
+        self.assertEqual(self.sem(brier=0.3)["calibracion"]["estado"], "riesgo")
+
+    def test_resumen_semanal_de_una_persona_sin_datos_no_falla_ni_inventa(self):
+        import eventos
+        eventos.iniciar_tablas()
+        t = self.ad.resumen_semanal("nadie@prueba", {"nombre": "Nadie", "situacion": "", "metas": "", "estilo": "", "pesos": {}})
+        self.assertIn("Tu semana en la Academia", t)
+        self.assertIn("sin datos aún", t)
+        self.assertNotIn("None", t)
+        self.assertNotIn("nan", t.lower())
+
+
+class PruebaEstadosDominio(unittest.TestCase):
+    """Estados 0-5, calendario de pruebas diferidas, banco con segunda lectura y corrección (sin IA real, sin internet)."""
+
+    TEMA = "biologia.celula.0"
+
+    def setUp(self):
+        import servidor  # noqa: F401  (crea todas las tablas)
+        import estados
+        self.es = estados
+        self.u = "estados@prueba"
+        for t in ("avance", "tarjeta", "actividad", "entrega", "prueba_diferida", "leccion"):
+            ejecutar(f"DELETE FROM {t} WHERE usuario=?", (self.u,))
+
+    def avance(self, estado="visto", quiz=None, feynman=None):
+        ejecutar("INSERT OR REPLACE INTO avance(usuario,tema,estado,quiz,feynman,visto,actualizado) VALUES(?,?,?,?,?,?,?)",
+                 (self.u, self.TEMA, estado, quiz, feynman, time.time(), time.time()))
+
+    def act(self, tipo, valor, detalle=None, dias_atras=0):
+        ejecutar("INSERT INTO actividad(usuario,tipo,tema,area,valor,detalle,fecha) VALUES(?,?,?,?,?,?,?)",
+                 (self.u, tipo, self.TEMA, "biologia", valor, json.dumps(detalle) if detalle else None, time.time() - dias_atras * 86400))
+
+    def nivel(self):
+        return self.es.estado_tema(self.u, self.TEMA)["nivel"]
+
+    def test_la_escalera_de_estados(self):
+        self.assertEqual(self.nivel(), 0)
+        self.avance("visto")
+        self.assertEqual(self.nivel(), 1)
+        self.avance("visto", quiz=0.5)
+        self.assertEqual(self.nivel(), 1)                 # 50 % no es «recuerda»
+        self.avance("visto", quiz=0.7)
+        self.assertEqual(self.nivel(), 2)
+        self.avance("dominado", quiz=0.9, feynman=0.75)
+        self.assertEqual(self.nivel(), 3)
+        self.act("codigo", 1.0, {"vio_solucion": True})
+        self.assertEqual(self.nivel(), 3)                 # con la solución a la vista no cuenta
+        self.act("codigo", 1.0, {"vio_solucion": False})
+        self.assertEqual(self.nivel(), 4)
+
+    def test_examen_del_tutor_con_pistas_de_mas_no_cuenta_como_comprende(self):
+        self.avance("visto", quiz=0.7)
+        self.act("examen", 0.9, {"ayudas": 3})
+        self.assertEqual(self.nivel(), 2)
+        self.act("examen", 0.9, {"ayudas": 0})
+        self.assertEqual(self.nivel(), 3)
+
+    def test_el_nivel_5_exige_las_tres_pruebas_diferidas(self):
+        self.avance("dominado", quiz=0.9, feynman=0.8)
+        self.act("codigo", 1.0, {"vio_solucion": False})
+        for etapa in (1, 2):
+            ejecutar("INSERT INTO prueba_diferida(usuario,tema,etapa,estado,preguntas,resultado,creada) VALUES(?,?,?,?,?,?,?)",
+                     (self.u, self.TEMA, etapa, "hecha", "[]", json.dumps({"aprobada": True, "puntaje": 1}), time.time()))
+        e = self.es.estado_tema(self.u, self.TEMA)
+        self.assertEqual(e["nivel"], 4)
+        self.assertIn("2 de 3", " ".join(e["falta"]))
+        ejecutar("INSERT INTO prueba_diferida(usuario,tema,etapa,estado,preguntas,resultado,creada) VALUES(?,?,?,?,?,?,?)",
+                 (self.u, self.TEMA, 3, "hecha", "[]", json.dumps({"aprobada": False, "puntaje": 0.5}), time.time()))
+        self.assertEqual(self.nivel(), 4)                 # la de 45 días no se aprobó
+        ejecutar("UPDATE prueba_diferida SET resultado=? WHERE usuario=? AND etapa=3", (json.dumps({"aprobada": True, "puntaje": 1}), self.u))
+        self.assertEqual(self.nivel(), 5)
+
+    def test_el_calendario_cuenta_desde_el_primer_dominio_y_no_se_salta_etapas(self):
+        self.avance("dominado", quiz=0.9)
+        self.act("quiz", 0.9, dias_atras=20)              # primer dominio hace 20 días
+        cal = self.es.calendario(self.u, self.TEMA)
+        self.assertEqual([c["disponible"] for c in cal], [True, True, False])
+        sig = self.es.siguiente_cita(self.u, self.TEMA)
+        self.assertEqual(sig["etapa"], 1)                 # primero la de 3 días, aunque la de 14 ya «tocaría»
+        pend = self.es.pendientes(self.u)
+        self.assertEqual((pend[0]["tema"], pend[0]["etapa"]), (self.TEMA, 1))
+        self.assertGreaterEqual(pend[0]["vencida_hace_dias"], 16)
+
+    def test_un_tema_no_dominado_no_tiene_calendario(self):
+        self.avance("visto", quiz=0.5)
+        self.assertEqual(self.es.calendario(self.u, self.TEMA), [])
+        self.assertEqual(self.es.pendientes(self.u), [])
+
+    def test_depurar_descarta_formato_malo_y_preguntas_repetidas(self):
+        bien = {"pregunta": "Un laboratorio observa que la membrana de una célula deja pasar agua pero no sales; ¿qué principio explica esto?",
+                "opciones": ["Permeabilidad selectiva", "Fotosíntesis", "Mitosis", "Replicación"], "correcta": 0, "explicacion": "x"}
+        repetida = dict(bien, pregunta=bien["pregunta"] + " (otra vez)")
+        dos_iguales = dict(bien, pregunta="Otro caso distinto sobre ribosomas en la síntesis de proteínas dentro del citoplasma", opciones=["a", "a", "b", "c"])
+        corta = dict(bien, pregunta="¿Qué?")
+        mala_correcta = dict(bien, pregunta="Una pregunta suficientemente larga sobre mitocondrias y la respiración celular aerobia", correcta=7)
+        r = self.es.depurar([bien, repetida, dos_iguales, corta, mala_correcta], previas=[])
+        self.assertEqual(r, [bien])
+        self.assertEqual(self.es.depurar([bien], previas=[bien["pregunta"]]), [])         # ya se preguntó en el quiz
+        self.assertLess(self.es.parecida("membrana plasmática selectiva", "ribosomas sintetizan proteínas"), 0.2)
+
+    def _banco(self, n_buenas=5, coinciden=5):
+        enunciados = ["Una bióloga marina observa que cierta alga conserva su forma dentro de agua muy salada; ¿qué estructura celular explica esa resistencia al cambio de volumen?",
+                      "Durante un ayuno prolongado, el hígado de un paciente aumenta la degradación de componentes dañados; ¿qué orgánulo participa principalmente en ese reciclaje?",
+                      "Un técnico descubre que una línea celular carece de enzimas oxidativas pero sobrevive con glucosa; ¿qué proceso metabólico estaría sosteniendo su energía?",
+                      "Un investigador marca ARN mensajero recién sintetizado y lo sigue hasta el citoplasma; ¿dónde ocurre la traducción hacia una cadena polipeptídica?",
+                      "Al examinar una hoja bajo el microscopio aparecen estructuras verdes con membranas apiladas; ¿qué función cumplen esas estructuras dentro de la planta?",
+                      "Una célula nerviosa necesita mantener gradientes iónicos constantes; ¿qué mecanismo de transporte gasta energía para lograrlo continuamente?"]
+        base = [{"pregunta": enunciados[k], "opciones": [f"op{k}a", f"op{k}b", f"op{k}c", f"op{k}d"], "correcta": 1, "explicacion": "porque sí"}
+                for k in range(n_buenas)]
+
+        class Ctx:
+            def __init__(self):
+                self.n = 0
+
+            def fase(self, _):
+                pass
+
+            def chat(self, mensajes, max_tokens=0, temperatura=0, esquema=None, **kw):
+                if "preguntas" in esquema["properties"]:
+                    return {"preguntas": base}
+                self.n += 1
+                return {"respuesta": 1 if self.n <= coinciden else 3}
+        return Ctx()
+
+    def test_generar_banco_conserva_solo_las_confirmadas_por_la_segunda_lectura(self):
+        ctx = self._banco(n_buenas=5, coinciden=4)
+        r = self.es.generar_banco(ctx, self.u, self.TEMA, 1, {})
+        qs = json.loads(fila("SELECT preguntas FROM prueba_diferida WHERE id=?", (r["id"],))["preguntas"])
+        self.assertEqual(len(qs), 4)
+        self.assertEqual(fila("SELECT estado FROM prueba_diferida WHERE id=?", (r["id"],))["estado"], "lista")
+
+    def test_generar_banco_falla_si_la_segunda_lectura_descarta_demasiadas(self):
+        ctx = self._banco(n_buenas=5, coinciden=2)
+        with self.assertRaises(ValueError):
+            self.es.generar_banco(ctx, self.u, self.TEMA, 1, {})
+        self.assertIsNone(fila("SELECT 1 FROM prueba_diferida WHERE usuario=?", (self.u,)))
+
+    def _prueba(self):
+        qs = [{"pregunta": f"p{k}", "opciones": ["a", "b", "c", "d"], "correcta": k % 4, "explicacion": "e"} for k in range(4)]
+        pid = ejecutar("INSERT INTO prueba_diferida(usuario,tema,etapa,estado,preguntas,creada) VALUES(?,?,?,?,?,?)",
+                       (self.u, self.TEMA, 1, "lista", json.dumps(qs), time.time())).lastrowid
+        return fila("SELECT * FROM prueba_diferida WHERE id=?", (pid,))
+
+    def test_corregir_aprueba_con_75_y_solo_se_responde_una_vez(self):
+        p = self._prueba()
+        self.avance("dominado", quiz=0.9)
+        r = self.es.responder(self.u, p, [{"j": 0, "conf": "seguro"}, {"j": 1, "conf": "dudo"}, {"j": 2}, {"j": 0, "conf": "adivino"}])
+        self.assertEqual((r["aciertos"], r["total"], r["aprobada"]), (3, 4, True))
+        self.assertNotIn("correcta", json.dumps(self.es.publica(p)))
+        self.assertIn("error", self.es.responder(self.u, fila("SELECT * FROM prueba_diferida WHERE id=?", (p["id"],)), [{"j": 0}] * 4))
+        self.assertEqual(fila("SELECT COUNT(*) n FROM actividad WHERE usuario=? AND tipo='calibracion'", (self.u,))["n"], 3)
+        self.assertEqual(fila("SELECT estado FROM avance WHERE usuario=? AND tema=?", (self.u, self.TEMA))["estado"], "dominado")   # solo mide
+
+    def test_corregir_no_aprueba_con_la_mitad_y_rechaza_respuestas_incompletas(self):
+        p = self._prueba()
+        self.assertIn("error", self.es.responder(self.u, p, [{"j": 0}]))
+        r = self.es.responder(self.u, p, [{"j": 0}, {"j": 1}, {"j": 0}, {"j": 0}])
+        self.assertEqual((r["aciertos"], r["aprobada"]), (2, False))
+
 
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=2).result

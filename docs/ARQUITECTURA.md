@@ -41,7 +41,10 @@ app/
   acciones.py    💹 acciones vigiladas: Yahoo Finance (buscar, cotizar: serie diaria de 2 años en accion_info),
                  indicadores y tasa_base (sin IA), noticias directas/indirectas (Yahoo RSS, Google Noticias, tabla
                  noticia; accion_noticia), relaciones() y pronosticar() con la IA (clasifica noticias, escenarios,
-                 p_sube anclada a la tasa base ±20), evaluar()/calibracion() (Brier), lista por persona (accion_vigilada)
+                 p_sube anclada a la tasa base ±20), evaluar()/calibracion() (Brier), lista por persona (accion_vigilada);
+                 casos() (5 zonas excluyentes del peor al mejor caso, suman 100), patrones_velas() (martillos y demás,
+                 con su historia a 5 sesiones; la serie guarda también la apertura), composicion() (posiciones de un
+                 fondo/índice por stockanalysis.com, caché 7 días en accion_composicion) y familia() (S&P 500 y rivales)
   nube.py        API de IA opcional: proveedores (OpenAI-compatibles y Anthropic), privacidad (`limpiar`), gasto y topes, reajuste
                  de parámetros, respaldo en la IA local; `intentar()` lo llama `Contexto._chat`
   secretos.py    datos/secretos.json (clave de la API, token de Telegram), permiso 600

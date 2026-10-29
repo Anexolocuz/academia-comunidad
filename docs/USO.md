@@ -30,7 +30,7 @@
 | ⚡ **Pulso diario** | En «Hoy», 1-2 min: 5 tarjetas (lo de los últimos días, lo más antiguo y lo más débil). Y dentro de cada lección, «antes de seguir»: 2 preguntas de otros temas. |
 | 🧪 **Chequeo semanal** | Cada domingo (configurable) la IA prepara un examen con lo de la semana y lo más antiguo, más las tarjetas con más riesgo. Lo fallado deja de contar como dominado y vuelve al repaso; trae el informe semanal del coach. |
 | 🧭 **Sesión adaptativa** | Con esos datos, «Hoy» ajusta cuántos temas nuevos, pone primero lo olvidado (♻️ recuperar), recomienda hora y bloque, y avisa qué método te funciona; las lecciones, el tutor y el chequeo también lo reciben. El plan del día queda fijo; **➕ Otra sesión** / **📅 Adelantar un día** agregan más temas, y **⚡ Preparar ya** genera todas las lecciones. |
-| 📄 **Reporte** | Desarrollo, necesidades, recomendaciones, corto/largo plazo, cambios, qué datos se guardan y para qué; análisis escrito por la IA; **⬇️ ZIP con todos tus datos** (JSON + CSV + apuntes), reporte en .md e impresión a PDF. |
+| 📄 **Reporte** | Portada, **resumen ejecutivo con semáforos**, tendencias de 12 semanas (minutos, retención, calendario de actividad), calibración de tu seguridad, dominado frente a explorado, desarrollo, necesidades, recomendaciones, corto/largo plazo, cambios, qué datos se guardan y para qué; análisis escrito por la IA; **⬇️ ZIP con todos tus datos** (JSON + CSV + apuntes), reporte en .md e impresión a PDF. |
 | 💹 **Acciones** | Botón 💹 arriba (y tarjeta en «Hoy»). Tu lista de acciones, ETF, índices o cripto (búsqueda por nombre o símbolo; Bolsa de Colombia con `.CL`, p. ej. `ECOPETROL.CL`) con precio, cambio del día, mini-gráfico, alertas y último pronóstico. Ver la sección «💹 Acciones bajo vigilancia». |
 | ⋯ **Más** (celular) | En pantallas angostas la barra de arriba muestra ⏳ 🎯 💹 ⚙️; 🔎 Verificar, 🔭 Horizonte, 📈 Cómo aprendes, 🧪 Chequeo y 📝 Pruebas están en «⋯». En el PC se ven todos. |
 | ⚙️ **Ajustes** | 🪄 Configuración automática (escanea tu PC con permiso, sí/no); 🟢 **Básico**: tu perfil (la IA lo lee para adaptar todo), prioridad 0-3 por área, lecciones y tarjetas nuevas por día, meta de minutos, apariencia y tus datos; 🛠️ **Avanzado**: IA, ritmo de trabajo, actualización diaria y versión. |
@@ -84,6 +84,27 @@ propio**. En cada meta de 🎯 Objetivos:
 Las lecciones de la meta se leen **completas** (por defecto **paso a paso** si no terminas las lecciones largas),
 con la **🗺️ vista previa** de 10 min como mapa antes de empezar y como repaso después.
 
+## 🎯 ¿Sabes lo que sabes? Confianza en los quizzes y reporte profesional (2026-10-29)
+
+- **Confianza declarada**: en cada pregunta de opción múltiple del quiz, antes de responder, puedes marcar 💪 *seguro*, 🤔 *dudo* o
+  🎲 *adivino* (es opcional). La Academia solo la registra: **no cambia tu nota, tu dominio ni tus repasos**. Con 10 respuestas o más
+  calcula el **Brier** (0 = tu seguridad coincide con tu acierto; 0,25 = como decir siempre «50 %») y la **sobreconfianza**, y los
+  muestra en el reporte («¿Sabes lo que sabes?») y en 🔬. Un tema donde dices «seguro» y aciertas poco se siente dominado pero no lo
+  está: es el mejor candidato a repasar.
+- **📄 Reporte**: portada con tu nombre y la fecha; **resumen ejecutivo** con cinco semáforos (constancia, retención, repasos atrasados,
+  dominado frente a explorado, calibración), cada uno con icono y palabra —no solo color— y su umbral al pasar el cursor; tendencias
+  de 12 semanas (minutos y retención por semana, calendario de actividad, con «ver como tabla»); y el análisis de la IA. Si el análisis
+  tiene 7 días o más, o tus cifras cambiaron mucho desde que se escribió, el reporte lo avisa y ofrece «Rehacer» (no se rehace solo).
+  **Imprimir / PDF** sale en hoja A4 con tema claro, secciones que no se parten y número de página.
+- **📊 Tablero** (icono 📊 arriba o el botón de 🔬): tus metas con avance, temas que faltan y **fecha estimada** a tu ritmo real —con un rango, su confianza y lo que necesitarías por semana para terminar en 12 meses—, dominado frente a explorado en 12 semanas, tendencias de tiempo y retención, y la curva de recuerdo por edad. Las fechas son estimaciones, no promesas; con poco ritmo dirá «más de 5 años» o «sin ritmo para proyectar».
+- **💻 Práctica con código** (en los temas de Sistemas, Ciberseguridad, Tecnología, Mecatrónica y Matemáticas, si el administrador la activó): «➕ Nuevo ejercicio» le pide a la IA un ejercicio de Python sobre el tema; **antes de mostrártelo** se comprueba que su solución de referencia pase todos los casos y que la plantilla vacía falle (si no, se descarta). Escribes la función, «▶ Ejecutar» (o Ctrl+Enter) y tu código corre aislado contra los casos: ves los tres primeros con lo esperado y lo obtenido, y los demás aparecen ocultos (solo ✅/❌). Hay pista, y la solución se ofrece tras 3 intentos; si la ves, ese ejercicio queda anotado como «con la solución a la vista» y no cuenta como resuelto por ti. Mide la métrica «ejercicios de código resueltos sin ver la solución»; no cambia tu dominio ni tus repasos.
+- **🎤 Tutor examinador**: en Telegram, escríbele a Hermes «examíname de <tema>». Pregunta de a una (abiertas, de la propia lección), espera tu respuesta, **repregunta hacia tu error** con hasta 3 pistas sin darte la respuesta, puntúa de 0 a 1 y deja la evidencia en la Academia (métrica «preguntas del tutor resueltas sin pistas»; opcionalmente te pregunta antes qué tan seguro estás). Lo flojo pasa a tus tarjetas de repaso. De momento solo mide: no cambia el dominio del tema.
+- **📬 Resumen semanal por Telegram**: los domingos a las 7 p. m., Hermes te manda un mensaje corto con los cinco semáforos del reporte, los minutos de la semana frente a la anterior, tus metas con la fecha estimada (y su confianza) y lo primero que conviene hacer. No usa IA y sale por **tu** Telegram de Hermes (no por el canal de avisos de la Academia, que solo manda cantidades). Para verlo ahora: `curl http://127.0.0.1:8092/api/hermes/semanal`. Para quitarlo o cambiar la hora: `hermes cron list` / `hermes cron edit`.
+- **🧬 Estados de dominio y pruebas diferidas** (al final de cada lección y en 📊 Tablero): cada tema tiene un estado de 0 a 5 según la evidencia que hay: 1 *expuesto* (lo abriste), 2 *recuerda* (quiz ≥ 60 % o tarjetas repasadas), 3 *comprende* (Feynman ≥ 70 % o una pregunta del tutor bien resuelta), 4 *aplica* (código sin ver la solución, práctica o entrega ≥ 70 %), 5 *domina* (4 más las **tres pruebas diferidas** aprobadas). Las pruebas diferidas llegan a los **3, 14 y 45 días** de haber dominado el tema: 5 o 6 preguntas de aplicación en un caso nuevo, distintas del quiz, que miden lo que **queda**. «🧬 Preparar la prueba» la pide cuando ya toca (la IA escribe las preguntas y una segunda lectura independiente descarta las dudosas); se responde **una sola vez** y se aprueba con 75 %. Por ahora **solo mide**: no cambia tu nota, tus repasos ni lo que te toca hoy.
+- Botones nuevos: «⬇️ Descargar noticias ahora» (administrador) y «🧠 Analizar noticias pendientes» en Noticias, «📚 Profundizar lecciones antiguas» en Tu ruta, «🧭 Escribir la síntesis ahora» (Noticias, cuando el periodo no tiene), «🔄 Rehacer el mapa» (detalle de una acción) y
+  flechas ▲▼ para ordenar tu lista de acciones.
+- La revisión completa, con lo comprobado y lo que sigue, está en [`REVISION_2026-10-29.md`](REVISION_2026-10-29.md).
+
 ## 💹 Acciones bajo vigilancia (2026-10-28)
 
 Para seguir acciones sin perder tiempo y **aprender a pronosticar con datos**: cada pronóstico se compara solo con lo
@@ -109,6 +130,17 @@ que de verdad pasó.
   favor, en contra, qué vigilar y conceptos para aprender. La **probabilidad de que suba** parte de la **tasa base**
   (cuántas veces subió la acción en ventanas del mismo largo en 2 años) y las noticias solo la mueven ±20 puntos como
   máximo: así no hay falsa seguridad. Las etiquetas las pone el código, no la IA, para que siempre signifiquen lo mismo.
+- **Del peor al mejor caso**: cinco zonas excluyentes donde puede terminar el precio (💥 peor caso, 🔻 pesimista, ➖ central,
+  🔺 optimista, 🚀 mejor caso) con su porcentaje, que **suman 100 %**, el rango de precio de cada una y marcadas la
+  más y la menos probable. A diferencia de los escenarios (eventos que pueden pasar a la vez, sin sumar 100 %), aquí las
+  zonas compiten entre sí. Se calculan con la volatilidad actual y las ventanas de los últimos 2 años; en un pronóstico
+  se ajustan a su probabilidad de subir. Los escenarios de la IA cuelgan de la zona a la que llevarían.
+- **🕯️ Velas y martillos**: botón «Velas» sobre el gráfico (verde = cerró más alto de lo que abrió) con ▲ alcista, ▼ bajista y
+  ◆ indecisión sobre los patrones; debajo, qué significa cada uno y cuántas veces subió el precio 5 sesiones después
+  en ese mismo activo. Son pistas, no promesas: con pocos casos la Academia lo dice.
+- **🧬 De qué se compone**: en fondos e índices, las mayores empresas con su porcentaje, cuánto pesan las demás y la fecha
+  de los datos. **⚔️ Alternativas y competencia**: en el S&P 500 y sus fondos, el panel de rivales y alternativas con
+  rendimientos comparados y el botón «➕ Vigilar a todos».
 - **¿Aciertan?**: al vencer el horizonte, cada pronóstico se cierra con el precio real: dirección acertada, puntaje de
   **Brier** (0 = perfecto, 0,25 = lanzar una moneda) y si el precio quedó dentro del rango. Antes de pedir uno puedes
   dar **tu propia estimación**: se mide igual y ves quién está mejor calibrado (práctica de verdad, no solo lectura).

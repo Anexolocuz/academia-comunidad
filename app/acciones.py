@@ -18,6 +18,7 @@
 Cada persona tiene su lista (`accion_vigilada`), sus pronósticos y sus alertas; los precios, el mapa de relaciones y
 las noticias de cada símbolo son datos públicos y se comparten como caché. Nada de esto es asesoría financiera.
 """
+import html as _html
 import json
 import math
 import re
@@ -47,6 +48,11 @@ ejecutar("""CREATE TABLE IF NOT EXISTS accion_vigilada (
 for _col in ("cantidad REAL", "precio_compra REAL"):   # 💼 cartera (2026-10-28): cuántas tiene y a qué precio
     if _col.split()[0] not in {r["name"] for r in filas("PRAGMA table_info(accion_vigilada)")}:
         ejecutar(f"ALTER TABLE accion_vigilada ADD COLUMN {_col}")
+# Velas (2026-10-29): las series guardadas antes no traen la apertura; se marcan viejas para bajarlas de nuevo
+ejecutar("""UPDATE accion_info SET actualizado=0 WHERE serie IS NOT NULL AND serie!='[]'
+            AND json_array_length(json_extract(serie,'$[0]'))<6""")
+ejecutar("""CREATE TABLE IF NOT EXISTS accion_composicion (
+  simbolo TEXT PRIMARY KEY, fuente TEXT, fecha_datos TEXT, total INTEGER, filas TEXT, actualizado REAL)""")
 ejecutar("""CREATE TABLE IF NOT EXISTS accion_noticia (
   id INTEGER PRIMARY KEY AUTOINCREMENT, simbolo TEXT, url TEXT, titulo TEXT, resumen TEXT, fuente TEXT,
   publicada REAL, relacion TEXT,      -- directa | indirecta
@@ -135,9 +141,11 @@ def _descargar(simbolo):
         raise ValueError((datos.get("error") or {}).get("description") or "símbolo desconocido")
     r = datos["result"][0]
     m, q = r["meta"], r["indicators"]["quote"][0]
-    serie = [[ts, round(c, 4), h, l, v] for ts, c, h, l, v in
+    abierto = q.get("open") or []
+    serie = [[ts, round(c, 4), h, l, v, round(o, 4) if o is not None else None] for ts, c, h, l, v, o in
              zip(r.get("timestamp") or [], q.get("close") or [], q.get("high") or [], q.get("low") or [],
-                 q.get("volume") or []) if c is not None]
+                 q.get("volume") or [], abierto + [None] * (len(q.get("close") or []) - len(abierto)))
+             if c is not None]   # [ts, cierre, máximo, mínimo, volumen, apertura]; la apertura sirve a las velas
     precio = m.get("regularMarketPrice") or (serie[-1][1] if serie else None)
     previo = None
     if len(serie) >= 2 and (m.get("regularMarketTime") or 0) - serie[-1][0] < 86400:
@@ -279,13 +287,172 @@ def indicadores(i):
         if vol:
             s = vol * math.sqrt(d / 365)
             rangos[d] = {"bajo": precio * math.exp(-1.2816 * s), "alto": precio * math.exp(1.2816 * s),
-                         "base": tasa_base(serie, d)}
+                         "base": tasa_base(serie, d), "casos": casos(serie, d, precio, vol)}
     return {"precio": precio, "rend": {"5d": rend(5), "1m": rend(21), "3m": rend(63), "6m": rend(126), "1a": rend(252),
                                        "ytd": (precio / previo_anio - 1) * 100 if previo_anio else None},
             "volatilidad": vol * 100 if vol else None, "sma20": sma20, "sma50": sma50, "sma200": sma200, "rsi": rsi,
             "max52": max52, "min52": min52, "desde_max": (precio / max52 - 1) * 100,
             "desde_min": (precio / min52 - 1) * 100, "caida_max": caida * 100, "tendencia": tendencia,
             "rangos": rangos}
+
+
+# ------------------------------------------------------------------ casos: del peor al mejor
+# Cinco zonas EXCLUYENTES donde puede terminar el precio (suman 100 %), en múltiplos de la desviación típica del
+# horizonte s = volatilidad · √(días/365). A diferencia de los escenarios de la IA (eventos que pueden pasar a la
+# vez, cada uno con su probabilidad), aquí las zonas compiten entre sí: la de mayor % es «lo más probable».
+Z_BANDAS = 1.2816     # el 80 % central, igual que el cono del gráfico
+BANDAS = (("peor", "Peor caso", None, -Z_BANDAS), ("pesimista", "Pesimista", -Z_BANDAS, -0.5),
+          ("central", "Central", -0.5, 0.5), ("optimista", "Optimista", 0.5, Z_BANDAS),
+          ("mejor", "Mejor caso", Z_BANDAS, None))
+
+
+def _phi(z):
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def _repartir(pesos, total=100):
+    """Enteros que suman exactamente `total` (mayor residuo)."""
+    s = sum(pesos) or 1
+    brutos = [p / s * total for p in pesos]
+    out = [int(b) for b in brutos]
+    for k in sorted(range(len(out)), key=lambda k: brutos[k] - out[k], reverse=True)[:total - sum(out)]:
+        out[k] += 1
+    return out
+
+
+def casos(serie, dias, precio, vol, p_sube=None):
+    """Probabilidad de cada zona final del precio. `vol` = volatilidad anual (0,25 = 25 %). Mezcla 85 % lo que pasó en
+    las ventanas de los últimos 2 años con 15 % de curva normal (para que ninguna zona quede en cero) y, si hay
+    `p_sube` (la probabilidad final de subir, ya anclada), reparte la masa de arriba y de abajo de hoy para que
+    coincida con ella."""
+    c = [x[1] for x in serie or []]
+    if not vol or not precio or len(c) < 40:
+        return None
+    s = vol * math.sqrt(dias / 365)
+    h = max(1, round(dias * 252 / 365))
+    zs = [math.log(c[i + h] / c[i]) / s for i in range(len(c) - h) if c[i] > 0 and c[i + h] > 0]
+    cortes = (-Z_BANDAS, -0.5, 0.0, 0.5, Z_BANDAS)
+
+    def celda(z):
+        return sum(z > t for t in cortes)          # 0 peor · 1 pesimista · 2 central abajo · 3 central arriba · 4 optimista · 5 mejor
+    emp = [0.0] * 6
+    for z in zs:
+        emp[celda(z)] += 1 / len(zs) if zs else 0
+    nor = [_phi(-Z_BANDAS), _phi(-0.5) - _phi(-Z_BANDAS), _phi(0) - _phi(-0.5), _phi(0.5) - _phi(0),
+           _phi(Z_BANDAS) - _phi(0.5), 1 - _phi(Z_BANDAS)]
+    mezcla = [0.85 * e + 0.15 * n for e, n in zip(emp, nor)] if zs else nor
+    hist = list(mezcla)
+    if p_sube is not None:
+        arriba = sum(mezcla[3:])
+        objetivo = max(0.02, min(0.98, p_sube / 100))
+        mezcla = [m * (objetivo / arriba if k >= 3 else (1 - objetivo) / (1 - arriba)) for k, m in enumerate(mezcla)]
+    juntas = [mezcla[0], mezcla[1], mezcla[2] + mezcla[3], mezcla[4], mezcla[5]]
+    hist5 = [hist[0], hist[1], hist[2] + hist[3], hist[4], hist[5]]
+    pct, pct_h = _repartir(juntas), _repartir(hist5)
+    out = []
+    for (clave, nombre, z0, z1), p, ph in zip(BANDAS, pct, pct_h):
+        out.append({"clave": clave, "nombre": nombre, "prob": p, "prob_estadistica": ph,
+                    "desde": None if z0 is None else precio * math.exp(z0 * s),
+                    "hasta": None if z1 is None else precio * math.exp(z1 * s),
+                    "desde_pct": None if z0 is None else (math.exp(z0 * s) - 1) * 100,
+                    "hasta_pct": None if z1 is None else (math.exp(z1 * s) - 1) * 100})
+    mejor = max(range(5), key=lambda k: out[k]["prob"])
+    peor = min(range(5), key=lambda k: out[k]["prob"])
+    out[mejor]["marca"] = "más probable"
+    out[peor]["marca"] = "menos probable"
+    return {"dias": dias, "zonas": out, "ventanas": len(zs), "ajustado_a_ia": p_sube is not None}
+
+
+# ------------------------------------------------------------------ velas japonesas y martillos
+EXPLICACION_PATRON = {
+    "martillo": ("alcista", "Cuerpo pequeño arriba y una sombra inferior larga, tras una caída: los vendedores empujaron el precio "
+                 "muy abajo, pero los compradores lo devolvieron arriba. Posible fin de la caída; se confirma si la vela "
+                 "siguiente cierra por encima de la del martillo."),
+    "hombre colgado": ("bajista", "Misma forma del martillo pero tras una subida: aunque se recuperó, hubo vendedores fuertes. "
+                       "Posible techo; solo cuenta si la vela siguiente cierra por debajo."),
+    "martillo invertido": ("alcista", "Sombra superior larga y cuerpo pequeño abajo, tras una caída: los compradores probaron "
+                           "subir. Es la señal más débil de las alcistas: exige confirmación al día siguiente."),
+    "estrella fugaz": ("bajista", "Sombra superior larga y cuerpo pequeño abajo, tras una subida: el precio subió y fue rechazado. "
+                       "Posible techo; se confirma con una vela siguiente que cierre por debajo."),
+    "doji": ("neutral", "Apertura y cierre casi iguales: indecisión entre compradores y vendedores. Pesa según dónde ocurra."),
+    "doji libélula": ("alcista", "Doji con una sombra inferior larga: los vendedores perdieron la pelea del día. Pesa más tras una caída."),
+    "doji lápida": ("bajista", "Doji con una sombra superior larga: los compradores perdieron la pelea del día. Pesa más tras una subida."),
+    "envolvente alcista": ("alcista", "Una vela verde cuyo cuerpo cubre por completo el cuerpo rojo anterior, tras una caída: "
+                           "los compradores tomaron el control."),
+    "envolvente bajista": ("bajista", "Una vela roja cuyo cuerpo cubre por completo el cuerpo verde anterior, tras una subida: "
+                           "los vendedores tomaron el control."),
+}
+VENTANA_PATRON = 5      # velas hacia delante para medir qué pasó después de cada patrón en el pasado
+
+
+def _ohlc(serie):
+    """[(ts, apertura, máximo, mínimo, cierre)] con la apertura = cierre anterior cuando el dato viejo no la trae."""
+    out = []
+    for k, x in enumerate(serie):
+        o = x[5] if len(x) > 5 and x[5] is not None else (serie[k - 1][1] if k else x[1])
+        if x[2] is None or x[3] is None:
+            continue
+        out.append((x[0], o, max(x[2], o, x[1]), min(x[3], o, x[1]), x[1]))
+    return out
+
+
+def _detectar(v, k):
+    """Nombres de patrones en la vela k de `v` (lista de _ohlc). Necesita 6 velas atrás para saber la tendencia previa."""
+    if k < 6:
+        return []
+    _, o, h, l, c = v[k]
+    rango = h - l
+    if rango <= 0 or rango / max(c, 1e-9) < 0.002:
+        return []
+    cuerpo, inf, sup = abs(c - o), min(o, c) - l, h - max(o, c)
+    previa = v[k - 1][4] / v[k - 6][4] - 1
+    tend = "bajista" if previa <= -0.02 else "alcista" if previa >= 0.02 else "lateral"
+    out = []
+    if cuerpo <= 0.1 * rango:
+        out.append("doji libélula" if inf >= 0.6 * rango and sup <= 0.1 * rango else
+                   "doji lápida" if sup >= 0.6 * rango and inf <= 0.1 * rango else "doji")
+    elif cuerpo <= 0.35 * rango and tend != "lateral":
+        if inf >= 2 * cuerpo and sup <= 0.15 * rango:
+            out.append("martillo" if tend == "bajista" else "hombre colgado")
+        elif sup >= 2 * cuerpo and inf <= 0.15 * rango:
+            out.append("martillo invertido" if tend == "bajista" else "estrella fugaz")
+    po, pc = v[k - 1][1], v[k - 1][4]
+    if tend == "bajista" and pc < po and c > o and o <= pc and c >= po:
+        out.append("envolvente alcista")
+    if tend == "alcista" and pc > po and c < o and o >= pc and c <= po:
+        out.append("envolvente bajista")
+    return out
+
+
+def patrones_velas(serie, ultimas=30):
+    """Patrones de velas de las últimas `ultimas` sesiones y, para cada tipo, qué pasó en este mismo activo las veces
+    anteriores (a 5 sesiones): así se ve si la señal sirvió aquí o fue ruido."""
+    v = _ohlc(serie or [])
+    if len(v) < 20:
+        return {"recientes": [], "historia": {}}
+    historia, recientes = {}, []
+    for k in range(6, len(v)):
+        for nombre in _detectar(v, k):
+            if k >= len(v) - ultimas:
+                recientes.append({"ts": v[k][0], "patron": nombre, "sesgo": EXPLICACION_PATRON[nombre][0],
+                                  "explicacion": EXPLICACION_PATRON[nombre][1]})
+            if k + VENTANA_PATRON < len(v):
+                d = historia.setdefault(nombre, {"n": 0, "subio": 0, "suma": 0.0})
+                r = v[k + VENTANA_PATRON][4] / v[k][4] - 1
+                d["n"] += 1
+                d["subio"] += r > 0
+                d["suma"] += r * 100
+    hist = {n: {"n": d["n"], "sube_pct": round(100 * d["subio"] / d["n"]), "media": round(d["suma"] / d["n"], 2)}
+            for n, d in historia.items()}
+    for r in recientes:
+        r["historia"] = hist.get(r["patron"])
+    recientes.sort(key=lambda r: -r["ts"])
+    return {"recientes": recientes, "historia": hist}
+
+
+def velas(serie, ultimas=260):
+    """Velas para el gráfico: [ts, apertura, máximo, mínimo, cierre]."""
+    return [list(x) for x in _ohlc(serie or [])[-ultimas:]]
 
 
 def referencia(i):
@@ -566,10 +733,11 @@ ESQUEMA_PRONOSTICO = {"type": "object", "properties": {
     "escenarios": {"type": "array", "minItems": 4, "maxItems": 6, "items": {"type": "object", "properties": {
         "titulo": {"type": "string"}, "que_pasaria": {"type": "string"},
         "direccion": {"type": "string", "enum": ["sube", "baja", "lateral"]},
+        "caso": {"type": "string", "enum": [b[0] for b in BANDAS]},
         "probabilidad": {"type": "integer", "minimum": 1, "maximum": 99},
         "por_que": {"type": "string"}, "noticias": {"type": "array", "maxItems": 5, "items": {"type": "integer"}},
         "confirma": {"type": "string"}, "descarta": {"type": "string"}},
-        "required": ["titulo", "que_pasaria", "direccion", "probabilidad", "por_que", "noticias", "confirma",
+        "required": ["titulo", "que_pasaria", "direccion", "caso", "probabilidad", "por_que", "noticias", "confirma",
                      "descarta"]}},
     "catalizadores": {"type": "array", "maxItems": 5, "items": {"type": "object", "properties": {
         "evento": {"type": "string"}, "cuando": {"type": "string"}, "efecto": {"type": "string"}},
@@ -636,7 +804,10 @@ def pronosticar(ctx, usuario, simbolo, dias=30, p_usuario=None):
         "- escenarios: 4-6 eventos concretos y verificables que podrían pasar en ese plazo (movimientos de precio, "
         "reacciones a un evento con fecha, efectos de una noticia indirecta, comportamiento de la volatilidad). NO "
         "son excluyentes ni tienen que sumar 100: cada uno lleva su propia probabilidad (1-99) de ocurrir, honesta y "
-        "coherente con la estadística. Incluye al menos uno MUY probable (≥ 70, p. ej. que el precio siga dentro del "
+        "coherente con la estadística. «caso» = en cuál de las 5 zonas finales del precio desembocaría: peor (caída fuerte, "
+        "más allá del rango del 80 %), pesimista (caída moderada), central (queda cerca de hoy), optimista (subida "
+        "moderada) o mejor (subida fuerte, más allá del rango); cubre las 5 zonas, al menos un escenario en cada una. "
+        "Incluye al menos uno MUY probable (≥ 70, p. ej. que el precio siga dentro del "
         "rango estadístico) y al menos uno poco probable (≤ 25). El título no lleva la etiqueta de probabilidad. "
         "«noticias» = índices [i] que lo sustentan (en los textos no escribas números de noticia entre corchetes); "
         "«confirma»/«descarta» = qué señal observable diría que se está cumpliendo o no.\n"
@@ -657,7 +828,11 @@ def pronosticar(ctx, usuario, simbolo, dias=30, p_usuario=None):
         e["etiqueta"] = etiqueta(e["probabilidad"])
         e["noticias"] = [{"titulo": (ns[k]["analisis"] or {}).get("resumen") or ns[k]["titulo"], "url": ns[k]["url"],
                           "relacion": ns[k]["relacion"]} for k in e.get("noticias", []) if 0 <= k < len(ns)]
+    for e in r["escenarios"]:
+        if e.get("caso") not in {b[0] for b in BANDAS}:
+            e["caso"] = {"sube": "optimista", "baja": "pesimista"}.get(e["direccion"], "central")
     r["escenarios"].sort(key=lambda e: -e["probabilidad"])
+    r["casos"] = casos(i["serie"], dias, ind["precio"], (ind["volatilidad"] or 0) / 100, p)
     r.update({"p_sube_ia": r["p_sube"], "p_sube": p, "etiqueta": etiqueta(p) if p >= 50 else etiqueta(100 - p),
               "base": base, "rango": {"bajo": rango.get("bajo"), "alto": rango.get("alto")},
               "noticias_usadas": len(ns), "indicadores": explicar_indicadores(ind),
@@ -927,3 +1102,128 @@ def necesita_relaciones(simbolo):
 def conceptos(usuario):
     """Temas del currículo que explican lo que muestra la vista (solo los que existen)."""
     return [{"id": tid, "t": t} for tid, t in CONCEPTOS if cur.tema(tid, usuario)]
+
+
+# ------------------------------------------------------------------ de qué se compone un fondo o índice
+# Los fondos (ETF) publican qué empresas tienen y con qué peso. Un índice como el S&P 500 no se compra: se compra un
+# fondo que lo copia, así que su composición es la del fondo «representante». Fuente: stockanalysis.com, que
+# republica lo que el emisor publica al cierre de cada día (trae las 25 mayores posiciones, el total y la fecha).
+REPRESENTANTE = {"^GSPC": "SPY", "^NDX": "QQQ", "^DJI": "DIA", "^RUT": "IWM"}
+COMPOSICION_VIGENTE = 7 * 86400        # las carteras de los fondos cambian despacio: una consulta por semana
+_FILA = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S)
+_CELDA = re.compile(r"<td[^>]*>(.*?)</td>", re.S)
+_ETIQ = re.compile(r"<[^>]+>|<!--.*?-->", re.S)
+
+
+def _leer_composicion(etf):
+    """Baja y lee la página de posiciones de un fondo. Devuelve {fecha, total, filas:[{simbolo, nombre, peso}]}."""
+    html = _get(f"https://stockanalysis.com/etf/{urllib.parse.quote(etf.lower())}/holdings/", 20).decode("utf-8", "replace")
+    filas_ = []
+    for tr in _FILA.findall(html):
+        celdas = [_html.unescape(_ETIQ.sub("", c)).strip() for c in _CELDA.findall(tr)]
+        if len(celdas) >= 4 and celdas[3].endswith("%"):
+            try:
+                filas_.append({"simbolo": celdas[1], "nombre": celdas[2], "peso": float(celdas[3].rstrip("%").replace(",", ""))})
+            except ValueError:
+                continue
+    if not filas_:
+        raise ValueError("no encontré la lista de posiciones")
+    fecha = re.search(r'date:"([^"]+)",count:(\d+)', html)
+    return {"fecha": fecha.group(1) if fecha else None, "total": int(fecha.group(2)) if fecha else len(filas_),
+            "filas": filas_}
+
+
+def composicion(simbolo, forzar=False):
+    """Qué empresas componen el fondo o índice y qué porcentaje pesa cada una; None si no aplica (acciones sueltas)."""
+    i = info(simbolo) or {}
+    etf = REPRESENTANTE.get(simbolo) or (simbolo if i.get("tipo") == "ETF" and "." not in simbolo else None)
+    if not etf:
+        return None
+    r = fila("SELECT * FROM accion_composicion WHERE simbolo=?", (etf,))
+    if forzar or not r or time.time() - (r["actualizado"] or 0) > COMPOSICION_VIGENTE:
+        try:
+            d = _leer_composicion(etf)
+            ejecutar("""INSERT INTO accion_composicion(simbolo,fuente,fecha_datos,total,filas,actualizado) VALUES(?,?,?,?,?,?)
+                        ON CONFLICT(simbolo) DO UPDATE SET fuente=excluded.fuente, fecha_datos=excluded.fecha_datos,
+                        total=excluded.total, filas=excluded.filas, actualizado=excluded.actualizado""",
+                     (etf, "stockanalysis.com", d["fecha"], d["total"], json.dumps(d["filas"], ensure_ascii=False), time.time()))
+            r = fila("SELECT * FROM accion_composicion WHERE simbolo=?", (etf,))
+        except Exception as e:
+            if not r:
+                return {"simbolo": simbolo, "via": etf, "error": f"{type(e).__name__}: {e}"}
+    filas_ = [dict(f, nombre=_html.unescape(f["nombre"])) for f in json.loads(r["filas"])]   # cachés viejas traían «&amp;»
+    top = sum(f["peso"] for f in filas_)
+    return {"simbolo": simbolo, "via": etf if etf != simbolo else None, "fuente": r["fuente"], "fecha": r["fecha_datos"],
+            "total": r["total"], "filas": filas_, "top_pct": round(top, 2), "resto_pct": round(max(0.0, 100 - top), 2),
+            "n_resto": max(0, (r["total"] or 0) - len(filas_)), "consultado": r["actualizado"]}
+
+
+# ------------------------------------------------------------------ alternativas y competencia de un índice
+FAMILIAS = [{
+    "nombre": "S&P 500 y su competencia",
+    "grupos": [
+        ("📈 Fondos que copian el S&P 500 (mismo índice, distinto emisor)", [
+            ("SPY", "El más antiguo y el que más se negocia; ideal para operar a corto plazo."),
+            ("VOO", "El de Vanguard; pensado para quien lo guarda años."),
+            ("IVV", "El de iShares (BlackRock); casi idéntico a los otros dos."),
+            ("SPYM", "La versión «portafolio» de State Street (antes SPLG): misma cartera con un precio por acción más bajo.")]),
+        ("🧭 Otras formas de comprar el mercado de EE. UU.", [
+            ("RSP", "El mismo S&P 500 pero con peso igual para cada empresa: apuesta menos a las gigantes tecnológicas."),
+            ("VTI", "Todo el mercado de EE. UU. (grandes, medianas y pequeñas) en un solo fondo.")]),
+        ("⚔️ Índices que compiten con el S&P 500", [
+            ("^NDX", "Nasdaq-100: las 100 mayores no financieras del Nasdaq; mucha tecnología."),
+            ("^IXIC", "Nasdaq Composite: todas las empresas del Nasdaq (más de 3 000)."),
+            ("^DJI", "Dow Jones: solo 30 empresas gigantes, ponderadas por precio de la acción."),
+            ("^RUT", "Russell 2000: empresas pequeñas de EE. UU.; más riesgo y más ciclo económico.")]),
+        ("🎯 Fondos de esos índices", [
+            ("QQQ", "Copia el Nasdaq-100."), ("DIA", "Copia el Dow Jones."), ("IWM", "Copia el Russell 2000.")]),
+        ("🌍 Más allá de EE. UU.", [
+            ("URTH", "Acciones de países desarrollados (MSCI World); EE. UU. pesa mucho pero no es todo.")])]}]
+
+
+def familia(simbolo, usuario=None):
+    """Panel de alternativas si `simbolo` pertenece a una familia (S&P 500 y los suyos): quién es, cuánto rinde frente
+    a los demás y si ya está en vigilancia. Solo usa lo guardado (sin red)."""
+    f = next((x for x in FAMILIAS if simbolo == "^GSPC" or any(simbolo == s for g in x["grupos"] for s, _ in g[1])), None)
+    if not f:
+        return None
+    mias = set(simbolos_de(usuario)) if usuario else set()
+    grupos = []
+    for titulo, items in f["grupos"]:
+        filas_ = []
+        for s, que in items:
+            i = info(s) or {}
+            ind = indicadores(i) if i.get("serie") else None
+            m = i.get("meta") or {}
+            filas_.append({"simbolo": s, "nombre": i.get("nombre") or s, "que": que, "vigilada": s in mias,
+                           "precio": m.get("precio"), "moneda": i.get("moneda"), "cambio": m.get("cambio"),
+                           "rend": {k: (ind["rend"] or {}).get(k) for k in ("1m", "3m", "1a")} if ind else None,
+                           "volatilidad": ind["volatilidad"] if ind else None,
+                           "tiene_composicion": s in REPRESENTANTE or i.get("tipo") == "ETF"})
+        grupos.append({"titulo": titulo, "items": filas_})
+    return {"nombre": f["nombre"], "grupos": grupos, "simbolos": [it["simbolo"] for g in grupos for it in g["items"]]}
+
+
+def agregar_familia(usuario, nombre_familia="S&P 500 y su competencia"):
+    """Pone en vigilancia a todos los de la familia (los que ya están, se saltan). Devuelve (agregados, fallidos)."""
+    f = next(x for x in FAMILIAS if x["nombre"] == nombre_familia)
+    nuevos = [s for g in f["grupos"] for s, _ in g[1] if s not in set(simbolos_de(usuario))]
+    if "^GSPC" not in simbolos_de(usuario):
+        nuevos.insert(0, "^GSPC")
+    cotizar(nuevos, 120)
+    hechos, fallidos = [], {}
+    for s in nuevos:
+        try:
+            vigilar(usuario, s)
+            hechos.append(s)
+        except Exception as e:
+            fallidos[s] = str(e)
+    return hechos, fallidos
+
+
+def pronostico_bajo_demanda(simbolo):
+    """Los miembros de una familia (fondos y rivales del S&P 500) no se pronostican solos cada día para no ocupar la
+    GPU con 14 pronósticos casi iguales: solo el ancla (^GSPC) entra en la rutina diaria. Los demás se pronostican
+    cuando la persona lo pide; su estadística (casos, velas, composición) está siempre al día sin IA."""
+    f = familia(simbolo)
+    return bool(f) and simbolo != "^GSPC"

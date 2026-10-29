@@ -80,6 +80,105 @@ function acGrafico(cont, serie, op = {}) {
   zona.addEventListener("pointermove", mover); zona.addEventListener("pointerdown", mover); zona.addEventListener("pointerleave", salir);
 }
 
+
+/* velas japonesas: cuerpo (apertura-cierre) y mechas (máximo-mínimo); verde = cerró arriba de donde abrió; ▲▼ = patrón detectado */
+function acVelas(cont, velas, op = {}) {
+  if (!velas || velas.length < 2) { cont.innerHTML = `<p class="vacio">Sin velas.</p>`; return; }
+  const W = Math.max(280, cont.clientWidth || 600), H = W < 500 ? 230 : 290, ml = 6, mr = 58, mt = 14, mb = 24;
+  const lo0 = Math.min(...velas.map((v) => v[3])), hi0 = Math.max(...velas.map((v) => v[2])), pad = (hi0 - lo0) * 0.06 || 1;
+  const lo = lo0 - pad, hi = hi0 + pad, n = velas.length, paso = (W - ml - mr) / n, ancho = Math.max(1.5, Math.min(14, paso * 0.7));
+  const X = (k) => ml + (k + 0.5) * paso, Y = (v) => mt + (hi - v) / (hi - lo) * (H - mt - mb);
+  const salto = (() => { const b = (hi - lo) / 4, e = Math.pow(10, Math.floor(Math.log10(b))); return [1, 2, 2.5, 5, 10].map((m) => m * e).find((m) => m >= b); })();
+  let ejes = "";
+  for (let v = Math.ceil(lo / salto) * salto; v <= hi; v += salto)
+    ejes += `<line class="gp-red" x1="${ml}" x2="${W - mr}" y1="${Y(v)}" y2="${Y(v)}"/><text class="gp-eje" x="${W - mr + 6}" y="${Y(v) + 4}">${acNum(v, salto < 1 ? 2 : 0)}</text>`;
+  let ultX = -99;
+  velas.forEach((v, k) => {
+    const d = new Date(v[0] * 1000), prev = k ? new Date(velas[k - 1][0] * 1000) : null;
+    if (prev && d.getMonth() !== prev.getMonth() && X(k) - ultX > 54) { ultX = X(k); ejes += `<text class="gp-eje" x="${ultX}" y="${H - 6}" text-anchor="middle">${d.toLocaleDateString(LOC, { month: "short" })}</text>`; }
+  });
+  const porTs = new Map((op.patrones || []).map((r) => [r.ts, r]));
+  let cuerpo = "", marcas = "";
+  velas.forEach((v, k) => {
+    const [, o, h, l, c] = v, sube = c >= o, cls = sube ? "vela-sube" : "vela-baja", y1 = Y(Math.max(o, c)), y2 = Y(Math.min(o, c));
+    cuerpo += `<line class="${cls}" x1="${X(k)}" x2="${X(k)}" y1="${Y(h)}" y2="${Y(l)}"/><rect class="${cls}" x="${X(k) - ancho / 2}" y="${y1}" width="${ancho}" height="${Math.max(1, y2 - y1)}"/>`;
+    const r = porTs.get(v[0]);
+    if (r) marcas += `<text class="vela-marca ${r.sesgo === "alcista" ? "ac-sube" : r.sesgo === "bajista" ? "ac-baja" : "ac-igual"}" x="${X(k)}" y="${r.sesgo === "bajista" ? Y(h) - 5 : Y(l) + 14}" text-anchor="middle">${r.sesgo === "bajista" ? "▼" : r.sesgo === "alcista" ? "▲" : "◆"}</text>`;
+  });
+  cont.innerHTML = `<svg width="${W}" height="${H}" role="img" aria-label="Velas japonesas de ${esc(op.nombre || "")}">${ejes}${cuerpo}${marcas}
+    <line class="gp-cruz" id="gvCruz" y1="${mt}" y2="${H - mb}" hidden/><rect x="${ml}" y="0" width="${W - ml - mr}" height="${H}" fill="transparent" id="gvZona"/></svg>
+    <div class="gp-leyenda peq suave"><span><i class="vela-l vela-sube"></i>cerró más alto de lo que abrió</span><span><i class="vela-l vela-baja"></i>cerró más bajo</span>
+      <span>▲ patrón alcista · ▼ patrón bajista · ◆ indecisión</span></div>`;
+  const zona = $("#gvZona", cont), cruz = $("#gvCruz", cont);
+  let tip = $("#acTip"); if (!tip) { tip = document.createElement("div"); tip.id = "acTip"; tip.className = "tooltip"; tip.hidden = true; document.body.appendChild(tip); }
+  const mover = (e) => {
+    const r = zona.getBoundingClientRect(), k = Math.max(0, Math.min(n - 1, Math.floor((e.clientX - r.left) / paso))), v = velas[k], pt = porTs.get(v[0]);
+    cruz.setAttribute("x1", X(k)); cruz.setAttribute("x2", X(k)); cruz.hidden = false;
+    tip.innerHTML = `<b>${new Date(v[0] * 1000).toLocaleDateString(LOC, { day: "numeric", month: "short", year: "numeric" })}</b><br>abrió ${acNum(v[1])} · cerró ${acNum(v[4])}<br>máx. ${acNum(v[2])} · mín. ${acNum(v[3])}${pt ? `<br>🕯️ ${esc(pt.patron)}` : ""}`;
+    tip.hidden = false; tip.style.left = Math.min(innerWidth - 190, e.clientX + 12) + "px"; tip.style.top = (e.clientY - 70) + "px";
+  };
+  const salir = () => { tip.hidden = true; cruz.hidden = true; };
+  zona.addEventListener("pointermove", mover); zona.addEventListener("pointerdown", mover); zona.addEventListener("pointerleave", salir);
+}
+
+/* 🕯️ patrones de velas detectados (martillo, hombre colgado, doji, envolventes…) con lo que pasó antes en este mismo activo */
+function patronesHtml(pt) {
+  const rec = (pt && pt.recientes) || [];
+  const fila = (r) => {
+    const h = r.historia, col = r.sesgo === "alcista" ? "bien" : r.sesgo === "bajista" ? "mal" : "";
+    return `<div class="tarjeta ac-escenario ac-${col || "medio"}"><div class="fila entre"><b>🕯️ ${esc(r.patron)}</b><span class="etq ${col}">${esc(r.sesgo)} · ${acFecha(r.ts)}</span></div>
+      <div class="peq">${esc(r.explicacion)}</div>
+      <div class="suave peq" style="margin-top:.25rem">${h && h.n >= 5 ? `En este activo, las ${h.n} veces anteriores, 5 sesiones después el precio estaba más alto el <b>${h.sube_pct} %</b> de las veces (cambio medio ${acPct(h.media)}).` : `Pocos casos anteriores en este activo para medirla${h ? ` (${h.n})` : ""}: no te fíes de ella sola.`}</div></div>`;
+  };
+  return `<h2>🕯️ Velas y martillos</h2>
+    <p class="suave peq">Cada vela resume un día: el cuerpo va de la apertura al cierre y las mechas llegan al máximo y al mínimo. Un <b>martillo</b> (cuerpo pequeño arriba y mecha inferior larga tras una caída) sugiere que los vendedores
+      perdieron fuerza; el <b>hombre colgado</b> es la misma forma tras una subida y avisa lo contrario. Son pistas, no promesas: mira abajo cuántas veces funcionaron <i>en este mismo activo</i>.</p>
+    ${rec.length ? rec.slice(0, 6).map(fila).join("") : `<p class="vacio">No se detectó ningún patrón en las últimas 30 sesiones.</p>`}`;
+}
+
+/* espectro del peor al mejor caso: zonas excluyentes que suman 100 %, con la más y la menos probable marcadas */
+function casosHtml(c, titulo, nota) {
+  if (!c || !c.zonas) return "";
+  const col = { peor: "mal", pesimista: "mal", central: "medio", optimista: "bien", mejor: "bien" };
+  const max = Math.max(...c.zonas.map((z) => z.prob));
+  const rango = (z) => z.desde == null ? `por debajo de ${acNum(z.hasta)}` : z.hasta == null ? `por encima de ${acNum(z.desde)}` : `${acNum(z.desde)} – ${acNum(z.hasta)}`;
+  const var_ = (z) => z.desde_pct == null ? `más de ${acNum(Math.abs(z.hasta_pct), 0)} % abajo` : z.hasta_pct == null ? `más de ${acNum(z.desde_pct, 0)} % arriba` : `${acNum(z.desde_pct, 0)} % a ${acNum(z.hasta_pct, 0)} %`;
+  return `<h3>${titulo}</h3><div class="ac-espectro" role="list">${c.zonas.map((z) => `
+    <div class="ac-zona ac-z-${col[z.clave]}${z.marca === "más probable" ? " ac-z-top" : ""}" role="listitem" title="${esc(rango(z))}">
+      <b class="ac-zp">${z.prob} %</b><div class="ac-zb"><i style="height:${Math.max(4, z.prob / max * 100)}%"></i></div>
+      <span class="ac-zn">${esc(z.nombre)}</span><span class="peq suave">${esc(var_(z))}</span><span class="peq suave">${esc(rango(z))}</span>
+      ${z.marca ? `<span class="etq ${z.marca === "más probable" ? "bien" : ""}">${z.marca === "más probable" ? "⭐ lo más probable" : "lo menos probable"}</span>` : ""}</div>`).join("")}</div>
+    <p class="suave peq">${esc(nota)} Las 5 zonas son <b>excluyentes</b> (el precio termina en una sola) y suman 100 %; se calculan con la volatilidad actual y lo que pasó en ${c.ventanas} ventanas de ${c.dias} días de los últimos 2 años${c.ajustado_a_ia ? ", ajustadas a la probabilidad de subir del pronóstico" : ""}.</p>`;
+}
+
+/* 🧬 de qué se compone un fondo o índice (qué empresas y qué porcentaje) */
+function composicionHtml(c) {
+  if (!c) return "";
+  if (c.error) return `<p class="suave peq">No pude leer la composición ahora: ${esc(c.error)}</p>`;
+  const max = Math.max(...c.filas.map((f) => f.peso));
+  return `<div class="tarjeta"><p class="peq" style="margin-top:0">${c.via ? `Un índice no se compra directamente: se compra un fondo que lo copia. Esta es la cartera de <b>${esc(c.via)}</b>. ` : ""}
+      Las <b>${c.filas.length}</b> mayores posiciones suman <b>${acNum(c.top_pct, 1)} %</b>; las otras ${acNum(c.n_resto, 0)} empresas reparten el <b>${acNum(c.resto_pct, 1)} %</b> restante.</p>
+    <div class="tabla-h"><table class="ac-comp"><tr><th>#</th><th>Empresa</th><th>Peso</th><th></th></tr>
+      ${c.filas.map((f, k) => `<tr><td>${k + 1}</td><td><button class="chip" onclick="ir('accion/${esc(f.simbolo)}')">${esc(f.simbolo)}</button> ${esc(f.nombre)}</td>
+        <td style="text-align:right"><b>${acNum(f.peso, 2)} %</b></td><td style="width:35%"><div class="barra-prog"><i style="width:${f.peso / max * 100}%"></i></div></td></tr>`).join("")}
+      <tr><td></td><td class="suave">Otras ${acNum(c.n_resto, 0)} empresas</td><td style="text-align:right"><b>${acNum(c.resto_pct, 1)} %</b></td><td><div class="barra-prog"><i style="width:${Math.min(100, c.resto_pct / max * 100)}%;opacity:.4"></i></div></td></tr></table></div>
+    <p class="suave peq">Concentración: las 10 mayores pesan ${acNum(c.filas.slice(0, 10).reduce((a, f) => a + f.peso, 0), 1)} %. Datos del emisor al cierre del ${esc(c.fecha || "último día")} (${esc(c.fuente)}); ${c.total} posiciones en total.</p></div>`;
+}
+
+/* ⚔️ alternativas y competencia: quién es, cuánto rinde frente a los demás y si ya lo vigilas */
+function familiaHtml(f, actual) {
+  if (!f) return "";
+  const faltan = f.grupos.some((g) => g.items.some((x) => !x.vigilada));
+  return `<h2>⚔️ ${esc(f.nombre)}</h2><p class="suave peq">Las alternativas y la competencia del S&amp;P 500: los fondos que lo copian, otras formas de comprar el mercado y los índices rivales. Toca uno para ver su precio, sus velas y su composición.</p>
+    ${faltan ? `<div class="fila" style="margin-bottom:.5rem"><button class="btn peq pri" id="acFamilia">➕ Vigilar a todos</button><span class="suave peq">Los agrega a tu lista (sin gastar IA).</span></div>` : ""}
+    ${f.grupos.map((g) => `<h3>${esc(g.titulo)}</h3><div class="tabla-h"><table class="ac-comp"><tr><th>Símbolo</th><th>Qué es</th><th>1 mes</th><th>3 meses</th><th>1 año</th><th>Volat.</th></tr>
+      ${g.items.map((x) => `<tr${x.simbolo === actual ? ` class="ac-actual"` : ""}><td><button class="chip" onclick="ir('accion/${esc(x.simbolo)}')">${esc(x.simbolo)}</button>${x.vigilada ? ` <span title="En tu lista">✓</span>` : ""}</td>
+        <td class="peq"><b>${esc(x.nombre)}</b><br><span class="suave">${esc(x.que)}</span></td>
+        ${["1m", "3m", "1a"].map((k) => `<td style="text-align:right">${x.rend ? acPct(x.rend[k]) : `<span class="suave">—</span>`}</td>`).join("")}
+        <td style="text-align:right">${x.volatilidad == null ? "—" : Math.round(x.volatilidad) + " %"}</td></tr>`).join("")}</table></div>`).join("")}
+    <p class="suave peq">Los rendimientos salen de los precios guardados; un símbolo con «—» aún no se ha consultado (ábrelo o vigílalo).</p>`;
+}
+
 /* =============================== LISTA =============================== */
 VISTAS.acciones = async () => {
   const d = await api("acciones");
@@ -104,6 +203,7 @@ VISTAS.acciones = async () => {
         <span class="ac-sim"><b>${esc(a.simbolo)}</b><br><span class="suave peq">${esc(a.nombre)}</span></span>
         ${acSpark(a.spark)}
         <span class="ac-precio"><b>${acPrecio(a.precio, a.moneda)}</b><br><span class="peq">${acPct(a.cambio)}</span></span>
+        <span class="ac-orden no-imprimir" aria-label="Orden en tu lista"><button class="btn peq fantasma" data-sube="${esc(a.simbolo)}" title="Subir en la lista" aria-label="Subir ${esc(a.simbolo)}">▲</button><button class="btn peq fantasma" data-baja="${esc(a.simbolo)}" title="Bajar en la lista" aria-label="Bajar ${esc(a.simbolo)}">▼</button></span>
         <span class="ac-extra peq">
           ${a.alertas.length ? `<span class="etq medio" title="${esc(a.alertas.map((x) => x.texto).join(" · "))}">🔔 ${esc(acAlertaCorta(a.alertas[0]))}${a.alertas.length > 1 ? ` +${a.alertas.length - 1}` : ""}</span>` : ""}
           ${a.pronostico ? `<span class="etq ${a.pronostico.p_sube >= 55 ? "bien" : a.pronostico.p_sube <= 45 ? "mal" : ""}" title="${esc(a.pronostico.top || "")}">🔮 ${Math.round(a.pronostico.p_sube)} % sube · ${a.pronostico.dias} d</span>` : ""}
@@ -114,6 +214,14 @@ VISTAS.acciones = async () => {
         <span class="suave peq">Precios de Yahoo Finance (pueden ir ~15 min atrasados). Cada día, en la actualización diaria, se renuevan solos las noticias y el pronóstico.</span></div>`
       : `<p class="vacio">Aún no vigilas ninguna acción. Busca una arriba y toca «➕ Vigilar».</p>`;
     $$("[data-s]", $("#acLista")).forEach((li) => { li.onclick = () => ir("accion/" + li.dataset.s); li.onkeydown = (e) => { if (e.key === "Enter") ir("accion/" + li.dataset.s); }; });
+    const mover = async (sim, delta) => {
+      const orden = xs.map((x) => x.simbolo), i = orden.indexOf(sim), j = i + delta;
+      if (i < 0 || j < 0 || j >= orden.length) return;
+      [orden[i], orden[j]] = [orden[j], orden[i]];
+      try { await api("acciones/orden", { simbolos: orden }); refrescar(); } catch (e) { aviso(e.message); }
+    };
+    $$("[data-sube]", $("#acLista")).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); mover(b.dataset.sube, -1); }));
+    $$("[data-baja]", $("#acLista")).forEach((b) => (b.onclick = (e) => { e.stopPropagation(); mover(b.dataset.baja, 1); }));
     if ($("#acRefrescar")) $("#acRefrescar").onclick = () => refrescar();
     if ($("#acTodas")) $("#acTodas").onclick = async () => {
       let n = 0;
@@ -151,6 +259,8 @@ VISTAS.accion = async ([sim], q) => {
   const d = await api("accion?s=" + encodeURIComponent(sim));
   const m = d.meta || {}, ind = d.indicadores || {}, vig = d.vigilada, ult = d.pronosticos[0];
   const rango = q.r || "6m";
+  let vistaGraf = q.g || (() => { try { return localStorage.getItem("acGraf"); } catch (e) { return null; } })() || "linea";
+  if (vistaGraf !== "velas") vistaGraf = "linea";
   // primero lo que la IA juzgó relevante (y por impacto), al final lo que no mueve el precio
   const peso = (n) => (n.analisis?.relevante === false ? 0 : 1) * 10 + Math.abs(n.analisis?.impacto || 0);
   const ordenar = (xs) => xs.sort((a, b) => peso(b) - peso(a) || b.publicada - a.publicada);
@@ -165,6 +275,8 @@ VISTAS.accion = async ([sim], q) => {
     ${d.error ? `<p class="etq mal">No se pudo actualizar el precio: ${esc(d.error)}</p>` : ""}
     ${d.alertas.length ? `<div class="tarjeta" style="border-color:var(--medio)">${d.alertas.map((a) => `<div>🔔 ${a.url ? `<a href="${escUrl(a.url)}" target="_blank" rel="noopener">${esc(a.texto)}</a>` : `<b>${esc(a.texto)}</b>`}</div>`).join("")}</div>` : ""}
     <div class="tarjeta"><div class="chips" style="margin-bottom:.5rem">${Object.entries(AC.rangos).map(([k, v]) => `<button class="chip ${k === rango ? "activo" : ""}" onclick="ir('accion/${esc(d.simbolo)}?r=${k}')">${v[1]}</button>`).join("")}</div>
+      <div class="chips" style="margin:.2rem 0 .5rem"><span class="suave peq">Ver como:</span>
+        <button class="chip ${vistaGraf === "linea" ? "activo" : ""}" data-graf="linea">📈 Línea</button><button class="chip ${vistaGraf === "velas" ? "activo" : ""}" data-graf="velas">🕯️ Velas</button></div>
       <div id="acGraf" class="graf-precio"></div></div>
     <h2>🧭 Lectura rápida</h2>
     <div class="stats">
@@ -179,6 +291,10 @@ VISTAS.accion = async ([sim], q) => {
       ${d.mercado && d.mercado.beta != null ? `<div class="stat" title="Beta: cuánto se mueve cuando el mercado (${esc(d.mercado.nombre)}) se mueve 1 %. Correlación ${acNum(d.mercado.correlacion, 2)} en ${d.mercado.dias} días."><b>${acNum(d.mercado.beta, 2)}</b><span>beta vs. ${esc(d.mercado.referencia)}</span></div>` : ""}</div>
     ${d.mercado && d.mercado.propio != null ? `<p class="peq">📊 Hoy el mercado (${esc(d.mercado.nombre)}) se movió ${acPct(d.mercado.cambio_ref)}; con su beta, el movimiento <b>propio</b> de ${esc(d.simbolo)} fue ${acPct(d.mercado.propio)} ${Math.abs(d.mercado.propio) >= 1.5 ? "— algo de la empresa (o de su sector) la movió: mira las noticias." : "— se movió casi solo por el mercado."}</p>` : ""}
     ${d.lectura.length ? `<ul class="peq">${d.lectura.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    ${patronesHtml(d.patrones)}
+    ${d.con_composicion ? `<h2>🧬 De qué se compone</h2><div id="acComp"><p class="suave peq"><span class="cargando"></span> Leyendo la composición…</p></div>` : ""}
+    ${familiaHtml(d.familia, d.simbolo)}
+    ${ind.rangos?.[30]?.casos ? casosHtml(ind.rangos[30].casos, "🎚️ Del peor al mejor caso a 30 días (solo estadística)", "Esto es lo que dice el precio por sí solo, sin IA ni noticias.") : ""}
     <h2>🔮 Pronóstico</h2>
     <div id="acPron">${vig ? `<div class="tarjeta"><div class="fila">
         <label class="peq">Horizonte <select id="acDias">${d.horizontes.map((h) => `<option value="${h}" ${h === 30 ? "selected" : ""}>${h} días</option>`).join("")}</select></label>
@@ -194,7 +310,7 @@ VISTAS.accion = async ([sim], q) => {
     <p class="suave peq" id="acNotInfo">Directas: tratan de la empresa. Indirectas: le llegan por un competidor, proveedor, cliente, su sector o la economía.
       ${d.noticias_fecha ? `Última búsqueda: ${new Date(d.noticias_fecha * 1000).toLocaleString(LOC, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.` : ""}</p>
     <div id="acNoticias"></div>
-    <h2>🕸️ De qué depende</h2>
+    <div class="fila entre"><h2 style="margin-bottom:0">🕸️ De qué depende</h2>${vig && !d.trabajo ? `<button class="btn peq fantasma" id="acRelBtn" title="Vuelve a pedirle a la IA el mapa de competidores, proveedores, clientes y factores">🔄 Rehacer el mapa</button>` : ""}</div>
     ${rel ? `<div class="tarjeta"><p>${esc(rel.negocio)}</p>
       ${[["competidores", "⚔️ Competidores"], ["proveedores", "📦 Proveedores clave"], ["clientes", "🤝 Clientes clave"]].map(([k, t]) => (rel[k] || []).length ? `<div class="peq" style="margin:.4rem 0"><b>${t}:</b>
         ${rel[k].map((x) => x.simbolo ? `<button class="chip" onclick="ir('accion/${esc(x.simbolo)}')" title="${esc(x.que || "")}">${esc(x.nombre)} · ${esc(x.simbolo)}</button>` : `<span class="chip" title="${esc(x.que || "")}">${esc(x.nombre)}</span>`).join(" ")}</div>` : "").join("")}
@@ -224,7 +340,15 @@ VISTAS.accion = async ([sim], q) => {
   const vigente = ult && ult.creado + ult.dias * 86400 > Date.now() / 1000 && ult.datos.rango?.bajo;
   const rg = ind.rangos?.[ult?.dias || 30];
   const cono = vigente ? { dias: ult.dias, bajo: ult.datos.rango.bajo, alto: ult.datos.rango.alto } : rg ? { dias: ult?.dias || 30, bajo: rg.bajo, alto: rg.alto } : null;
-  const dibujar = () => acGrafico($("#acGraf"), visible.length > 1 ? visible : d.serie, { todos: d.serie, cono, moneda: d.moneda, nombre: d.nombre });
+  const velasVisibles = (d.velas || []).filter((v) => v[0] >= desde);
+  const dibujar = () => {
+    if (vistaGraf === "velas" && velasVisibles.length > 1) acVelas($("#acGraf"), velasVisibles, { nombre: d.nombre, patrones: (d.patrones?.recientes || []) });
+    else acGrafico($("#acGraf"), visible.length > 1 ? visible : d.serie, { todos: d.serie, cono, moneda: d.moneda, nombre: d.nombre });
+  };
+  $$("[data-graf]").forEach((b) => (b.onclick = () => {
+    vistaGraf = b.dataset.graf; try { localStorage.setItem("acGraf", vistaGraf); } catch (e) {}
+    $$("[data-graf]").forEach((x) => x.classList.toggle("activo", x === b)); dibujar();
+  }));
   dibujar();
   const alRedimensionar = () => { clearTimeout(alRedimensionar.t); alRedimensionar.t = setTimeout(() => $("#acGraf") && dibujar(), 200); };
   addEventListener("resize", alRedimensionar);
@@ -253,6 +377,13 @@ VISTAS.accion = async ([sim], q) => {
     catch (e) { aviso(e.message); }
   };
 
+  if (d.con_composicion) api("accion/composicion?s=" + encodeURIComponent(d.simbolo)).then((r) => { if ($("#acComp")) $("#acComp").innerHTML = composicionHtml(r.composicion); })
+    .catch((e) => { if ($("#acComp")) $("#acComp").innerHTML = `<p class="suave peq">No pude leer la composición: ${esc(e.message)}</p>`; });
+  if ($("#acFamilia")) $("#acFamilia").onclick = async () => {
+    $("#acFamilia").disabled = true; $("#acFamilia").innerHTML = `<span class="cargando"></span> Agregando…`;
+    try { const r = await api("acciones/familia", {}); aviso(`💹 ${r.agregados.length} agregados` + (Object.keys(r.fallidos).length ? `; fallaron: ${Object.keys(r.fallidos).join(", ")}` : "")); refrescar(); }
+    catch (e) { aviso(e.message); }
+  };
   if ($("#acVigilar")) $("#acVigilar").onclick = async () => {
     try { await api("acciones/vigilar", { simbolo: d.simbolo }); aviso("💹 En vigilancia"); refrescar(); } catch (e) { aviso(e.message); }
   };
@@ -273,6 +404,10 @@ VISTAS.accion = async ([sim], q) => {
       refrescar();
     } catch (e) { if ($("#acPronEstado")) $("#acPronEstado").textContent = "Error: " + e.message; }
   };
+  if ($("#acRelBtn")) $("#acRelBtn").onclick = async () => {
+    try { const j = await api("accion/relaciones", { simbolo: d.simbolo }); $("#acRelBtn").disabled = true; aviso("🕸️ La IA rehace el mapa (mira ⏳)"); seguir(j.trabajo, true); }
+    catch (e) { aviso(e.message); }
+  };
   if ($("#acPronBtn")) $("#acPronBtn").onclick = async () => {
     try {
       const j = await api("accion/pronostico", { simbolo: d.simbolo, dias: +$("#acDias").value, p_usuario: $("#acMio").value });
@@ -288,7 +423,11 @@ VISTAS.accion = async ([sim], q) => {
 
 function pronosticoHtml(p, d) {
   const x = p.datos, base = x.base || {};
-  const porCubeta = AC.cubetas.map(([k, t, c]) => [t, c, (x.escenarios || []).filter((e) => e.etiqueta === k)]).filter((c) => c[2].length);
+  const casos = x.casos || d.indicadores?.rangos?.[p.dias]?.casos;
+  const nombreCaso = { peor: "💥 Peor caso", pesimista: "🔻 Pesimista", central: "➖ Central", optimista: "🔺 Optimista", mejor: "🚀 Mejor caso" };
+  const porCaso = (x.escenarios || []).some((e) => e.caso) ? Object.keys(nombreCaso).map((k) => [nombreCaso[k] + (casos ? ` · ${casos.zonas.find((z) => z.clave === k)?.prob ?? ""} %` : ""),
+    k === "peor" || k === "pesimista" ? "mal" : k === "central" ? "medio" : "bien", (x.escenarios || []).filter((e) => e.caso === k)]).filter((c) => c[2].length) : null;
+  const porCubeta = porCaso || AC.cubetas.map(([k, t, c]) => [t, c, (x.escenarios || []).filter((e) => e.etiqueta === k)]).filter((c) => c[2].length);
   const lista = (titulo, xs) => xs && xs.length ? `<div><b class="peq">${titulo}</b><ul class="peq">${xs.map((y) => `<li>${esc(y)}</li>`).join("")}</ul></div>` : "";
   return `<div class="tarjeta" style="border-color:var(--acento)">
     <div class="suave peq">${acFecha(p.creado)} · a ${p.dias} días · desde ${acNum(p.precio)} · ${x.noticias_usadas} noticias leídas${p.p_usuario != null ? ` · tu estimación: ${Math.round(p.p_usuario)} %` : ""}</div>
@@ -300,6 +439,8 @@ function pronosticoHtml(p, d) {
     ${x.margen_motivo ? `<p class="suave peq">🎚️ Margen de la IA frente a la estadística: ${esc(x.margen_motivo)}.</p>` : ""}
     <div class="leccion" id="acResumen">${md(x.resumen || "")}</div>
     ${(x.temas || []).length ? `<div class="peq" style="margin-top:.4rem"><b>🎓 Estúdialo en tu Academia:</b> ${x.temas.map((t) => `<button class="chip" onclick="ir('tema/${esc(t.id)}')">${esc(t.t)}</button>`).join(" ")}</div>` : ""}</div>
+  ${x.casos ? casosHtml(x.casos, "🎚️ Del peor al mejor caso", "Aquí sí entra el pronóstico de la IA.") : casos ? casosHtml(casos, "🎚️ Del peor al mejor caso (solo estadística)", "Este pronóstico es anterior a esta vista: se muestra la estadística sin el ajuste de la IA.") : ""}
+  <h3 style="margin-bottom:.1rem">🧩 Escenarios concretos${porCaso ? ", ordenados del peor al mejor caso" : ""}</h3><p class="suave peq" style="margin-top:0">Cada escenario es un evento que <b>puede ocurrir junto con otros</b>, por eso su probabilidad no compite con la de los demás ni suma 100 %.</p>
   ${porCubeta.map(([t, c, es]) => `<h3>${t}</h3>${es.map((e) => `<div class="tarjeta ac-escenario ac-${c}">
     <div class="fila entre"><b>${AC.flecha[e.direccion] || ""} ${esc(e.titulo)}</b><span class="etq ${c}">${e.probabilidad} %</span></div>
     <div class="peq">${esc(e.que_pasaria)}</div><div class="suave peq" style="margin-top:.25rem"><b>Por qué:</b> ${esc(e.por_que)}</div>

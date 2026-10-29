@@ -21,9 +21,9 @@ from base import ejecutar, fila, filas, kv_get, kv_set
 DIA = 86400
 CONFIANZAS = ("sin datos", "baja", "media", "alta")
 # Tipos de evento que cuentan como «estudiar» (días activos, rachas, cambios de tema…)
-ESTUDIO = {"tiempo", "repaso", "lectura", "quiz", "prueba", "practica", "entrega", "apunte", "leccion", "chequeo_tema", "pulso"}
+ESTUDIO = {"tiempo", "repaso", "lectura", "quiz", "prueba", "practica", "entrega", "apunte", "leccion", "chequeo_tema", "pulso", "codigo", "examen", "diferida"}
 # Tipos que dicen sobre qué tema se estudia
-CON_TEMA = {"repaso", "lectura", "quiz", "prueba", "practica", "entrega", "apunte", "leccion", "chequeo_tema"}
+CON_TEMA = {"repaso", "lectura", "quiz", "prueba", "practica", "entrega", "apunte", "leccion", "chequeo_tema", "codigo", "examen", "diferida"}
 FAMILIAS = {
     "memoria": "Dominio y memoria", "lectura": "Lectura y atención", "habito": "Ritmo y hábito", "estilo": "Estilo de aprendizaje",
     "contenido": "Contenido y calidad", "metas": "Metas y avance", "decision": "Decisión y comportamiento", "sistema": "Sistema",
@@ -159,6 +159,52 @@ def _(c):
          "Ubicar el nivel real y saltar lo que ya sabe", 3, "0-1")
 def _(c):
     return _media([e["valor"] for e in c.eventos("prueba", 90)])
+
+
+@metrica("calibracion_brier", "memoria", "Calibración de tu seguridad (Brier)", "D",
+         "Promedio de (confianza declarada − acierto)² en los quizzes donde dijiste «seguro» (0,9), «dudo» (0,6) o «adivino» (0,3) "
+         "antes de ver el resultado. 0 = tu seguridad coincide con la realidad; 0,25 = como decir siempre 50 %.", "90 días",
+         "Estado 5 «domina» (F3): no se da por sabido lo que se acierta sin saberlo", 10, "0-1")
+def _(c):
+    pares = [((e["contexto"] or {}).get("p"), e["valor"]) for e in c.eventos("calibracion", 90)]
+    pares = [(p, 1.0 if a >= 0.5 else 0.0) for p, a in pares if p is not None and a is not None]
+    return (round(sum((p - a) ** 2 for p, a in pares) / len(pares), 3), len(pares)) if pares else (None, 0)
+
+
+@metrica("sobreconfianza", "memoria", "Sobreconfianza (seguridad − acierto)", "D",
+         "Seguridad media declarada menos acierto medio en esas mismas preguntas: positivo = crees saber más de lo que sabes; "
+         "negativo = sabes más de lo que crees.", "90 días", "Cuándo pedir una prueba diferida antes de dar un tema por dominado", 10, "puntos")
+def _(c):
+    pares = [((e["contexto"] or {}).get("p"), e["valor"]) for e in c.eventos("calibracion", 90)]
+    pares = [(p, 1.0 if a >= 0.5 else 0.0) for p, a in pares if p is not None and a is not None]
+    return (round(sum(p for p, _ in pares) / len(pares) - sum(a for _, a in pares) / len(pares), 3), len(pares)) if pares else (None, 0)
+
+
+@metrica("prueba_diferida", "memoria", "Pruebas diferidas aprobadas", "D",
+         "De las pruebas diferidas que respondiste en los últimos 180 días (a los 3, 14 y 45 días de dominar un tema, con preguntas de "
+         "aplicación distintas del quiz), la parte con 75 % o más de aciertos. Mide lo que queda, no lo que se acaba de estudiar.", "180 días",
+         "Estado 5 «domina»: solo con las tres pruebas aprobadas (F3)", 3, "0-1")
+def _(c):
+    e = [x for x in c.eventos("diferida", 180) if x["valor"] is not None]
+    return (round(sum(1 for x in e if (x["contexto"] or {}).get("aprobada")) / len(e), 3), len(e)) if e else (None, 0)
+
+
+@metrica("examen_tutor", "memoria", "Preguntas del tutor examinador resueltas sin pistas", "D",
+         "De las preguntas que te hizo el tutor examinador (por chat, con Hermes) en los últimos 90 días, la parte que respondiste "
+         "con puntaje de 0,8 o más y sin ninguna pista. Mide recuperación guiada en vivo, distinta del quiz.", "90 días",
+         "Estados 3 «comprende» y 4 «aplica» (F3) y qué reexplicar", 5, "0-1")
+def _(c):
+    e = [x for x in c.eventos("examen", 90) if x["valor"] is not None]
+    return (round(sum(1 for x in e if x["valor"] >= 0.8 and not (x["contexto"] or {}).get("ayudas")) / len(e), 3), len(e)) if e else (None, 0)
+
+
+@metrica("codigo_aprobado", "memoria", "Ejercicios de código resueltos sin ver la solución", "D",
+         "Ejercicios de la práctica con código donde pasaste TODOS los casos de prueba (los visibles y los ocultos) sin haber pedido "
+         "la solución, en los últimos 90 días. Es verificación objetiva: el código se ejecutó.", "90 días",
+         "Estado 4 «aplica» y proyectos de software (F9)", 3, "ejercicios")
+def _(c):
+    e = [x for x in c.eventos("codigo", 90) if x["valor"] is not None]
+    return (sum(1 for x in e if x["valor"] >= 1 and not (x["contexto"] or {}).get("vio_solucion")), len(e)) if e else (None, 0)
 
 
 @metrica("feynman_medio", "memoria", "Explicación con tus palabras (Feynman)", "D",

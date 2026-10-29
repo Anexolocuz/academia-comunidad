@@ -78,6 +78,26 @@ Tailscale entran.
 
 `python3 pruebas/humo.py` comprueba estas protecciones (también lo hace GitHub en cada cambio).
 
+## 💻 Práctica con código (apagada por defecto)
+
+Con `practica_codigo: true`, la Academia **ejecuta código de Python** (el tuyo, y la solución de referencia que escribe la IA solo para
+validar un ejercicio). Por eso solo corre aislado y, si no puede aislarlo, **no corre**:
+
+- **Sin red**, sin tu carpeta personal, sin `/etc` ni las claves de la Academia: bubblewrap con espacios de nombres nuevos
+  (red, procesos, usuarios, montajes), sistema de archivos de solo lectura, `/tmp` propio de 32 MB, sin variables de entorno ni
+  capacidades.
+- **Topes** en un cgroup de systemd por ejecución: 192 MB de memoria (sin swap), 24 procesos, un núcleo, 8 s en total
+  (y 2 s por caso); si el programa se pasa, se mata junto con todo lo que haya lanzado.
+- La salida se lee con tope (24 KB) y se corta si el programa inunda; una persona ejecuta una cosa a la vez y el servidor, dos.
+- El arnés compara resultados ya convertidos a tipos JSON (un `__eq__` propio no hace pasar un caso) y la IA solo escribe datos
+  (enunciado, casos): su código nunca se ejecuta fuera del aislamiento.
+- Cada ejercicio es de una persona; nadie ve los de otra.
+- `pruebas/aislamiento.py` ejecuta código hostil de verdad (bucle infinito, memoria, bomba de procesos, llenar el disco, inundar
+  la salida, hijos dormidos, red y archivos) y comprueba que todo queda acotado.
+- **Límite honesto:** el arnés y los casos están en el mismo entorno que tu código; alguien decidido podría leerlos. Sirve para
+  practicar y medir, no como examen vigilado.
+- No funciona en Docker, Windows ni macOS (sin bubblewrap ni systemd de usuario) y en la edición de la comunidad viene apagada.
+
 ## Recomendaciones
 
 - **Celular:** usa Tailscale; no abras el puerto en tu router ni lo expongas a internet.

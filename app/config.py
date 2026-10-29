@@ -42,6 +42,8 @@ DEFECTO = {
     "lecciones_adelantadas": 2,                   # lecciones listas sin leer que se preparan por adelantado por persona
     "mercado_cada_dias": 30,                      # cada cuántos días se renueva el nivel profesional vs. mercado de cada ruta
     "revision_rutas_cada_dias": 7,                # cada cuántos días se revisa cada ruta (temas que faltan o cambiaron)
+    "practica_codigo": False,                     # 💻 ejercicios de Python que se corrigen ejecutando tu código en un entorno aislado
+                                                  # (bubblewrap + cgroup de systemd). Apagada por defecto; si falta el aislamiento, no corre.
     "acciones_pronostico_diario": True,           # 💹 cada día, pronóstico a 30 días de cada acción vigilada (False = solo
                                                   # noticias y alertas; el pronóstico se pide a mano)
     "verificar_lecciones": False,                 # True = cada lección nueva se contrasta sola con fuentes verificadas
