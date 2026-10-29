@@ -34,6 +34,9 @@ DEFECTO = {
     "searx_url": "http://127.0.0.1:8888",         # SearXNG (búsqueda web); vacío = sin búsqueda
     "aigate_url": "",                             # opcional: http://<pc>:9137/state (no molestar si se juega)
     "trabajos_paralelos": 1,                      # tareas a la vez en el servidor de IA (= llama-server --parallel N)
+    "nube_proveedor2": "", "nube_modelo2": "", "nube_modelo2_respaldo": "", "nube_url2": "",   # API de reserva (opcional)
+    "nube_reintento_mensual_dias": 15,            # cada cuántos días reintenta un modelo cuyo límite es mensual
+    "trabajos_nube": 0,                           # tareas a la vez en la API de la nube (0 = sin carril propio); va APARTE de las locales
     "noticias_a_fondo_por_persona": 8,            # noticias diarias a máxima profundidad (las que verá cada persona)
     "regiones_por_defecto": {"global": 2},        # regiones de noticias (prioridad 0-3) de quien aún no eligió las suyas
     "lecciones_adelantadas": 2,                   # lecciones listas sin leer que se preparan por adelantado por persona
@@ -52,6 +55,18 @@ DEFECTO = {
     "usuario_local": "",                          # nombre del perfil cuando se entra desde este mismo PC
     "administradores": None,                      # cuentas que pueden cambiar la IA desde el celular; None = la 1.ª permitida
     "nombre": "Academia",
+    # --- API de IA opcional (nube.py; la clave va aparte, en datos/secretos.json) ---
+    "nube_activa": False,                         # interruptor general; cada persona decide además si la usa
+    "nube_proveedor": "", "nube_url": "", "nube_modelo": "",
+    "nube_modelo_respaldo": "",                   # modelo que se prueba si el principal está saturado o no responde (vacío = el del proveedor)
+    "nube_plan_gratuito": True,                   # la clave es del nivel gratuito: costo 0, sin tope en dinero (el límite lo pone el proveedor y, al
+                                                  # llegar a él, la tarea pasa sola al modelo de respaldo y a la IA local)
+    "nube_razonamiento": "",                      # esfuerzo de razonamiento (low | medium | high) si el proveedor lo admite
+    "nube_precio_in": 0, "nube_precio_out": 0,    # USD por millón de tokens (0 = estimación alta, para que el tope proteja)
+    "nube_tope_global_usd": 20.0,                 # gasto máximo al mes entre todas las personas
+    # --- avisos (avisos.py; el token del bot va en datos/secretos.json) ---
+    "url_publica": "",                            # dirección con la que se abre la Academia (va en los avisos), p. ej. https://pc.tailnet.ts.net:15443
+    "ntfy_url": "https://ntfy.sh",                # servidor de ntfy (avisos al celular sin cuentas); puede ser el tuyo
     # --- seguridad (ver docs/SEGURIDAD_Y_DATOS.md) ---
     "redes_locales": ["127.0.0.0/8", "::1/128"],  # quién cuenta como «este PC» (admin sin clave). En Docker se añade
                                                   # la red interna del contenedor (el puerto solo se publica en 127.0.0.1)

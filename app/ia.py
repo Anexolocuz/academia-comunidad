@@ -24,6 +24,7 @@ import urllib.request
 import uuid
 
 import config
+import nube
 
 # La configuración se lee en cada uso: cambiarla en Ajustes aplica sin reiniciar.
 def _c(clave):
@@ -236,6 +237,7 @@ class Trabajo:
         self.otros = []
         self.creado = time.time()
         self.no_antes = 0
+        self.inicio = None        # cuándo empezó a correr (para detectar tareas colgadas)
         self.terminado = None
 
     def publico(self):
@@ -257,6 +259,32 @@ def paralelos():
         return 1
 
 
+MAX_NUBE = 6
+
+
+def en_nube():
+    """Cuántas tareas a la vez puede llevar la API de IA en la nube (`trabajos_nube`; 0 = sin carril propio: las tareas
+    elegibles usan la nube dentro de los carriles locales, como antes). Es un carril APARTE de `paralelos()`: la nube no
+    gasta tarjeta gráfica, así que trabajan a la vez las dos cosas."""
+    try:
+        return max(0, min(MAX_NUBE, int(config.C.get("trabajos_nube") or 0)))
+    except (TypeError, ValueError):
+        return 0
+
+
+# Ganchos opcionales que enchufa el servidor (diario de la cola, salud.py): se llaman al encolar y al terminar.
+ganchos = {"poner": None, "fin": None}
+
+
+def _gancho(nombre, t):
+    f = ganchos.get(nombre)
+    if f:
+        try:
+            f(t)
+        except Exception:
+            traceback.print_exc()
+
+
 class Cola:
     def __init__(self):
         self._h, self._cv = [], threading.Condition()
@@ -265,6 +293,8 @@ class Cola:
         self.actuales = []    # las que corren ahora (hasta `paralelos()` a la vez)
         for i in range(MAX_PARALELOS):   # los hilos de más duermen; así el número se cambia sin reiniciar
             threading.Thread(target=self._bucle, args=(i,), daemon=True, name=f"ia-cola-{i}").start()
+        for i in range(MAX_NUBE):        # carril de la nube: hilos propios, también dormidos hasta que se pidan
+            threading.Thread(target=self._bucle, args=(i, "nube"), daemon=True, name=f"ia-nube-{i}").start()
 
     @property
     def actual(self):
@@ -275,6 +305,7 @@ class Cola:
             self.trabajos[t.id] = t
             heapq.heappush(self._h, (t.prioridad, next(self._n), t))
             self._cv.notify()
+        _gancho("poner", t)
         return t
 
     def posicion(self, t):
@@ -333,10 +364,34 @@ class Cola:
             heapq.heappush(self._h, (0, next(self._n), t))
             self._cv.notify()
 
-    def _bucle(self, n=0):
+    def _elegir(self, listos, carril):
+        """Qué tarea toma un hilo. Sin carril de nube (`trabajos_nube` = 0) se conserva el comportamiento de siempre.
+        Con él: el carril de la nube toma solo lo que la API puede hacer (y solo si responde); el local toma primero
+        lo que SOLO puede hacer en el equipo y, de lo elegible para la nube, únicamente cuando el carril de la nube
+        está lleno o la API no está disponible (así lo que falte pasa a lo local)."""
+        if not en_nube():
+            return min(listos) if listos else None
+        nube_llena = sum(1 for t in self.actuales if getattr(t, "carril", "") == "nube") >= en_nube()
+        sana = nube.sana()
+        memo = {}
+
+        def elegible(x):
+            k = (x[2].tipo, x[2].usuario, x[2].etiqueta.split(":")[0] if x[2].etiqueta else "")
+            if k not in memo:
+                memo[k] = sana and nube.aplicable(x[2].tipo, x[2].usuario, x[2].etiqueta)[0] is not None
+            return memo[k]
+        orden = sorted(listos)
+        if carril == "nube":
+            return next((x for x in orden if elegible(x)), None)
+        solo_local = next((x for x in orden if not elegible(x)), None)
+        if solo_local:
+            return solo_local
+        return orden[0] if orden and (nube_llena or not sana) else None
+
+    def _bucle(self, n=0, carril="local"):
         ultimo_chequeo = 0
         while True:
-            if n >= paralelos():   # hilo de sobra con la configuración actual
+            if n >= (en_nube() if carril == "nube" else paralelos()):   # hilo de sobra con la configuración actual
                 time.sleep(5)
                 continue
             with self._cv:
@@ -348,10 +403,14 @@ class Cola:
                 if not listos:
                     self._cv.wait(5)
                     continue
-                item = min(listos)
+                item = self._elegir(listos, carril)
+                if item is None:
+                    self._cv.wait(5)
+                    continue
                 self._h.remove(item)
                 heapq.heapify(self._h)
                 t = item[2]
+                t.carril = carril if en_nube() else ""
                 self.actuales.append(t)
             try:
                 self._correr(t)
@@ -373,8 +432,12 @@ class Cola:
                 heapq.heappush(self._h, (t.prioridad, next(self._n), t))
 
     def _correr(self, t):
-        ocupado = t.prioridad > 0 and pc_ocupado()
-        if t.prioridad > 0 and (ocupado or otros_modelos(esperando=True)):
+        # Una tarea que irá a la API (nube.py) no usa la tarjeta gráfica: no espera a que Hermes u otro modelo se descargue
+        # ni a que se termine un juego. Si la API falla a media tarea, Contexto._modelo pausa entonces (no pierde lo hecho).
+        por_nube = (t.prioridad > 0 and getattr(t, "carril", "") != "local"
+                    and nube.aplicable(t.tipo, t.usuario, t.etiqueta)[0] is not None)
+        ocupado = t.prioridad > 0 and not por_nube and pc_ocupado()
+        if t.prioridad > 0 and not por_nube and (ocupado or otros_modelos(esperando=True)):
             # fondo: con el PC ocupado (juego…) reintentar en 10 min; si solo es otra app de IA (Hermes), en 1 min,
             # para que la Academia retome apenas Hermes suelte la tarjeta
             t.no_antes = time.time() + (600 if ocupado else 60)
@@ -382,6 +445,7 @@ class Cola:
                 heapq.heappush(self._h, (t.prioridad, next(self._n), t))
             return
         t.estado = "corriendo"
+        t.inicio = time.time()
         try:
             t.resultado = t.fn(Contexto(t))
             t.estado = "listo"
@@ -391,6 +455,8 @@ class Cola:
             traceback.print_exc()
             t.estado, t.error = "error", f"{type(e).__name__}: {e}"
         t.terminado = time.time()
+        if t.estado in ("listo", "error"):
+            _gancho("fin", t)
         if t.estado in ("listo", "error") and t.usuario:
             guardar_resultado(t)
 
@@ -472,6 +538,15 @@ class Contexto:
                               semilla + 1 if semilla else None)
 
     def _chat(self, mensajes, max_tokens, temperatura, esquema, mostrar, semilla=None):
+        # API de IA opcional (nube.py): solo si la persona la activó para este tipo de tarea y hay tope; si no
+        # aplica o falla, sigue la IA local sin perder nada (y sin esperar a que el PC se desocupe).
+        if getattr(self.t, "carril", "") == "local":      # el carril local trabaja con la IA del equipo, a propósito
+            ok, res = False, "carril local"
+        else:
+            ok, res = nube.intentar(self, mensajes, max_tokens, temperatura, esquema, mostrar, semilla)
+        if ok:
+            return res
+        mensajes = nube.sin_marcas(mensajes)
         cuerpo = {"model": self._modelo(), "messages": mensajes, "stream": True,
                   "max_tokens": max_tokens, "temperature": temperatura,
                   "chat_template_kwargs": {"enable_thinking": False}}

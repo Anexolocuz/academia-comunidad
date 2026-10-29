@@ -38,6 +38,9 @@ metas con ruta completa de requisitos, noticias de tus áreas **comparadas entre
 - 💹 **Acciones bajo vigilancia** — tu lista con alertas, noticias directas e indirectas (competidores, proveedores,
   economía) y pronóstico por escenarios de «muy probable» a «muy poco probable», anclado a la estadística y medido
   contra lo que de verdad pasó (puedes competir con tu propia estimación). Educativo, no asesoría financiera.
+- ☁️ **API de IA opcional** — para esperar menos y, a veces, subir la calidad: OpenAI, Claude, Gemini, OpenRouter, Groq,
+  DeepSeek, Mistral… o la tuya. Apagada por defecto, por persona, con tope de gasto, sin tu nombre y con regreso solo a la IA local.
+- ⏱️ **Modo corto y 🔔 avisos** — una sesión de 5-30 minutos para quien estudia poco y un recordatorio opcional (Telegram, ntfy o tu webhook).
 - 🌍 **Noticias por región** — Global + las regiones que elijas (Latinoamérica, tu país…), cada una con tu prioridad; agrega o quita regiones y fuentes.
 - 🎨 **A tu gusto** — claro/oscuro, 6 paletas (incluida alto contraste), color de acento y tamaño de letra.
 - 🧩 **Cruda y legible** — Python estándar + HTML/JS sin frameworks: ideal para aprender cómo se construye.
@@ -64,6 +67,12 @@ Se abre en **http://127.0.0.1:8092** → ⚙️ Ajustes → 🪄 **Escanear mi P
 
 | Tema | 🟢 Fácil (leer y seguir) | 📖 Completo |
 |---|---|---|
+| Para qué existe (razón, misión, visión, límites) | — | [Propósito](docs/PROPOSITO.md) · [Plan de mejoras](docs/PLAN_MEJORAS.md) |
+| API de IA opcional | [Fácil](docs/facil/API_IA.md) | [Completo](docs/API_IA.md) |
+| Modo corto y avisos | [Fácil](docs/facil/AVISOS_Y_MODO_CORTO.md) | [Completo](docs/AVISOS_Y_MODO_CORTO.md) |
+| Salud, alarma y línea base | [Fácil](docs/facil/SALUD.md) | [Completo](docs/SALUD.md) |
+| Eventos y métricas («Qué sabe el sistema de ti») | [Fácil](docs/facil/METRICAS.md) | [Completo](docs/METRICAS.md) |
+| Banco de pruebas de la IA (medir modelos) | — | [Completo](docs/MEDICION.md) |
 | Empezar | [Inicio rápido](docs/facil/INICIO_RAPIDO.md) | [Instalación](docs/INSTALACION.md) |
 | Instalar | [Fácil](docs/facil/INSTALACION.md) | [Completo](docs/INSTALACION.md) |
 | Docker | [Fácil](docs/facil/DOCKER.md) | [Completo](docs/DOCKER.md) |

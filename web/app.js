@@ -413,6 +413,7 @@ VISTAS.hoy = async () => {
       <div class="suave peq">${new Date().toLocaleDateString(LOC, { weekday: "long", day: "numeric", month: "long" })}</div></div></div>
     ${d.siguiente ? `<div class="tarjeta" id="sigPaso" style="border-color:var(--acento);${d.siguiente.ir ? "cursor:pointer" : ""}"><div class="suave peq">👉 Tu siguiente paso</div>
       <h2 style="margin:.2rem 0">${esc(d.siguiente.titulo)}</h2><div class="suave peq">${esc(d.siguiente.por_que)}</div></div>` : ""}
+    ${typeof sesionCortaHtml === "function" ? sesionCortaHtml(d) : ""}
     <div class="stats">
       <div class="stat"><b>🔥 ${d.racha}</b><span>días seguidos</span></div>
       <div class="stat"><b>${d.minutos_hoy}<small class="suave">/${d.meta_minutos}</small></b><span>minutos hoy</span>
@@ -765,7 +766,7 @@ function pintarLeccion(d) {
   repintarLeccion(d, L.contenido);
   LECT.iniciar($("#textoLeccion"), { tema: d.tema.id, area: d.area.id, metodo: "leccion", idioma: d.area.idioma || "es" });
   if (!preparando) ofrecerDiagnostico(d, ej.quiz || []);
-  if (L.completa && !d.area.idioma) montarVerificacionLeccion(d);
+  if (L.completa && !d.area.idioma) { montarVerificacionLeccion(d); montarAportadas(d); }
   $("#btnVisto").onclick = async () => {
     const r = await api("visto", { tema: d.tema.id });
     aviso(`✅ Guardado. ${r.tarjetas} tarjetas nuevas en tu repaso.`); $("#btnVisto").disabled = true; refrescarIA();
@@ -1907,6 +1908,40 @@ function montarVerificacionLeccion(d) {
   };
 }
 
+/* ---------- fuentes aportadas (2026-10-29): el texto de una página que bloquea a las IA, pegado por la persona ---------- */
+async function montarAportadas(d) {
+  const base = $("#verifLeccion"); if (!base) return;
+  let c = $("#aportadas");
+  if (!c) { base.insertAdjacentHTML("afterend", `<div id="aportadas"></div>`); c = $("#aportadas"); }
+  const lista = (await api("aportadas?tema=" + encodeURIComponent(d.tema.id)).catch(() => ({ aportadas: [] }))).aportadas;
+  const ver = (a) => {
+    const r = a.analisis; if (!r) return `<span class="suave peq">sin analizar</span>`;
+    const ap = r.aportada || {}, res = r.resumen || {};
+    const malas = (r.resultados || []).filter((x) => ["contradicha", "en disputa"].includes(x.veredicto));
+    return `<p class="peq" style="margin:.3rem 0">${esc(ap.resumen || "")}</p>
+      <p class="peq suave" style="margin:.2rem 0">Contraste con otras fuentes: ✅ ${(res["confirmada"] || 0) + (res["confirmada con matices"] || 0)} confirmadas · ⚖️ ${res["en disputa"] || 0} en disputa · ❌ ${res["contradicha"] || 0} contradichas · ❔ ${res["sin evidencia"] || 0} sin evidencia</p>
+      ${malas.length ? `<ul class="peq">${malas.map((x) => `<li><b>${esc(x.veredicto)}:</b> ${esc(x.afirmacion)}<br><span class="suave">${esc(x.matiz || "")}</span></li>`).join("")}</ul>` : ""}
+      ${(ap.referencias || []).length ? `<details><summary class="peq">📚 Referencias que cita (${ap.referencias.length})</summary><ul class="peq">${ap.referencias.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+      ${(ap.enlaces || []).length ? `<details><summary class="peq">🔗 Enlaces del texto (${ap.enlaces.length})</summary><ul class="peq">${ap.enlaces.map((x) => `<li><a href="${escUrl(x)}" target="_blank" rel="noopener">${esc(x)}</a></li>`).join("")}</ul></details>` : ""}`;
+  };
+  c.innerHTML = `<details class="tarjeta"${lista.length ? " open" : ""}><summary><b>📎 Aportar una fuente</b> <span class="suave peq">${lista.length ? lista.length + " aportada(s)" : "¿una página bloquea a las IA? pega su texto"}</span></summary>
+    <p class="suave peq" style="margin:.4rem 0">Abre la página en tu navegador, usa el <b>modo lector</b> (o una extensión como MarkDownload), copia el texto y pégalo aquí. La Academia lo resume, saca las referencias que cita y contrasta sus afirmaciones con otras fuentes. Además, al escribir o reescribir esta lección entra como la primera fuente. El análisis se hace en tu equipo.</p>
+    <input type="text" id="apTit" placeholder="Título (opcional)"><input type="text" id="apUrl" placeholder="Dirección de la página (opcional)">
+    <textarea id="apTxt" rows="7" placeholder="Pega aquí el texto de la página (mínimo 200 caracteres)"></textarea>
+    <div class="fila"><button class="btn pri" id="apEnviar">📎 Guardar y analizar</button><span id="apEstado" class="suave peq"></span></div>
+    ${lista.map((a) => `<div class="tarjeta" style="margin-top:.6rem"><div class="fila entre"><b>${esc(a.titulo)}</b><button class="btn peq fantasma" data-ap-borrar="${esc(a.id)}">🗑️</button></div>
+      <span class="suave peq">${a.caracteres.toLocaleString(LOC)} caracteres${a.url ? " · " + esc(a.url) : ""}</span>${ver(a)}</div>`).join("")}</details>`;
+  $("#apEnviar").onclick = async () => {
+    const b = $("#apEnviar"), st = $("#apEstado"); b.disabled = true; st.innerHTML = `<span class="cargando"></span> Guardando…`;
+    try {
+      const j = await api("aportada", { tema: d.tema.id, titulo: $("#apTit").value, url: $("#apUrl").value, texto: $("#apTxt").value });
+      await esperarTrabajo(j.trabajo, (t) => (st.innerHTML = `<span class="cargando"></span> ${esc(textoEstado(t))}`));
+      montarAportadas(d);
+    } catch (e) { st.textContent = "❌ " + e.message; b.disabled = false; }
+  };
+  $$("[data-ap-borrar]").forEach((b) => (b.onclick = async () => { await api("aportada/borrar", { id: b.dataset.apBorrar }); montarAportadas(d); }));
+}
+
 /* ---------- rutas vivas (2026-10-27): preparar toda la ruta y actualizarla ---------- */
 async function montarRutaViva(cont, params) {
   if (!cont) return;
@@ -2493,6 +2528,8 @@ VISTAS.ajustes = async () => {
         <option value="si" ${p.paso_a_paso === true ? "selected" : ""}>Siempre</option>
         <option value="no" ${p.paso_a_paso === false ? "selected" : ""}>Nunca</option></select></div></div>
       <label class="fila" style="font-weight:500"><input type="checkbox" id="pDiag" ${p.diagnostico_previo !== false ? "checked" : ""} style="width:auto;min-height:0"> ⚡ Ofrecer un diagnóstico de 4 preguntas antes de leer (si ya lo sabes, te saltas la lectura)</label></div>
+    <div class="tarjeta" style="cursor:pointer" onclick="ir('conexiones')"><b>🔔 Modo corto, avisos y ☁️ API de IA</b> <span class="etq">opcional</span>
+      <p class="suave peq" style="margin:.3rem 0 0">Estudiar 10 minutos al día, recibir un recordatorio en el celular o usar una API de IA para ir más rápido. Todo apagado por defecto. Toca para configurarlo →</p></div>
     <div class="tarjeta"><b>Prioridad por área</b><p class="suave peq">0 = pausada · 1 = de fondo · 2 = importante · 3 = prioridad máxima. Consejo con evidencia: con idiomas, 1-2 activos en serio rinde más que 5 a la vez; los demás en 1 (mantenimiento).</p>
       ${mias.length ? filasArea(mias) : `<p>${SIN_AREAS}</p>`}</div>
     <div class="tarjeta"><b>🌍 Noticias por región</b><p class="suave peq">De dónde quieres tus noticias. 0 = no la quiero · 1 = poco · 2 = normal · 3 = primero.
@@ -2515,7 +2552,7 @@ VISTAS.ajustes = async () => {
         <tr><td>Modelo</td><td><code>${esc(cfg.modelo)}</code>${cfg.modelo_ligero ? ` · ligero <code>${esc(cfg.modelo_ligero)}</code>` : ""}</td></tr>
         <tr><td>Buscador web</td><td>${cfg.searx_url ? `<code>${esc(cfg.searx_url)}</code>` : "sin búsqueda web"}</td></tr>
         <tr><td>Monitor de GPU (aigate)</td><td>${cfg.aigate_url ? `<code>${esc(cfg.aigate_url)}</code>` : "—"}</td></tr>
-        <tr><td>Tareas a la vez</td><td>${cfg.trabajos_paralelos || 1}</td></tr>
+        <tr><td>Tareas a la vez</td><td>${cfg.trabajos_paralelos || 1} en este equipo${cfg.trabajos_nube ? ` + ${cfg.trabajos_nube} en la API de la nube` : ""}</td></tr>
         <tr><td>Lecciones por adelantado / persona</td><td>${cfg.lecciones_adelantadas ?? 2}</td></tr>
         <tr><td>Noticias a fondo por persona/día</td><td>${cfg.noticias_a_fondo_por_persona || 8}</td></tr>
         <tr><td>Se prepara solo para</td><td>quien usó la Academia en las últimas 48 h</td></tr>
@@ -2534,6 +2571,8 @@ VISTAS.ajustes = async () => {
         <label>Monitor de GPU tipo aigate (opcional: URL que responde «ocupado» cuando no se debe usar la IA, p. ej. jugando)</label><input type="text" id="cAg" value="${esc(cfg.aigate_url || "")}">
         <label>Tareas de IA a la vez (igual a los «slots» del servidor: llama-server --parallel N)</label>
         <input type="number" id="cPar" min="1" max="4" value="${cfg.trabajos_paralelos || 1}" style="width:6rem">
+        <label>Tareas a la vez en la API de la nube (aparte de las de arriba; 0 = sin carril propio. Si la API no responde, esas tareas pasan a las locales)</label>
+        <input type="number" id="cNube" min="0" max="6" value="${cfg.trabajos_nube || 0}" style="width:6rem">
         <label>Lecciones preparadas por adelantado por persona (sin leer; cada una ~45 min de IA)</label>
         <input type="number" id="cAde" min="0" max="6" value="${cfg.lecciones_adelantadas ?? 2}" style="width:6rem">
         <label>Noticias a máxima profundidad por persona y día (cada una ~15 min de IA)</label>
@@ -2588,7 +2627,7 @@ VISTAS.ajustes = async () => {
       }));
     };
     const datosC = () => ({ modo: cmodo, ia_url: $("#cIa").value.trim(), modelo: $("#cMod").value.trim(), modelo_ligero: $("#cLig").value.trim(),
-      searx_url: $("#cSx").value.trim(), aigate_url: $("#cAg").value.trim(), permitir_interrumpir: $("#cInt").checked, trabajos_paralelos: +$("#cPar").value || 1, noticias_a_fondo_por_persona: +$("#cNot").value || 8, lecciones_adelantadas: +$("#cAde").value });
+      searx_url: $("#cSx").value.trim(), aigate_url: $("#cAg").value.trim(), permitir_interrumpir: $("#cInt").checked, trabajos_paralelos: +$("#cPar").value || 1, trabajos_nube: +$("#cNube").value || 0, noticias_a_fondo_por_persona: +$("#cNot").value || 8, lecciones_adelantadas: +$("#cAde").value });
     $("#cProbar").onclick = async () => {
       $("#cEstado").innerHTML = `<span class="cargando"></span> Probando…`;
       const r = await api("config/probar", datosC());

@@ -171,6 +171,20 @@ Los precios vienen de Yahoo Finance y las noticias de Yahoo Finance y Google Not
 No hay nada más que configurar.
 
 
+## ☁️ API de IA y 🔔 avisos (claves de `configuracion.json`)
+
+| Clave | Por defecto | Para qué |
+|---|---|---|
+| `nube_activa` | `false` | interruptor general de la API (cada persona decide además) |
+| `nube_proveedor`, `nube_url`, `nube_modelo` | vacíos | proveedor elegido (ver [API de IA](API_IA.md)), su dirección y el modelo |
+| `nube_precio_in`, `nube_precio_out` | `0` | USD por millón de tokens; `0` = estimación alta |
+| `nube_tope_global_usd` | `20` | gasto máximo al mes entre todas las personas |
+| `url_publica` | vacía | dirección con la que se abre la Academia (va dentro del aviso) |
+| `ntfy_url` | `https://ntfy.sh` | servidor de ntfy |
+
+La clave de la API y el token del bot **no** están aquí: van en `datos/secretos.json`. Se cambian desde Ajustes → 🔔 … → Administración.
+Las opciones de cada persona (usar la API, tope, avisos, modo corto) están en su perfil y en la base.
+
 ## Prioridad frente a otras apps de IA
 
 | Clave | De fábrica | Qué hace |

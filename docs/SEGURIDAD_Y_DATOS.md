@@ -19,6 +19,7 @@ Todo en la carpeta **`datos/`** (o el volumen `/datos` en Docker), que **nunca**
 | `academia.db` | perfil, avance, tarjetas, repasos, actividad, chequeos, metas, entregas, chat del tutor, lecciones, noticias |
 | `cuaderno/`, `entregas/` | tus apuntes a mano y fotos de ejercicios |
 | `configuracion.json` | configuración de esta instalación (incluye la clave de acceso si pusiste una) |
+| `secretos.json` | la clave de la API de IA y el token del bot de Telegram, si los pusiste (permiso 600; nunca se devuelven por la API ni van al registro) |
 | `regiones.json` | regiones y fuentes de noticias que agregó o quitó el administrador |
 | `escaneo.json` | resultado del auto-escaneo; **se borra solo a las 24 h** |
 
@@ -34,6 +35,11 @@ trae un `LEEME.md` por tabla.
   Google Noticias / Yahoo Finance (titulares por RSS), igual que si los buscaras en el navegador. **Nunca** salen tu
   cartera (cantidades, precios de compra), tus alertas, tus notas ni tus pronósticos: se calculan y guardan en tu PC.
   Si no agregas acciones, la Academia no contacta esos servicios.
+- ☁️ **Solo si activas la API de IA** (apagada por defecto): el tema, las fuentes y los textos de las tareas técnicas de estudio
+  que elijas van al proveedor que pusiste, con tu nombre quitado (tus metas solo si lo marcas). Nunca salen el tutor, tus
+  apuntes y fotos, tus entregas, tus ideas, tu cartera ni tus pronósticos. Detalle: [API de IA](API_IA.md).
+- 🔔 **Solo si activas los avisos** (apagados por defecto): un texto corto con cantidades hacia Telegram, ntfy o tu webhook.
+  Detalle: [Avisos](AVISOS_Y_MODO_CORTO.md).
 - «Buscar actualizaciones» consulta GitHub solo cuando pulsas el botón.
 - **Nada más.** Las librerías web vienen incluidas (`web/vendor/`); la IA es la tuya (local o en otro PC tuyo).
 

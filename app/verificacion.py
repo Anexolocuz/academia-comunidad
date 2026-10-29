@@ -18,6 +18,7 @@ import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 
+import unicodedata
 import ciencia
 import ia
 from base import ejecutar, fila, filas
@@ -92,6 +93,47 @@ def fiabilidad(url):
     return {"nivel": 2, "tipo": "general", "dominio": d}
 
 
+# ------------------------------------------------------------------ relevancia de lo encontrado
+_VACIAS = {"para", "como", "sobre", "entre", "desde", "hacia", "cual", "cuales", "that", "with", "from", "this", "what",
+           "which", "into", "about", "site", "edu", "gov", "wikipedia", "org", "los", "las", "una", "unos", "del"}
+
+
+def _lista(texto):
+    """Palabras de contenido (≥4 letras, sin tildes, minúsculas) en orden de aparición, cortadas a 6 letras para tolerar
+    plurales y género."""
+    t = unicodedata.normalize("NFKD", (texto or "").lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    out = []
+    for w in re.findall(r"[a-z0-9]{4,}", t):
+        if w not in _VACIAS and w[:6] not in out:
+            out.append(w[:6])
+    return out
+
+
+def relevancia(r, consultas):
+    """0-1: qué tanto habla de lo buscado. Vale 1 si trae las dos primeras palabras de alguna consulta (el tema mismo) y,
+    si no, la parte de sus palabras que aparece en el título, la dirección o el resumen. Descarta lo que el buscador
+    trae por una sola palabra suelta (p. ej. «cambio de paradigma» al buscar Zero Trust)."""
+    listas = [_lista(re.sub(r"site:\S+", "", q)) for q in consultas[:2] if q]
+    listas = [l for l in listas if l]
+    if not listas:
+        return 1.0
+    hay = set(_lista(f"{r.get('titulo', '')} {r.get('url', '')} {r.get('texto', '')}"))
+    mejor = 0.0
+    for l in listas:
+        if all(a in hay for a in l[:2]):
+            return 1.0
+        mejor = max(mejor, len(set(l) & hay) / min(len(l), 5))
+    return mejor
+
+
+def _portada(url):
+    try:
+        return urllib.parse.urlparse(url).path.strip("/") == ""
+    except ValueError:
+        return False
+
+
 # ------------------------------------------------------------------ búsqueda agresiva
 def buscar_fuentes(consultas, consultas_en=(), n=12, verificadores=False, academicas=True, leer=True, largo=3000,
                    excluir=()):
@@ -122,10 +164,14 @@ def buscar_fuentes(consultas, consultas_en=(), n=12, verificadores=False, academ
             continue
         vistos.add(u)
         f = fiabilidad(u)
-        if f["nivel"] == 0 or por_dom.get(f["dominio"], 0) >= 2:
+        if f["nivel"] == 0 or por_dom.get(f["dominio"], 0) >= 2 or _portada(u):
             continue
         por_dom[f["dominio"]] = por_dom.get(f["dominio"], 0) + 1
-        cand.append({"titulo": r["titulo"], "url": u, "texto": r["texto"], "fiabilidad": f, "clase": "web"})
+        cand.append({"titulo": r["titulo"], "url": u, "texto": r["texto"], "fiabilidad": f, "clase": "web",
+                     "relevancia": relevancia(r, es[:1] + en[:1])})
+    # lo que no habla del tema (solo comparte una palabra) se descarta; si quedara casi nada, se conservan las mejores
+    buenas = [c for c in cand if c["relevancia"] >= 0.6]
+    cand = buenas if len(buenas) >= 3 else sorted(cand, key=lambda c: -c["relevancia"])[:max(3, len(buenas))]
     papers = []
     if academicas:
         for q in list(consultas_en)[:3] or list(consultas)[:2]:
@@ -136,7 +182,7 @@ def buscar_fuentes(consultas, consultas_en=(), n=12, verificadores=False, academ
                                    "fiabilidad": {"nivel": 4, "tipo": "académica", "dominio": dominio(p["url"]) or "doi.org"},
                                    "clase": "paper", "autores": p["autores"], "anio": p["anio"], "citas": p["citas"]})
     # diversidad: primero lo mejor de cada tipo, luego por fiabilidad (estable: dentro de cada nivel manda el buscador)
-    cand.sort(key=lambda c: -c["fiabilidad"]["nivel"])
+    cand.sort(key=lambda c: (-c["fiabilidad"]["nivel"], -c["relevancia"]))
     elegidas, tipos = [], set()
     for c in cand:
         if c["fiabilidad"]["tipo"] not in tipos and c["fiabilidad"]["nivel"] >= 2:
@@ -286,7 +332,7 @@ def verificar_texto(ctx, usuario, texto):
     fs = buscar_fuentes(ex["consultas"], ex["consultas_en"], n=12, verificadores=True)
     r = comparar(ctx, ex["afirmaciones"], fs, f"Pregunta o afirmación del estudiante: «{texto[:800]}».")
     r["pregunta"] = texto
-    clave = "texto:" + hashlib.sha1(texto.strip().lower().encode()).hexdigest()[:16]
+    clave = "texto:" + hashlib.sha1(texto.strip().lower().encode(), usedforsecurity=False).hexdigest()[:16]
     return _guardar(usuario, clave, texto[:120], r)
 
 

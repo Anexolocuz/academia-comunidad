@@ -28,7 +28,8 @@ def texto_perfil(perfil):
     if p.get("adaptacion"):
         partes.append(f"Lo que muestran sus datos de aprendizaje: {p['adaptacion']}. Adáptate a esto "
                       "(conecta con lo que olvidó si viene al caso, usa el método que le funciona).")
-    return " ".join(partes)
+    # Marcas: la API opcional (nube.py) cambia este bloque por una versión sin nombre; la IA local las quita.
+    return "[[PERFIL]]" + " ".join(partes) + "[[/PERFIL]]"
 
 
 SISTEMA_BASE = (
@@ -166,6 +167,18 @@ def _papers(consulta, vistas, n):
     return out[:n]
 
 
+def limpiar_citas(texto, n_web, n_papers):
+    """Quita las citas [n] o [Pn] que apuntan a una fuente que no existe (la IA a veces cita de más): una cita
+    falsa da apariencia de respaldo que no tiene. No toca índices de código o matemáticas (`x[3]`, `a[1]`)."""
+    def web(m):
+        return m.group(0) if int(m.group(1)) <= n_web else ""
+
+    def pap(m):
+        return m.group(0) if int(m.group(1)) <= n_papers else ""
+    texto = re.sub(r"(?<![\w\)\]])\[(\d{1,3})\]", web, texto)
+    return re.sub(r"(?<![\w\)\]])\[P(\d{1,3})\]", pap, texto)
+
+
 def _bloque(fuentes, papers, w0, p0):
     partes = []
     if fuentes:
@@ -189,7 +202,9 @@ def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
     vecinos = [x["t"] for x in m["temas_obj"]]
     ctx.fase("Buscando fuentes y documentos científicos")
     vistas_w, vistas_p = set(), set()
-    fuentes = [f for f in _fuentes_para(t, area) if not (f["url"] in vistas_w or vistas_w.add(f["url"]))]
+    import aportadas
+    fuentes = [f for f in aportadas.fuentes_de(usuario, tid) + _fuentes_para(t, area)
+               if not (f["url"] in vistas_w or vistas_w.add(f["url"]))]    # las que aportó la persona, primero
     nivel_txt = NIVEL_TXT[m["nivel"]]
     prompt_plan = (
         f"Área: {area['nombre']} · Módulo: {m['t']} (nivel {m['nivel']}: {nivel_txt})\n"
@@ -225,6 +240,8 @@ def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
 
     def guardar(completa):
         texto = "\n\n".join(textos)
+        if completa:   # solo al cerrar: mientras escribe, las fuentes de las partes siguientes aún no existen
+            texto = limpiar_citas(texto, len(todas_f), len(todos_p))
         # papers: al final solo quedan los que la IA de verdad citó ([Pn]); los demás no venían al caso
         lista = ([{"titulo": f["titulo"], "url": f["url"]} for f in todas_f]
                  + [{"titulo": p["titulo"], "url": p["url"], "tipo": "paper", "autores": p["autores"], "anio": p["anio"],

@@ -23,6 +23,7 @@ from datetime import datetime
 from base import kv_get, kv_set
 
 API = "https://api.openalex.org/works"
+API_CROSSREF = "https://api.crossref.org/works"      # respaldo y complemento de OpenAlex (API pública, sin clave)
 CAMPOS = ("id,title,relevance_score,publication_year,cited_by_count,doi,type,primary_location,"
           "authorships,abstract_inverted_index,open_access")
 CACHE_DIAS = 30
@@ -71,6 +72,51 @@ def _consultar(params):
         return json.loads(r.read()).get("results", [])
 
 
+def _sin_etiquetas(x):
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", x or "")).replace("Abstract", "", 1).strip()
+
+
+def _crossref(consulta, n):
+    """Artículos de Crossref con resumen, en el mismo formato que `_fmt`. [] si falla. Crossref es la base de los DOI:
+    sirve cuando OpenAlex no responde o trae pocos resultados."""
+    url = API_CROSSREF + "?" + urllib.parse.urlencode({
+        "query.bibliographic": consulta, "rows": 25, "filter": "has-abstract:true,type:journal-article",
+        "select": "title,author,issued,container-title,DOI,type,is-referenced-by-count,abstract,URL,score"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Academia/" + config.VERSION + " (estudio personal; software libre)"})
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            items = json.loads(r.read()).get("message", {}).get("items", [])
+    except Exception:
+        return []
+    ahora = datetime.now().year
+    claves = set(re.findall(r"[a-z]{4,}", consulta.lower())) - {"about", "using", "between", "based", "versus", "with", "from", "into"}
+    tope = max((i.get("score") or 0) for i in items) or 1 if items else 1
+    out = []
+    for i in items:
+        titulo = _sin_etiquetas(" ".join(i.get("title") or []))
+        resumen = _sin_etiquetas(i.get("abstract"))
+        anio = ((i.get("issued") or {}).get("date-parts") or [[None]])[0][0]
+        citas = i.get("is-referenced-by-count") or 0
+        if not titulo or not resumen or (i.get("score") or 0) / tope < 0.45:
+            continue
+        if not _coinciden(claves, {"title": titulo, "abstract_inverted_index": {w: 1 for w in resumen.split()}}):
+            continue
+        if citas < 10 and (anio or 0) < ahora - 2:
+            continue
+        aut = [(a.get("family") or a.get("name") or "") for a in (i.get("author") or [])[:3]]
+        if len(i.get("author") or []) > 3:
+            aut.append("et al.")
+        doi = "https://doi.org/" + i["DOI"] if i.get("DOI") else i.get("URL", "")
+        out.append({"titulo": titulo, "autores": ", ".join(a for a in aut if a), "anio": anio,
+                    "revista": " ".join(i.get("container-title") or []), "citas": citas, "tipo": "article",
+                    "doi": doi, "url": doi, "abierto": None, "resumen": resumen[:900],
+                    "_p": 1.5 * (i.get("score") or 0) / tope + math.log10(1 + citas)})
+    out.sort(key=lambda w: -w["_p"])
+    for w in out:
+        w.pop("_p")
+    return out[:n]
+
+
 def buscar(consulta, n=4):
     """[{titulo, autores, anio, revista, citas, tipo, doi, url, abierto, resumen}] o [] si no hay red."""
     consulta = (consulta or "").strip()
@@ -87,7 +133,11 @@ def buscar(consulta, n=4):
         res += _consultar({"search": consulta, "per-page": 10, "select": CAMPOS,
                            "filter": "has_abstract:true,is_retracted:false,type:review"})
     except Exception:
-        return []
+        # OpenAlex no respondió: Crossref como respaldo (se guarda en caché solo si trajo algo)
+        extra = _crossref(consulta, n)
+        if extra:
+            kv_set(clave, {"fecha": time.time(), "lista": extra})
+        return extra
     ahora = datetime.now().year
     ws, ids = [], set()
     for w in res:
@@ -96,7 +146,7 @@ def buscar(consulta, n=4):
             ids.add(w["id"])
             ws.append(w)
     if not ws:
-        return []
+        return _crossref(consulta, n)
     # relevancia como filtro (lo no relacionado no entra por muchas citas que tenga), citas para ordenar;
     # lo poco citado solo entra si es reciente (aún no tuvo tiempo de ser citado)
     tope = max(w.get("relevance_score") or 0 for w in ws) or 1
@@ -115,6 +165,11 @@ def buscar(consulta, n=4):
             continue
         vistos.add(w["id"])
         elegidos.append(_fmt(w))
+    if len(elegidos) < n:       # OpenAlex trajo pocos: Crossref completa (sin repetir DOI ni título)
+        vistos_doi = {(e["doi"] or "").lower() for e in elegidos} | {e["titulo"].lower() for e in elegidos}
+        for e in _crossref(consulta, n):
+            if (e["doi"] or "").lower() not in vistos_doi and e["titulo"].lower() not in vistos_doi:
+                elegidos.append(e)
     kv_set(clave, {"fecha": time.time(), "lista": elegidos[:8]})
     return elegidos[:n]
 

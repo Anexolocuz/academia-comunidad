@@ -52,7 +52,15 @@ sin mirar), **repetición espaciada** (FSRS), **intercalar** áreas, **ejemplos 
 **elaboración/Feynman**, **escribir a mano** y **bloques de concentración** con descanso real. Con muchos idiomas a la vez:
 1-2 en prioridad alta y el resto en 1 (mantenimiento) rinde más.
 
+## ⏱️ Modo corto, 🔔 avisos y ☁️ API (opcionales)
+
+Si estudias pocos minutos al día: **modo corto** (una sesión de 5-30 min con una parte de una lección). Si quieres un empujón:
+un **recordatorio diario** en el celular (apagado por defecto). Si quieres menos espera: una **API de IA** (apagada por defecto).
+Todo en Ajustes → 🔔 Modo corto, avisos y ☁️ API. Manuales: [Avisos y modo corto](AVISOS_Y_MODO_CORTO.md), [API de IA](API_IA.md).
+
 ## 🎯 La meta de la Academia
+
+> Razón de ser, misión, visión y cómo se mide el éxito: [Propósito](PROPOSITO.md).
 
 Prepararte, en **semanas o meses** y no en años, para **presentar algo lo más innovador posible** en un tema: desde lo
 más básico hasta la frontera, con **todas las sub-ramas** que hacen falta. Todo lo de abajo sirve a eso.

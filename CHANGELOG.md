@@ -5,6 +5,58 @@ El número de la versión actual está en [`VERSION`](VERSION) (ver [docs/VERSIO
 
 ## [Sin publicar]
 
+## [1.3.0] - 2026-10-29
+
+### Corregido
+- ☁️ Los avisos de cuota diaria de Google («billing details») ya no se toman por límite mensual (descansaban 15 días en vez de 3 horas). Nuevo: el administrador ve qué modelos están en pausa y puede pulsar «Reintentar ahora».
+- 🔎 Búsqueda de fuentes más pertinente: se descartan los resultados que solo comparten una palabra suelta con la consulta (p. ej. «cambio de paradigma» o una lista de entrenadores al buscar Zero Trust) y las portadas de sitios, y dentro de cada nivel de fiabilidad se ordena por pertinencia. Con la misma consulta, la lección pasa de blogs y páginas sin relación a documentos primarios (NIST, CISA, universidades).
+- ☁️ Si un servicio de IA acepta el formato JSON pedido pero no lo aplica (caso de Ollama Cloud, que devolvía otras claves y rompía la lección con `KeyError`), la Academia valida el resultado contra el esquema y reintenta una vez con el esquema escrito en la instrucción.
+- ☁️ La cola de IA ya no espera a que otra app suelte la tarjeta gráfica (ni a que termine un juego) cuando la tarea va a la API.
+- ☁️ Si la API llega a su límite de uso (429 o cuota agotada) prueba el modelo de respaldo y, si tampoco, pasa sola a la IA local y descansa
+  15 minutos (3 horas si el límite es diario) sin insistir; un modelo caído no vuelve a ser el primero durante 10 minutos.
+- ☁️ La API ya no se queda colgada si el equipo no tiene salida por IPv6 (`app/red.py`: IPv4 primero y conexión con límite de 10 s), reintenta
+  con pausas cuando el servicio está saturado (503) y quita el prefijo `models/` de los nombres de modelo de Gemini.
+
+### Nuevo
+- 📎 «Aportar una fuente» en cada lección: pegas el texto de una página que bloquea a las IA (copiado con el modo lector del navegador); la Academia lo guarda por tema, lo resume, saca las referencias y enlaces que cita y contrasta sus afirmaciones con otras fuentes verificadas. Además entra como primera fuente cuando se escribe o reescribe esa lección. El análisis se hace siempre en tu equipo (`app/aportadas.py`).
+- 🔬 Crossref como respaldo y complemento de OpenAlex en los documentos científicos: si OpenAlex no responde o trae menos de los pedidos, se completan con Crossref (API pública de los DOI, sin clave), sin repetir.
+- ☁️ API de reserva y límites mensuales: si la API principal llega a su límite se prueba una de reserva (otro proveedor, por ejemplo Gemini) antes de pasar a la IA local. Un límite mensual o de créditos hace descansar ese modelo 15 días (cada persona puede cambiar los días y desactivar la reserva); el diario, 3 horas; el que no dice periodo, 15 minutos. Las pausas largas se guardan y sobreviven a un reinicio.
+- ⚙️ Carril propio para la API de la nube (`trabajos_nube`, 0 a 6; 0 = como antes): trabaja a la vez que las tareas locales (`trabajos_paralelos`). El carril de la nube solo toma lo que la API puede hacer; el local toma primero lo que solo puede hacerse en el equipo y, de lo demás, únicamente cuando el carril de la nube está lleno o la API no responde (límite, fallo o pausa), así lo que falte pasa solo a lo local. Se ajusta en Configuración → IA.
+- 🔬 **Eventos y métricas** (fase F1 del plan; [`docs/METRICAS.md`](docs/METRICAS.md), `app/eventos.py`, `app/metricas.py`, `web/metricas.js`, `web/eventos.js`): una **línea de tiempo de
+- 🧪 **Banco de pruebas de la IA** (fase F2 del plan; [`docs/MEDICION.md`](docs/MEDICION.md), `app/medicion.py`): compara modelos y niveles de razonamiento con la misma tarea, los mismos temas y las mismas fuentes congeladas; califica con comprobaciones objetivas (citas inexistentes, enlaces inventados, estructura, fórmulas, repeticiones), un juez anónimo en dos rondas y lectura ciega de la persona; los fallos cuentan como dato; reanudable; sin datos personales. 16 pruebas en `pruebas/unidad_medicion.py`.
+  eventos** por persona (proyección idempotente de las tablas existentes, sin tocar las rutas que las escriben), **54 métricas** con origen directo o indirecto, fórmula, ventana,
+  decisión que alimentan, muestra y **confianza** (las de poca muestra no deciden nada), y la vista 🔬 «Qué sabe el sistema de ti»: cada persona ve solo lo suyo, puede marcar
+  una métrica como errónea, ignorarla o apagar una familia, y ver su tendencia. Los eventos de la interfaz (tiempo en cada vista, a dónde va, si sigue la sugerencia de «Hoy») no
+  llevan texto de la persona y se apagan con la familia «Decisión y comportamiento». Fórmula única de «minutos por tema dominado». 18 pruebas nuevas en `pruebas/unidad_metricas.py`.
+- 📖 **La API solo prepara las lecciones por defecto** (con sus fuentes: escribirlas, contrastarlas, consultas de papers, ruta rápida, reexplicaciones); cada persona puede ampliar a rutas, noticias o pruebas, o a todo, con atajos de un toque. Lo personal nunca sale.
+- 🆓 **Plan gratuito** en la API de IA (encendido de fábrica): costo 0, sin topes en dólares, cuenta llamadas y tokens, aviso de privacidad del nivel gratuito; el límite del proveedor pasa la tarea al respaldo y a la IA local.
+- 🩺 **Salud, alarma y línea base** (fase F0 del plan; [`docs/SALUD.md`](docs/SALUD.md), `app/salud.py`, `app/vigia.py`, `web/salud.js`): tablero 🩺 con los problemas
+  detectados, la cola, la IA, la GPU, el disco y la rutina diaria; **vigía** (proceso aparte del servicio) que avisa por el canal que se le indique si el servicio
+  cae (en menos de 5 minutos) o algo falla, sin repetir avisos y con aviso de recuperación; **cola de IA que sobrevive a los reinicios** (diario en la base,
+  `reanudar()` ahora también rehace revisión de rutas y fronteras, y lo que alguien esperaba y no se pudo reconstruir queda a la vista); **línea base de uso**
+  por persona (minutos, días activos, minutos por tema dominado…), cada número con su origen. 12 pruebas nuevas en `pruebas/unidad_salud.py`.
+- 🗺️ [`docs/PLAN_MEJORAS.md`](docs/PLAN_MEJORAS.md): plan para medir el dominio y ordenar solo (eventos, métricas, clasificador, ordenador, dominio medido, señales de aporte).
+- ♊ **Gemini 3.8 Flash** listo en la API opcional, con esfuerzo de razonamiento (`low|medium|high`), sin `temperature` (Gemini 3 no la admite), margen para los tokens de razonamiento y precios de lanzamiento.
+- ☁️ **API de IA opcional** (`app/nube.py`, `app/secretos.py`, `web/nube.js`; manual: [`docs/API_IA.md`](docs/API_IA.md)): conecta OpenAI, Anthropic,
+  Gemini, OpenRouter, Groq, Cerebras, Together, Fireworks, DeepSeek, Mistral, xAI, SambaNova, NVIDIA NIM, Ollama Cloud u otro servicio compatible. Apagada por
+  defecto y por persona; grupos de tareas a elegir, tope de gasto por persona y global con costo medido, «Ver modelos» y «Probar», se
+  reajusta sola a cada servicio (parámetros y JSON), tu nombre se quita siempre y lo personal (tutor, apuntes, entregas, ideas, cartera)
+  nunca sale; si falla o se acaba el tope, la tarea sigue en la IA local. La clave vive en `datos/secretos.json` (600).
+- ⏱️ **Modo corto**: sesión de 5-30 minutos en «Hoy» (pulso, repaso que cabe y una parte de una lección).
+- 🔔 **Avisos opcionales** (`app/avisos.py`; [`docs/AVISOS_Y_MODO_CORTO.md`](docs/AVISOS_Y_MODO_CORTO.md)): recordatorio diario con cantidades por Telegram
+  (vinculado con un código), ntfy o webhook; apagados por defecto.
+- 🧭 [`docs/PROPOSITO.md`](docs/PROPOSITO.md): razón de ser, misión, visión, meta medible (señales de dominio), qué es y qué
+  no es, principios, límites, riesgos y preguntas abiertas. Deja escrito el requisito de una **API de IA opcional**
+  (apagada por defecto, por persona, sin datos personales, con aviso, tope de gasto y regreso a la IA local); aún no
+  está implementada.
+
+### Mejorado
+- 📖 Las lecciones a fondo ya no conservan **citas a fuentes que no existen**: al cerrar la lección se quitan los `[n]`
+  y `[Pn]` que apuntan más allá de las fuentes realmente encontradas (la IA a veces cita de más y una cita falsa da una
+  apariencia de respaldo que no tiene). No toca índices de código ni matemáticas (`x[3]`). Con pruebas unitarias.
+- Revisión de seguridad con Bandit: sin hallazgos reales (las URL configurables son solo de administración; los SQL
+  dinámicos solo usan nombres de tabla fijos); el hash de la caché de verificación se marca como no criptográfico.
+
 ## [1.2.0] - 2026-10-28
 
 ### Nuevo

@@ -62,8 +62,18 @@ import adaptativo as aa  # noqa: E402
 import dominio  # noqa: E402
 import revision  # noqa: E402
 import verificacion as vf  # noqa: E402
+import aportadas  # noqa: E402
 import escaneo  # noqa: E402
 import acciones as ac  # noqa: E402
+import avisos  # noqa: E402
+import nube  # noqa: E402
+import salud  # noqa: E402
+import eventos  # noqa: E402
+import metricas  # noqa: E402
+
+salud.iniciar_tabla()
+metricas.init()   # F1: tablas de eventos y métricas
+ia.ganchos.update(poner=salud.anotar, fin=salud.cerrar)   # diario de la cola: lo pendiente sobrevive a un reinicio
 
 RAIZ = Path(__file__).resolve().parent.parent
 WEB = RAIZ / "web"
@@ -447,7 +457,8 @@ def r_yo(usuario, q, d, h):
 def r_perfil(usuario, q, d, h):
     p = perfil_de(usuario)
     for k in ("nombre", "situacion", "metas", "estilo", "nuevos_dia", "tarjetas_nuevas_dia", "minutos_dia",
-              "solo_lapiz", "dia_maxima", "configurado", "modo_lectura", "paso_a_paso", "diagnostico_previo"):
+              "solo_lapiz", "dia_maxima", "configurado", "modo_lectura", "paso_a_paso", "diagnostico_previo",
+              "sesion_corta"):
         if k in d:
             p[k] = d[k]
     if isinstance(d.get("pesos"), dict):
@@ -527,6 +538,7 @@ def r_hoy(usuario, q, d, h):
     else:
         sig = {"ir": "", "titulo": "🎉 Hoy está hecho", "por_que": "Descansar y dormir también consolidan lo aprendido. Si te sobra energía: ➕ Otra sesión."}
     pruebas_listas = fila("SELECT COUNT(*) n FROM prueba_nivel WHERE usuario=? AND estado='lista'", (usuario,))["n"]
+    eventos.sugerencia(usuario, sig["ir"], sig["titulo"])   # F1: para medir después si la sigue o la ignora
     return {"temas": temas, "repaso": {"vencidas": venc, "nuevas": nuevas, "hechas_hoy": hechos}, "siguiente": sig,
             "pruebas_listas": pruebas_listas,
             "chequeo": abierto, "adaptacion": {k: adapt[k] for k in ("ajustes", "bloque", "mejor_franja", "nuevos", "base")},
@@ -539,7 +551,30 @@ def r_hoy(usuario, q, d, h):
                                     regiones=regiones_de(usuario))
                          if (mias := cur.areas_de(usuario)) & set(nt.AREAS_NOTICIAS) else []),
             "configurado": perfil.get("configurado"),
+            "sesion_corta": _sesion_corta(perfil, venc, nuevas, pendiente, pulso_hecho, hay_tarjetas),
             "ia": estado_ia(usuario)}
+
+
+def _sesion_corta(perfil, venc, nuevas, pendiente, pulso_hecho, hay_tarjetas):
+    """«Tu sesión de N minutos»: pocos pasos que caben en el tiempo que la persona eligió (modo corto, para quien
+    estudia poco cada día). Una tarjeta ~25 s; de una lección larga se lee UNA parte."""
+    m = int(perfil.get("sesion_corta") or 0)
+    if m <= 0:
+        return None
+    pasos, usado = [], 0
+    if not pulso_hecho and hay_tarjetas and m >= 6:
+        pasos.append({"ir": "pulso", "titulo": "⚡ Pulso: 5 tarjetas para calentar", "min": 2})
+        usado += 2
+    reserva = 4 if pendiente and m >= 8 else 0
+    n = min(venc + nuevas, max(0, (m - usado - reserva) * 60 // 25))
+    if n:
+        pasos.append({"ir": "repasar", "titulo": f"🔁 Repasar {n} tarjetas", "min": max(1, round(n * 25 / 60))})
+        usado += pasos[-1]["min"]
+    if pendiente and m - usado >= 3:
+        pasos.append({"ir": f"tema/{pendiente['id']}", "titulo": f"📖 Una parte de «{pendiente['t']}»",
+                      "min": m - usado})
+        usado = m
+    return {"minutos": m, "pasos": pasos, "total": usado}
 
 
 def _lista(usuario, tid, maxima):
@@ -711,7 +746,7 @@ NOMBRE_TRABAJO = {
     "mercado": "📈 Referente del mercado", "a_fondo": "🌍 Noticia a fondo",
     "verificar": "🔎 Contrastar fuentes", "ruta": "🔄 Actualizar una ruta", "ramas": "🌳 Mapa de sub-ramas",
     "ideas": "🚀 Ideas en la frontera", "presentacion": "🎤 Preparar presentación", "pares": "🧑‍⚖️ Revisión de pares", "frontera": "🔭 Frontera de una meta", "paper": "📄 Lectura guiada de paper", "aporte": "💡 Evaluar tu aporte",
-    "reexplicar": "🔄 Explicación de otra forma", "externo": "📥 Lo que estudiaste fuera", "rapida": "⚡ Ruta rápida",
+    "reexplicar": "🔄 Explicación de otra forma", "externo": "📥 Lo que estudiaste fuera", "aportada": "📎 Analizar una fuente que aportaste", "rapida": "⚡ Ruta rápida",
     "pronostico": "💹 Pronóstico de una acción", "relaciones": "💹 Mapa de una acción", "acciones": "💹 Acciones vigiladas",
 }
 
@@ -736,7 +771,7 @@ def estado_ia(usuario=None):
     vis = trabajo_visible(act, usuario) if act else None
     return {"cargados": ia.modelos_cargados(), "ocupado_pc": ia.pc_ocupado(),
             "actual": {"tipo": vis["tipo"], "etiqueta": vis["detalle"], "fase": vis["fase"] or vis["tipo"]} if act else None,
-            "corriendo": len(ia.cola.actuales), "paralelos": ia.paralelos(),
+            "corriendo": len(ia.cola.actuales), "paralelos": ia.paralelos(), "paralelos_nube": ia.en_nube(),
             "en_cola": len(ia.cola._h), "modelo": str(ia.MODELO), "modo": config.C.get("modo"),
             "ia_url": config.C.get("ia_url"), "permitir_interrumpir": config.C.get("permitir_interrumpir", True)}
 
@@ -840,7 +875,7 @@ def r_config_guardar(usuario, q, d, h):
     if not es_admin(h, usuario):
         return {"error": "Solo el administrador de esta Academia puede cambiar la IA."}
     validas = {"modo", "ia_url", "modelo", "modelo_ligero", "searx_url", "aigate_url", "permitir_interrumpir", "nombre",
-               "trabajos_paralelos", "noticias_a_fondo_por_persona", "lecciones_adelantadas", "regiones_por_defecto"}
+               "trabajos_paralelos", "trabajos_nube", "noticias_a_fondo_por_persona", "lecciones_adelantadas", "regiones_por_defecto"}
     if "lecciones_adelantadas" in d:
         d["lecciones_adelantadas"] = max(0, min(6, int(d["lecciones_adelantadas"] or 0)))
     if "noticias_a_fondo_por_persona" in d:
@@ -849,6 +884,8 @@ def r_config_guardar(usuario, q, d, h):
         conocidas = nt.config()["regiones"]
         d["regiones_por_defecto"] = {k: max(0, min(3, int(v))) for k, v in dict(d["regiones_por_defecto"] or {}).items()
                                      if k in conocidas} or {nt.GLOBAL: 2}
+    if "trabajos_nube" in d:
+        d["trabajos_nube"] = max(0, min(ia.MAX_NUBE, int(d["trabajos_nube"] or 0)))
     if "trabajos_paralelos" in d:
         d["trabajos_paralelos"] = max(1, min(ia.MAX_PARALELOS, int(d["trabajos_paralelos"] or 1)))
     config.C = config.guardar({k: v for k, v in d.items() if k in validas})
@@ -919,6 +956,151 @@ def r_config_probar(usuario, q, d, h):
         except Exception as e:
             out["buscador"], out["buscador_error"] = False, f"{type(e).__name__}: {e}"
     return out
+
+
+# ------------------------------------------------------------- API de IA opcional (nube.py)
+def _admin_cuenta():
+    a = config.C.get("administradores")
+    if a:
+        return a[0]
+    p = permitidos()
+    return p[0] if p else (config.C.get("usuario_local") or "")
+
+
+@ruta("GET", "/api/nube")
+def r_nube(usuario, q, d, h):
+    admin = es_admin(h, usuario)
+    out = {"admin": admin, "yo": nube.resumen_persona(usuario),
+           "grupos": {k: v["nombre"] for k, v in nube.GRUPOS.items()}}
+    if admin:
+        out["config"] = nube.config_admin()
+        out["ultimo_error"] = kv_get("nube_ultimo_error")
+        out["uso"] = nube.uso_mes()
+    else:
+        p = nube.proveedor_actual()
+        out["config"] = {"configurada": nube.configurada(), "activa": bool(config.C.get("nube_activa")),
+                         "proveedor": p["nombre"] if p else "", "modelo": p["modelo"] if p else ""}
+    return out
+
+
+def _solo_admin(h, usuario):
+    return None if es_admin(h, usuario) else {"error": "Solo el administrador de esta Academia puede cambiar esto."}
+
+
+@ruta("POST", "/api/nube/config")
+def r_nube_config(usuario, q, d, h):
+    if (e := _solo_admin(h, usuario)):
+        return e
+    try:
+        return {"ok": True, "config": nube.guardar_admin(d)}
+    except ValueError as ex:
+        return {"error": str(ex)}
+
+
+@ruta("POST", "/api/nube/modelos")
+def r_nube_modelos(usuario, q, d, h):
+    if (e := _solo_admin(h, usuario)):
+        return e
+    try:
+        return {"modelos": nube.listar_modelos()}
+    except Exception as ex:  # noqa: BLE001
+        return {"error": f"No pude pedir la lista: {str(ex)[:300]}"}
+
+
+@ruta("POST", "/api/nube/probar")
+def r_nube_probar(usuario, q, d, h):
+    if (e := _solo_admin(h, usuario)):
+        return e
+    try:
+        return {"ok": True, **nube.probar(usuario)}
+    except Exception as ex:  # noqa: BLE001
+        return {"error": f"La prueba falló: {str(ex)[:300]}"}
+
+
+@ruta("POST", "/api/nube/reanudar")
+def r_nube_reanudar(usuario, q, d, h):
+    if not es_admin(h, usuario):
+        return {"error": "Solo el administrador puede hacerlo."}
+    return nube.reanudar()
+
+
+@ruta("POST", "/api/nube/yo")
+def r_nube_yo(usuario, q, d, h):
+    try:
+        nube.guardar_persona(usuario, d)
+    except ValueError as ex:
+        return {"error": str(ex)}
+    return {"ok": True, "yo": nube.resumen_persona(usuario)}
+
+
+# ------------------------------------------------------------- avisos opcionales (avisos.py)
+def resumen_aviso(u):
+    """Cantidades de hoy (nada de contenido) para el recordatorio de una persona."""
+    perfil = perfil_de(u)
+    _, venc, nuevas = cola_repaso(u, perfil)
+    plan = ad.plan_del_dia(u, perfil)
+    areas, avs = cur.areas(u), cur.avances(u)
+    temas = [x for x in ([_tarjeta_tema(t, u, areas, avs, "x") for t in plan["recuperar"] + plan["temas"] + plan["extra"]]) if x]
+    pend = [t for t in temas if not t["hecho"]]
+    corta = int(perfil.get("sesion_corta") or 0)
+    return {"minutos": corta or int(perfil.get("minutos_dia") or 60), "vencidas": venc, "nuevas": nuevas,
+            "lecciones": min(len(pend), 1 if corta else len(pend)), "siguiente": pend[0]["t"] if pend else ""}
+
+
+@ruta("GET", "/api/avisos")
+def r_avisos(usuario, q, d, h):
+    adm = avisos.admin_publico()
+    out = {"ajustes": avisos.ajustes(usuario), "canales": avisos.CANALES,
+           "telegram_listo": adm["tiene_token"], "bot": adm["bot"], "ntfy_url": adm["ntfy_url"],
+           "error": kv_get(f"aviso_error:{usuario}"), "admin": es_admin(h, usuario)}
+    if out["admin"]:
+        out["config"] = adm
+    return out
+
+
+@ruta("POST", "/api/avisos/admin")
+def r_avisos_admin(usuario, q, d, h):
+    if (e := _solo_admin(h, usuario)):
+        return e
+    try:
+        return {"ok": True, "config": avisos.guardar_admin(d)}
+    except ValueError as ex:
+        return {"error": str(ex)}
+
+
+@ruta("POST", "/api/avisos")
+def r_avisos_guardar(usuario, q, d, h):
+    try:
+        return {"ok": True, "ajustes": avisos.guardar(usuario, d)}
+    except ValueError as ex:
+        return {"error": str(ex)}
+
+
+@ruta("POST", "/api/avisos/tema")
+def r_avisos_tema(usuario, q, d, h):
+    return {"tema": avisos.nuevo_tema_ntfy()}
+
+
+@ruta("POST", "/api/avisos/codigo")
+def r_avisos_codigo(usuario, q, d, h):
+    return avisos.codigo_vinculo(usuario)
+
+
+@ruta("POST", "/api/avisos/vincular")
+def r_avisos_vincular(usuario, q, d, h):
+    try:
+        return {"ok": True, **avisos.vincular_telegram(usuario)}
+    except (ValueError, RuntimeError) as ex:
+        return {"error": str(ex)}
+
+
+@ruta("POST", "/api/avisos/prueba")
+def r_avisos_prueba(usuario, q, d, h):
+    try:
+        return avisos.enviar_prueba(usuario)
+    except Exception as ex:  # noqa: BLE001
+        return {"error": f"No se pudo enviar: {str(ex)[:200]}"}
+
 
 
 @ruta("GET", "/api/ia")
@@ -1046,6 +1228,83 @@ def r_cola(usuario, q, d, h):
             "fallidos": [trabajo_visible(t, usuario) | {"id": t.id, "terminado": t.terminado, "error": t.error,
                                                          "reintentos": getattr(t, "reintentos", 0)} for t in fallidos],
             "recursos": recursos, "nucleos": os.cpu_count(), "hora": time.time()}
+
+
+def foto_salud():
+    """Estado de la Academia por dentro, para el tablero 🩺 y para el vigía externo (`vigia.py`). Del equipo, no de una
+    persona: solo la ve el administrador. La misma lista de problemas alimenta la pantalla y la alarma."""
+    ahora = time.time()
+    trabajos = [{"tipo": t.tipo, "estado": t.estado, "creado": t.creado, "terminado": t.terminado, "inicio": t.inicio}
+                for t in list(ia.cola.trabajos.values())]
+    sistema = _sistema() if sys.platform.startswith("linux") and config.C.get("modo") != "remoto" else {}
+    d = kv_get("salud_diaria", {}) or {}
+    ia_ok = None
+    if config.C.get("modo") != "remoto":
+        try:   # el servidor de IA local (llama-swap) responde en /health
+            urllib.request.urlopen(str(config.C.get("ia_url") or "").rstrip("/") + "/health", timeout=3).read()
+            ia_ok = True
+        except Exception:
+            ia_ok = False
+    f = {"ahora": ahora, "inicio_servicio": INICIO,
+         "diaria": {"programada": ultima_hora_programada(ahora), "ultima": kv_get("diaria_ultima", 0),
+                    "inicio": d.get("inicio"), "fin": d.get("fin"), "error": d.get("error")},
+         "cola": salud.resumen_cola(trabajos, ahora, perdidos=len(salud.perdidos_visibles())),
+         "reinicio": kv_get("cola_reinicio"),
+         "sistema": sistema, "ia": {"alcanzable": ia_ok, "modelo": str(ia.MODELO), "cargados": ia.modelos_cargados()},
+         "api": {"configurada": bool(nube.configurada()), "gastado_mes_usd": nube.gastado()},
+         "base_datos": salud.foto_base_datos(base.RUTA_DB), "disco_libre_gb": salud.disco_libre_gb(config.DATOS)}
+    f["problemas"] = salud.evaluar(f)
+    return f
+
+
+INICIO = time.time()
+
+
+@ruta("GET", "/api/salud")
+def r_salud(usuario, q, d, h):
+    if not es_admin(h, usuario):
+        return {"error": "el tablero de salud es solo del administrador"}
+    return foto_salud()
+
+
+@ruta("GET", "/api/salud/linea_base")
+def r_linea_base(usuario, q, d, h):
+    """La línea base de uso de ESTA persona (cada perfil ve solo la suya): la primera foto y la de hoy."""
+    return salud.linea_base(usuario)
+
+
+# ------------------------------------------------------------------ F1: eventos y métricas («Qué sabe el sistema de ti»)
+@ruta("GET", "/api/metricas")
+def r_metricas(usuario, q, d, h):
+    """Todas las métricas de ESTA persona con su origen, fórmula, muestra, confianza y lo que ella decidió sobre cada una."""
+    eventos.sincronizar()   # al abrir la vista, lo último ya está
+    ms = metricas.calcular(usuario)
+    return {"metricas": ms, "familias": metricas.FAMILIAS, "eventos": eventos.resumen(usuario),
+            "resumen": {"total": len(ms), "usables": sum(1 for m in ms if m["usable"]),
+                        "sin_datos": sum(1 for m in ms if m["confianza"] == "sin datos"),
+                        "baja": sum(1 for m in ms if m["confianza"] == "baja")}}
+
+
+@ruta("POST", "/api/metricas/ajustar")
+def r_metricas_ajustar(usuario, q, d, h):
+    """La persona corrige al sistema: {id, estado: mal|ignorar|ok, nota} o {familia, apagada: bool}."""
+    try:
+        if d.get("familia"):
+            return metricas.apagar_familia(usuario, str(d["familia"]), bool(d.get("apagada", True)))
+        return metricas.ajustar(usuario, str(d.get("id", "")), str(d.get("estado", "")), d.get("nota", ""))
+    except ValueError as e:
+        return {"error": str(e)}
+
+
+@ruta("GET", "/api/metricas/tendencia")
+def r_metricas_tendencia(usuario, q, d, h):
+    return {"id": q.get("id", ""), "serie": metricas.tendencia(usuario, q.get("id", ""))}
+
+
+@ruta("POST", "/api/evento")
+def r_evento(usuario, q, d, h):
+    """Eventos indirectos que solo ve la interfaz (tiempo en una vista, a dónde fue después). Lista blanca de tipos."""
+    return {"ok": True, "guardados": eventos.registrar_cliente(usuario, d.get("eventos"))}
 
 
 _ultimo_latido = {}
@@ -2185,6 +2444,32 @@ def r_verificar(usuario, q, d, h):
     return trabajo_json(t)
 
 
+@ruta("POST", "/api/aportada")
+def r_aportada(usuario, q, d, h):
+    """Guarda el texto de una página que la persona pegó y lo analiza (resumen, referencias y contraste)."""
+    try:
+        ident = aportadas.guardar(usuario, d.get("tema"), d.get("titulo"), d.get("url"), d.get("texto"))
+    except ValueError as ex:
+        return {"error": str(ex)}
+    t = ia.nuevo("aportada", lambda ctx: aportadas.analizar(ctx, usuario, ident), 0, usuario, ident)
+    t.permiso = d.get("permiso")
+    return trabajo_json(t) | {"id": ident}
+
+
+@ruta("GET", "/api/aportadas")
+def r_aportadas(usuario, q, d, h):
+    out = []
+    for x in aportadas.lista(usuario, q.get("tema") or None):
+        out.append(aportadas.publico(x) | {"analisis": vf.de(usuario, f"aportada:{x['id']}")})
+    return {"aportadas": out}
+
+
+@ruta("POST", "/api/aportada/borrar")
+def r_aportada_borrar(usuario, q, d, h):
+    aportadas.borrar(usuario, str(d.get("id") or ""))
+    return {"ok": True}
+
+
 @ruta("GET", "/api/verificar")
 def r_verificar_ver(usuario, q, d, h):
     clave = q.get("clave", "")
@@ -3185,6 +3470,12 @@ def reanudar():
                         encolar_verificacion(u, x["tema"], 2)
                         n += 1
             acciones_diarias(u)   # pronósticos de acciones que no alcanzaron a hacerse hoy
+            rutas_vivas(u, perfil)   # revisión de rutas y nivel vs. mercado (solo encola las vencidas que no estén en cola)
+            for oid in dominio.fronteras_vencidas(u)[:1]:
+                if not _frontera_en_cola(u, oid):
+                    ia.nuevo("frontera", lambda ctx, oid=oid, u=u: dominio.generar_frontera(ctx, u, perfil_ia(u), oid),
+                             1, u, str(oid))
+                    n += 1
         except Exception:
             traceback.print_exc()
     try:   # noticias de hoy a máxima profundidad y síntesis que faltan (comunes a todas las personas)
@@ -3193,7 +3484,44 @@ def reanudar():
         traceback.print_exc()
     if n:
         print(f"reanudadas {n} tareas de fondo tras el arranque", flush=True)
+    _conciliar_cola()
     return n
+
+
+_conciliada = []
+
+
+def _conciliar_cola():
+    """F0: compara lo que había pendiente antes de detenerse con lo que se logró volver a encolar (una vez por arranque,
+    ya sea tras `reanudar()` o tras la rutina diaria atrasada, que también rehace la cola)."""
+    if _conciliada:
+        return
+    _conciliada.append(1)
+    try:
+        inf = salud.conciliar([{"tipo": x.tipo, "usuario": x.usuario, "etiqueta": x.etiqueta, "estado": x.estado}
+                               for x in list(ia.cola.trabajos.values())])
+        if inf["antes"]:
+            print(f"cola tras el reinicio: {inf['antes']} pendientes antes, {inf['recuperadas']} recuperadas, "
+                  f"{len(inf['perdidas'])} no reconstruibles", flush=True)
+    except Exception:
+        traceback.print_exc()
+
+
+_foto_metricas = {}
+
+
+def _eventos_y_metricas():
+    """F1, cada minuto: copia lo nuevo a la línea de tiempo de eventos y, una vez al día por persona, guarda la foto de sus métricas
+    (el historial permite ver tendencias). Un fallo aquí nunca debe frenar al trabajador."""
+    try:
+        eventos.sincronizar()
+        hoy = time.strftime("%Y-%m-%d")
+        for r in filas("SELECT usuario FROM perfil"):
+            if _foto_metricas.get(r["usuario"]) != hoy:
+                metricas.guardar_foto(r["usuario"])
+                _foto_metricas[r["usuario"]] = hoy
+    except Exception:
+        traceback.print_exc()
 
 
 def trabajador():
@@ -3203,6 +3531,11 @@ def trabajador():
     escaneo.purgar(config.DATOS)
     time.sleep(20)
     try:
+        for r in filas("SELECT usuario FROM perfil"):   # F0: la línea base de uso queda guardada para todos, no solo al abrir 🩺
+            salud.linea_base(r["usuario"])
+    except Exception:
+        traceback.print_exc()
+    try:
         if kv_get("diaria_ultima", 0) >= ultima_hora_programada():
             reanudar()
     except Exception:
@@ -3211,7 +3544,10 @@ def trabajador():
         try:
             escaneo.purgar(config.DATOS)          # el escaneo del PC no vive más de 24 h
             if kv_get("diaria_ultima", 0) < ultima_hora_programada():
-                actualizacion_diaria()
+                salud.correr_diaria(actualizacion_diaria)
+            _conciliar_cola()
+            _eventos_y_metricas()
+            avisos.enviar_pendientes(resumen_aviso, [r["usuario"] for r in filas("SELECT usuario FROM perfil")])
         except Exception:
             traceback.print_exc()
         time.sleep(60)
@@ -3229,7 +3565,11 @@ def r_horario(usuario, q, d, h):
 
 
 def main():
+    n_antes = salud.al_arrancar()   # lo que quedó pendiente del proceso anterior (se concilia en reanudar)
+    if n_antes:
+        print(f"el diario de la cola tenía {n_antes} tareas pendientes del arranque anterior", flush=True)
     cur.cargar()
+    nube.enlazar(perfil_de, _admin_cuenta)
     threading.Thread(target=trabajador, daemon=True, name="trabajador").start()
     srv = ThreadingHTTPServer((HOST, PUERTO), Manejador)
     srv.daemon_threads = True

@@ -42,12 +42,27 @@ app/
                  indicadores y tasa_base (sin IA), noticias directas/indirectas (Yahoo RSS, Google Noticias, tabla
                  noticia; accion_noticia), relaciones() y pronosticar() con la IA (clasifica noticias, escenarios,
                  p_sube anclada a la tasa base ±20), evaluar()/calibracion() (Brier), lista por persona (accion_vigilada)
+  nube.py        API de IA opcional: proveedores (OpenAI-compatibles y Anthropic), privacidad (`limpiar`), gasto y topes, reajuste
+                 de parámetros, respaldo en la IA local; `intentar()` lo llama `Contexto._chat`
+  secretos.py    datos/secretos.json (clave de la API, token de Telegram), permiso 600
+  avisos.py      recordatorio diario opcional por Telegram / ntfy / webhook (una vez al día, a su hora, solo si hay algo)
+  salud.py       F0: `evaluar()` (problemas con gravedad), resumen de la cola, `correr_diaria()`, diario de la cola (tabla `cola_diario`,
+                 ganchos de `ia.ganchos`, `al_arrancar()`/`conciliar()`) y línea base de uso por persona (`kv linea_base:<persona>`)
+  vigia.py       proceso APARTE del servicio: consulta `/api/salud` y avisa por `ACADEMIA_ALARMA_CMD`; `--probar`, `--pausar`, `--reanudar`
+  eventos.py     F1: línea de tiempo `evento` (proyección idempotente de actividad, repasos, lectura, entregas… con marca de agua por fuente),
+                 eventos de la interfaz (lista blanca `vista`/`navega`) y sugerencias de «Hoy»; todo por persona
+  metricas.py    F1: catálogo de 54 métricas (origen D/I, fórmula, ventana, decisión, muestra mínima), confianza, `usable()`, ajustes por persona
+                 (mal/ignorar/familia apagada), foto diaria `metrica_valor` y tendencia
+  medicion.py    F2: banco de pruebas de la IA (variantes de modelo, fuentes congeladas, comprobaciones objetivas, juez anónimo, lectura ciega, informe)
 pruebas/humo.py  arranca en carpeta temporal y comprueba páginas, versión y protecciones de seguridad
 pruebas/unidad.py unittest sin internet ni IA: cálculos de acciones (RSI, tasa base, cartera, margen) y caché de áreas
+pruebas/unidad_salud.py unittest de la fase F0: problemas, diario y conciliación de la cola, rutina diaria, línea base y vigía
+pruebas/unidad_metricas.py unittest de la fase F1: eventos sin duplicados, aislamiento entre perfiles, valores de las métricas, confianza y ajustes
+pruebas/unidad_medicion.py unittest de la fase F2: puntuación objetiva, anonimización, reanudación y lectura ciega
 Dockerfile, docker-compose.yml, docker/   imagen sin root + perfiles ollama/buscador + GPU NVIDIA/AMD + asistentes
 instalar.py      instalador (Windows/macOS/Linux) con auto-escaneo, --auto y arranque automático
 web/temas/       paletas de color (JSON de tokens CSS) e index.json
-web/             index.html, app.js (vistas por hash #/…), cuaderno.js (lienzo S Pen), acciones.js (💹), estilo.css, vendor/ (KaTeX, marked, DOMPurify)
+web/             index.html, app.js (vistas por hash #/…), cuaderno.js (lienzo S Pen), acciones.js (💹), salud.js (🩺), metricas.js (🔬), eventos.js (eventos de la interfaz), nube.js (modo corto, avisos, API), estilo.css, vendor/ (KaTeX, marked, DOMPurify)
 curriculo/       un JSON por área
 config/          fuentes.json
 ```
