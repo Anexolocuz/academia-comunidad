@@ -70,7 +70,8 @@ Tailscale entran.
 | Enlaces maliciosos en RSS o en respuestas de la IA | Solo se enlazan URLs `http(s)`; el markdown pasa por DOMPurify; el texto se escapa. |
 | Ver archivos fuera de `web/` | Rutas resueltas y comprobadas; imágenes del cuaderno/entregas solo de su dueño. |
 | Instrucciones maliciosas a la IA (p. ej. escondidas en una noticia) que intenten meter código en la interfaz | Identificadores y colores que genera la IA se limpian (`curriculo._normalizar`); todo su texto se escapa o pasa por DOMPurify. |
-| Un enlace de RSS que apunte a tu red (router, NAS) — SSRF | El lector de artículos solo abre direcciones públicas de internet, también tras redirecciones (`noticias.url_publica`). |
+| Un enlace de RSS que apunte a tu red (router, NAS) — SSRF | El lector de artículos y el refresco de fuentes guardadas solo abren direcciones públicas de internet, también tras redirecciones (`noticias.url_publica`). |
+| Un RSS con entidades XML (expansión de entidades, «billion laughs») | Se descarta cualquier fuente que declare entidades antes de leerla (`noticias._items`). |
 | Otros usuarios del mismo PC leyendo tus datos | `datos/` con permisos 700 y `configuracion.json` 600 (Linux/macOS). |
 | Clickjacking / sniffing | `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. |
 | El servidor como «proxy» (SSRF) | Probar/detectar servidores de IA y escanear solo para administradores. |

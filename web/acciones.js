@@ -169,13 +169,14 @@ function composicionHtml(c) {
 function familiaHtml(f, actual) {
   if (!f) return "";
   const faltan = f.grupos.some((g) => g.items.some((x) => !x.vigilada));
-  return `<h2>⚔️ ${esc(f.nombre)}</h2><p class="suave peq">Las alternativas y la competencia del S&amp;P 500: los fondos que lo copian, otras formas de comprar el mercado y los índices rivales. Toca uno para ver su precio, sus velas y su composición.</p>
-    ${faltan ? `<div class="fila" style="margin-bottom:.5rem"><button class="btn peq pri" id="acFamilia">➕ Vigilar a todos</button><span class="suave peq">Los agrega a tu lista (sin gastar IA).</span></div>` : ""}
-    ${f.grupos.map((g) => `<h3>${esc(g.titulo)}</h3><div class="tabla-h"><table class="ac-comp"><tr><th>Símbolo</th><th>Qué es</th><th>1 mes</th><th>3 meses</th><th>1 año</th><th>Volat.</th></tr>
+  return `<h2>⚔️ ${esc(f.nombre)}</h2><p class="suave peq">${esc(f.descripcion)}</p>
+    ${faltan ? `<div class="fila" style="margin-bottom:.5rem"><button class="btn peq pri" id="acFamilia">➕ Vigilar a todos</button><span class="suave peq">${f.nucleo && f.nucleo.length ? "Las ⭐ van a tu lista con alertas; las demás a un grupo plegable. Sin gastar IA." : "Los agrega a tu lista (sin gastar IA)."}</span></div>` : ""}
+    ${f.grupos.map((g) => `<h3>${esc(g.titulo)}</h3><div class="tabla-h"><table class="ac-comp"><tr><th>Símbolo</th><th>Qué es</th><th>1 mes</th><th>3 meses</th><th>1 año</th><th>Volat.</th><th>Dividendo</th></tr>
       ${g.items.map((x) => `<tr${x.simbolo === actual ? ` class="ac-actual"` : ""}><td><button class="chip" onclick="ir('accion/${esc(x.simbolo)}')">${esc(x.simbolo)}</button>${x.vigilada ? ` <span title="En tu lista">✓</span>` : ""}</td>
         <td class="peq"><b>${esc(x.nombre)}</b><br><span class="suave">${esc(x.que)}</span></td>
         ${["1m", "3m", "1a"].map((k) => `<td style="text-align:right">${x.rend ? acPct(x.rend[k]) : `<span class="suave">—</span>`}</td>`).join("")}
-        <td style="text-align:right">${x.volatilidad == null ? "—" : Math.round(x.volatilidad) + " %"}</td></tr>`).join("")}</table></div>`).join("")}
+        <td style="text-align:right">${x.volatilidad == null ? "—" : Math.round(x.volatilidad) + " %"}</td>
+        <td style="text-align:right">${x.div_rend == null ? `<span class="suave">—</span>` : x.div_rend > 0 ? acNum(x.div_rend, 1) + " %" : `<span class="suave">no paga</span>`}</td></tr>`).join("")}</table></div>`).join("")}
     <p class="suave peq">Los rendimientos salen de los precios guardados; un símbolo con «—» aún no se ha consultado (ábrelo o vigílalo).</p>`;
 }
 
@@ -188,8 +189,11 @@ VISTAS.acciones = async () => {
       las <b>indirectas</b> (competidores, proveedores, clientes, su sector y la economía)—, con un pronóstico por escenarios de
       <b>muy probable</b> a <b>muy poco probable</b>. Cada pronóstico se revisa solo al vencer: así ves si de verdad acierta.</p>
     <div class="tarjeta"><div class="fila"><input id="acBuscar" type="search" placeholder="Buscar empresa o símbolo (Nvidia, Ecopetrol, AAPL, ^GSPC…)" autocomplete="off" style="flex:1;min-width:0">
-      <button class="btn pri" id="acBuscarBtn">Buscar</button></div><div id="acResultados"></div></div>
+      <button class="btn pri" id="acBuscarBtn">Buscar</button></div><div id="acResultados"></div>
+      ${d.acciones.some((a) => a.grupo === "energia") ? "" : `<div class="fila" style="margin-top:.5rem"><button class="btn peq" id="acEnergia">⚡ Agregar la energía eléctrica del mundo</button>
+        <span class="suave peq">Generadoras, redes y fabricantes de ~220 empresas de todos los países y sus fondos. Sin alertas ni IA diaria.</span></div>`}</div>
     ${d.cartera ? carteraHtml(d.cartera) : ""}
+    <div id="acVista"></div>
     <div id="acLista"></div>
     ${cal.n ? `<h2>🎯 ¿Aciertan los pronósticos?</h2><div class="stats">
       <div class="stat"><b>${cal.aciertos}/${cal.n}</b><span>dirección acertada</span></div>
@@ -197,25 +201,88 @@ VISTAS.acciones = async () => {
       <div class="stat"><b>${cal.dentro_rango} %</b><span>cayó dentro del rango (lo esperado: ~80 %)</span></div>
       ${cal.n_usuario ? `<div class="stat"><b>${acNum(cal.brier_usuario, 3)}</b><span>tu Brier (${cal.aciertos_usuario}/${cal.n_usuario}) vs. IA ${acNum(cal.brier_ia_mismos, 3)} en los mismos</span></div>` : ""}</div>` : ""}
     <p class="suave peq">⚠️ ${esc(d.descargo)}</p>`;
-  const pintarLista = (xs) => {
-    $("#acLista").innerHTML = xs.length ? `<div class="tarjeta" style="padding:.4rem .8rem"><ul class="temas ac-lista">${xs.map((a) => `
+  /* ---- Cómo se ve la lista (se guarda por persona): agrupar en dos niveles, ordenar y mostrar el dividendo ---- */
+  let cfg = d.vista, datos = d.acciones, panelAbierto = false;
+  const ETQ_NIVEL = { tema: "Tema (familia)", subtema: "Tipo de energía", dividendos: "Dividendos", sector: "Sector", pais: "País de la bolsa", moneda: "Moneda", ninguno: "Sin agrupar" };
+  const ETQ_SUB = { ...ETQ_NIVEL, ninguno: "Sin subdividir" };
+  const ETQ_ORDEN = { manual: "Mi orden", dividendo: "Dividendo, de mayor a menor", cambio: "Cambio del día", nombre: "Nombre" };
+  const ETQ_MESES = { 12: "Últimos 12 meses", 24: "Promedio anual de 24 meses" };
+  const ETQ_ABIERTOS = { primero: "Solo el primer grupo", todos: "Todos abiertos", ninguno: "Todos cerrados" };
+  const mapa = (xs) => Object.fromEntries(xs.map((x) => [x.clave, x.nombre]));
+  const NOM_TEMA = mapa(d.temas), NOM_SUB = mapa(d.subtemas);
+  const NOM_DIV = { paga: "💰 Pagan dividendos", nopaga: "🚫 No pagan dividendos", sd: "⏳ Dividendo por conocer" };
+  const ORDEN_FIJO = { tema: ["otras", ...d.temas.map((t) => t.clave).filter((c) => c !== "otras")], subtema: d.subtemas.map((x) => x.clave), dividendos: ["paga", "nopaga", "sd"] };
+  const claveDe = (nivel, a) => ({ tema: a.tema, subtema: a.subtema || "sin", sector: a.sector || "Sin sector", pais: a.pais, moneda: a.moneda || "—",
+    dividendos: !a.dividendo.conocido ? "sd" : a.dividendo.paga ? "paga" : "nopaga", ninguno: "todas" })[nivel];
+  const nombreDe = (nivel, c) => nivel === "tema" ? NOM_TEMA[c] || c : nivel === "subtema" ? NOM_SUB[c] || c : nivel === "dividendos" ? NOM_DIV[c] : nivel === "ninguno" ? "Todas tus acciones" : c;
+  const abierto = {};   // grupos que la persona abrió o cerró a mano: se conserva al redibujar cada minuto
+  const rend = (a) => (a.dividendo.paga && a.dividendo.rend != null ? a.dividendo.rend : -1);
+  const ordenarFilas = (xs, orden) => {
+    const ys = [...xs];
+    if (orden === "dividendo") ys.sort((a, b) => rend(b) - rend(a) || a.nombre.localeCompare(b.nombre, "es"));
+    else if (orden === "cambio") ys.sort((a, b) => (b.cambio ?? -1e9) - (a.cambio ?? -1e9));
+    else if (orden === "nombre") ys.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    return ys;
+  };
+  const agrupar = (xs, nivel) => {
+    const por = new Map();
+    xs.forEach((a) => { const c = claveDe(nivel, a); if (!por.has(c)) por.set(c, []); por.get(c).push(a); });
+    const fijo = ORDEN_FIJO[nivel];
+    const claves = [...por.keys()].sort((a, b) => fijo ? fijo.indexOf(a) - fijo.indexOf(b) : por.get(b).length - por.get(a).length || String(a).localeCompare(String(b), "es"));
+    return claves.map((c) => [c, por.get(c)]);
+  };
+  const resumenGrupo = (xs) => {
+    const pg = xs.filter((a) => a.dividendo.paga && a.dividendo.rend != null);
+    const prom = pg.length ? pg.reduce((s, a) => s + a.dividendo.rend, 0) / pg.length : null;
+    return `${xs.length}` + (cfg.mostrar_dividendo ? ` · 💰 ${pg.length} pagan${prom != null ? ` · promedio ${acNum(prom, 1)} %` : ""}` : "");
+  };
+  const chipDividendo = (a) => {
+    const dv = a.dividendo;
+    if (!cfg.mostrar_dividendo || !dv.conocido) return "";
+    if (!dv.paga) return `<span class="etq" title="No pagó dividendos en los últimos ${cfg.dividendo_meses} meses">sin dividendo</span>`;
+    const ult = dv.ultimo ? new Date(dv.ultimo * 1000).toLocaleDateString("es") : "—";
+    return `<span class="etq bien" title="${esc(acNum(dv.anual, 2) + " " + (a.moneda || "") + " por acción al año · " + dv.pagos + " pagos en " + cfg.dividendo_meses + " meses · último " + ult)}">💰 ${acNum(dv.rend, 1)} %</span>`;
+  };
+  const filaHtml = (a, flechas) => `
       <li data-s="${esc(a.simbolo)}" tabindex="0">
-        <span class="ac-sim"><b>${esc(a.simbolo)}</b><br><span class="suave peq">${esc(a.nombre)}</span></span>
+        <span class="ac-sim"><b>${a.nucleo ? "⭐ " : ""}${esc(a.simbolo)}</b><br><span class="suave peq">${esc(a.nombre)}</span></span>
         ${acSpark(a.spark)}
         <span class="ac-precio"><b>${acPrecio(a.precio, a.moneda)}</b><br><span class="peq">${acPct(a.cambio)}</span></span>
-        <span class="ac-orden no-imprimir" aria-label="Orden en tu lista"><button class="btn peq fantasma" data-sube="${esc(a.simbolo)}" title="Subir en la lista" aria-label="Subir ${esc(a.simbolo)}">▲</button><button class="btn peq fantasma" data-baja="${esc(a.simbolo)}" title="Bajar en la lista" aria-label="Bajar ${esc(a.simbolo)}">▼</button></span>
+        ${flechas && !a.grupo ? `<span class="ac-orden no-imprimir" aria-label="Orden en tu lista"><button class="btn peq fantasma" data-sube="${esc(a.simbolo)}" title="Subir en la lista" aria-label="Subir ${esc(a.simbolo)}">▲</button><button class="btn peq fantasma" data-baja="${esc(a.simbolo)}" title="Bajar en la lista" aria-label="Bajar ${esc(a.simbolo)}">▼</button></span>` : ""}
         <span class="ac-extra peq">
+          ${chipDividendo(a)}
           ${a.alertas.length ? `<span class="etq medio" title="${esc(a.alertas.map((x) => x.texto).join(" · "))}">🔔 ${esc(acAlertaCorta(a.alertas[0]))}${a.alertas.length > 1 ? ` +${a.alertas.length - 1}` : ""}</span>` : ""}
           ${a.pronostico ? `<span class="etq ${a.pronostico.p_sube >= 55 ? "bien" : a.pronostico.p_sube <= 45 ? "mal" : ""}" title="${esc(a.pronostico.top || "")}">🔮 ${Math.round(a.pronostico.p_sube)} % sube · ${a.pronostico.dias} d</span>` : ""}
           ${a.trabajo ? `<span class="etq medio"><span class="cargando"></span> ${esc(a.trabajo.estado === "corriendo" ? (a.trabajo.fase || "pronosticando") : "en cola")}</span>` : ""}
           ${a.noticias_nuevas ? `<span class="etq">📰 ${a.noticias_nuevas} nuevas</span>` : ""}
-          ${a.error ? `<span class="etq mal" title="${esc(a.error)}">sin conexión</span>` : ""}</span></li>`).join("")}</ul></div>
-      <div class="fila"><button class="btn peq" id="acTodas">🔮 Pronosticar todas (30 días)</button><button class="btn peq fantasma" id="acRefrescar">🔄 Actualizar precios</button>
-        <span class="suave peq">Precios de Yahoo Finance (pueden ir ~15 min atrasados). Cada día, en la actualización diaria, se renuevan solos las noticias y el pronóstico.</span></div>`
+          ${a.error ? `<span class="etq mal" title="${esc(a.error)}">sin conexión</span>` : ""}</span></li>`;
+  const filasHtml = (xs, flechas) => `<ul class="temas ac-lista">${xs.map((a) => filaHtml(a, flechas)).join("")}</ul>`;
+  const detalle = (ruta, titulo, resumen, cuerpo, porDefecto, clase) => {
+    const op = ruta in abierto ? abierto[ruta] : porDefecto;
+    return `<details class="${clase}" data-r="${esc(ruta)}"${clase === "ac-sub" ? ` style="margin:.3rem 0"` : ""}${op ? " open" : ""}><summary><b>${esc(titulo)}</b> <span class="suave peq">· ${resumen}</span></summary>${cuerpo}</details>`;
+  };
+  const pintarLista = (todas) => {
+    datos = todas;
+    const n1 = cfg.agrupar, n2 = cfg.subagrupar === n1 ? "ninguno" : cfg.subagrupar;
+    const flechas = n1 === "ninguno" && n2 === "ninguno" && cfg.orden === "manual";
+    const core = todas.filter((a) => !a.grupo);
+    const cuerpoDe = (c1, xs1, abre1) => {
+      const subs = agrupar(xs1, n2);
+      return subs.length <= 1 ? filasHtml(ordenarFilas(xs1, cfg.orden), flechas)
+        : subs.map(([c2, xs2]) => detalle(`${c1}/${c2}`, nombreDe(n2, c2), resumenGrupo(xs2), filasHtml(ordenarFilas(xs2, cfg.orden), false), abre1, "ac-sub")).join("");
+    };
+    const grupos = agrupar(todas, n1);
+    const abre = (gi) => cfg.abiertos === "todos" || (cfg.abiertos === "primero" && gi === 0);
+    $("#acLista").innerHTML = todas.length ? (n1 === "ninguno"
+        ? `<div class="tarjeta" style="padding:.4rem .8rem">${cuerpoDe("todas", todas, true)}</div>`
+        : grupos.map(([c1, xs1], gi) => detalle(c1, nombreDe(n1, c1), resumenGrupo(xs1), cuerpoDe(c1, xs1, abre(gi)), abre(gi), "tarjeta")).join(""))
+      + `<div class="fila"><button class="btn peq" id="acTodas">🔮 Pronosticar las de mi lista principal (30 días)</button><button class="btn peq fantasma" id="acRefrescar">🔄 Actualizar precios</button>
+        <span class="suave peq">Precios de Yahoo Finance (pueden ir ~15 min atrasados). Cada día se renuevan solos las noticias y el pronóstico de las de la lista principal; los grupos plegables solo guardan precios.</span></div>`
       : `<p class="vacio">Aún no vigilas ninguna acción. Busca una arriba y toca «➕ Vigilar».</p>`;
+    $$("details[data-r]", $("#acLista")).forEach((dt) => (dt.ontoggle = () => { abierto[dt.dataset.r] = dt.open; }));
     $$("[data-s]", $("#acLista")).forEach((li) => { li.onclick = () => ir("accion/" + li.dataset.s); li.onkeydown = (e) => { if (e.key === "Enter") ir("accion/" + li.dataset.s); }; });
     const mover = async (sim, delta) => {
-      const orden = xs.map((x) => x.simbolo), i = orden.indexOf(sim), j = i + delta;
+      const orden = core.map((x) => x.simbolo), i = orden.indexOf(sim), j = i + delta;
       if (i < 0 || j < 0 || j >= orden.length) return;
       [orden[i], orden[j]] = [orden[j], orden[i]];
       try { await api("acciones/orden", { simbolos: orden }); refrescar(); } catch (e) { aviso(e.message); }
@@ -225,11 +292,51 @@ VISTAS.acciones = async () => {
     if ($("#acRefrescar")) $("#acRefrescar").onclick = () => refrescar();
     if ($("#acTodas")) $("#acTodas").onclick = async () => {
       let n = 0;
-      for (const a of xs) { try { await api("accion/pronostico", { simbolo: a.simbolo, dias: 30 }); n++; } catch (e) { aviso(e.message); } }
+      for (const a of core) { try { await api("accion/pronostico", { simbolo: a.simbolo, dias: 30 }); n++; } catch (e) { aviso(e.message); } }
       aviso(`🔮 ${n} pronósticos en la cola de la IA (mira ⏳)`); refrescar();
     };
   };
+  const pintarVista = () => {
+    const sel = (id, etq, etqs, claves, valor) => `<label class="peq" style="display:flex;flex-direction:column;gap:.15rem">${etq}
+      <select id="${id}">${claves.map((c) => `<option value="${esc(c)}"${String(c) === String(valor) ? " selected" : ""}>${esc(etqs[c] ?? c)}</option>`).join("")}</select></label>`;
+    const o = d.opciones;
+    $("#acVista").innerHTML = `<details class="tarjeta"${panelAbierto ? " open" : ""} id="acVistaDet"><summary><b>⚙️ Cómo ver mi lista</b>
+        <span class="suave peq">· agrupada por ${esc(ETQ_NIVEL[cfg.agrupar].toLowerCase())}${cfg.subagrupar !== "ninguno" && cfg.subagrupar !== cfg.agrupar ? `, subdividida por ${esc(ETQ_SUB[cfg.subagrupar].toLowerCase())}` : ""} · orden: ${esc(ETQ_ORDEN[cfg.orden].toLowerCase())}</span></summary>
+      <div class="fila" style="flex-wrap:wrap;gap:.8rem;margin-top:.6rem;align-items:flex-end">
+        ${sel("vAgrupar", "Agrupar por", ETQ_NIVEL, o.agrupar, cfg.agrupar)}
+        ${sel("vSub", "Subdividir por", ETQ_SUB, o.subagrupar, cfg.subagrupar)}
+        ${sel("vOrden", "Ordenar cada grupo por", ETQ_ORDEN, o.orden, cfg.orden)}
+        ${sel("vMeses", "El dividendo se calcula con", ETQ_MESES, o.dividendo_meses, cfg.dividendo_meses)}
+        ${sel("vAbiertos", "Al abrir la lista", ETQ_ABIERTOS, o.abiertos, cfg.abiertos)}
+        <label class="peq" style="display:flex;gap:.35rem;align-items:center"><input type="checkbox" id="vDiv"${cfg.mostrar_dividendo ? " checked" : ""}> Mostrar el dividendo en cada fila</label>
+      </div>
+      <p class="suave peq">«Tipo de energía» separa la energía en renovables, nucleares, fósiles, mixtas, redes, equipos y almacenamiento (solo aplica a ⚡ energía eléctrica). «Dividendos» separa las que pagan de las que no y, con «Dividendo, de mayor a menor», ordena por el rendimiento anual (dividendos de los últimos 12 meses ÷ precio de hoy; incluye pagos especiales y, en los fondos, sus distribuciones). El país es el de la bolsa donde cotiza.</p></details>`;
+    $("#acVistaDet").ontoggle = (e) => { panelAbierto = e.target.open; };
+    const guardar = async (cambio) => {
+      try {
+        cfg = (await api("acciones/vista", cambio)).vista;
+        Object.keys(abierto).forEach((k) => delete abierto[k]);
+        datos = (await api("acciones")).acciones;
+        pintarVista(); pintarLista(datos);
+      } catch (e) { aviso(e.message); }
+    };
+    $("#vAgrupar").onchange = (e) => guardar({ agrupar: e.target.value });
+    $("#vSub").onchange = (e) => guardar({ subagrupar: e.target.value });
+    $("#vOrden").onchange = (e) => guardar({ orden: e.target.value });
+    $("#vMeses").onchange = (e) => guardar({ dividendo_meses: Number(e.target.value) });
+    $("#vAbiertos").onchange = (e) => guardar({ abiertos: e.target.value });
+    $("#vDiv").onchange = (e) => guardar({ mostrar_dividendo: e.target.checked });
+  };
+  pintarVista();
   pintarLista(d.acciones);
+  if ($("#acEnergia")) $("#acEnergia").onclick = async () => {
+    if (!(await preguntarSiNo("¿Agregar la energía eléctrica del mundo?", "Pone en tu lista a GE Vernova, Talen, Constellation, Vistra, NextEra, ISA, Celsia y GEB, y en un grupo plegable a sus rivales y a las eléctricas de todos los países (~220). Las ocho primeras tendrán alertas; el resto no.", "Sí, agregar", "No"))) return;
+    try {
+      const r = await api("acciones/familia", { familia: "energia" });
+      aviso(r.en_curso ? "Ya se están agregando" : `⚡ Agregando ${r.en_segundo_plano || ""} en segundo plano: aparecen en unos minutos`);
+      setTimeout(refrescar, 15000);
+    } catch (e) { aviso(e.message); }
+  };
   const buscar = async () => {
     const q = $("#acBuscar").value.trim(); if (!q) return;
     $("#acResultados").innerHTML = `<p class="suave peq"><span class="cargando"></span> Buscando…</p>`;
@@ -287,6 +394,7 @@ VISTAS.accion = async ([sim], q) => {
       <div class="stat"><b class="peq">${acPct(ind.rend?.["1a"])}</b><span>1 año</span></div>
       <div class="stat"><b>${ind.volatilidad == null ? "—" : Math.round(ind.volatilidad) + " %"}</b><span>volatilidad anual</span></div>
       <div class="stat"><b>${ind.rsi == null ? "—" : Math.round(ind.rsi)}</b><span>RSI (14)</span></div>
+      <div class="stat" title="${esc((d.dividendos.historial || []).slice(-6).map((x) => new Date(x[0] * 1000).toLocaleDateString("es") + ": " + acNum(x[1], 2)).join(" · ") || "Sin pagos en los últimos 2 años")}"><b>${d.dividendos.vista.paga ? acNum(d.dividendos.vista.rend, 1) + " %" : d.dividendos.vista.conocido ? "No paga" : "—"}</b><span>dividendo anual (${d.dividendos.meses} m)${d.dividendos.vista.paga ? ` · ${d.dividendos.vista.pagos} pagos` : ""}</span></div>
       <div class="stat"><b class="peq">${acPct(ind.desde_max)}</b><span>desde máx. 52 sem.</span></div>
       ${d.mercado && d.mercado.beta != null ? `<div class="stat" title="Beta: cuánto se mueve cuando el mercado (${esc(d.mercado.nombre)}) se mueve 1 %. Correlación ${acNum(d.mercado.correlacion, 2)} en ${d.mercado.dias} días."><b>${acNum(d.mercado.beta, 2)}</b><span>beta vs. ${esc(d.mercado.referencia)}</span></div>` : ""}</div>
     ${d.mercado && d.mercado.propio != null ? `<p class="peq">📊 Hoy el mercado (${esc(d.mercado.nombre)}) se movió ${acPct(d.mercado.cambio_ref)}; con su beta, el movimiento <b>propio</b> de ${esc(d.simbolo)} fue ${acPct(d.mercado.propio)} ${Math.abs(d.mercado.propio) >= 1.5 ? "— algo de la empresa (o de su sector) la movió: mira las noticias." : "— se movió casi solo por el mercado."}</p>` : ""}
@@ -381,7 +489,11 @@ VISTAS.accion = async ([sim], q) => {
     .catch((e) => { if ($("#acComp")) $("#acComp").innerHTML = `<p class="suave peq">No pude leer la composición: ${esc(e.message)}</p>`; });
   if ($("#acFamilia")) $("#acFamilia").onclick = async () => {
     $("#acFamilia").disabled = true; $("#acFamilia").innerHTML = `<span class="cargando"></span> Agregando…`;
-    try { const r = await api("acciones/familia", {}); aviso(`💹 ${r.agregados.length} agregados` + (Object.keys(r.fallidos).length ? `; fallaron: ${Object.keys(r.fallidos).join(", ")}` : "")); refrescar(); }
+    try {
+      const r = await api("acciones/familia", { familia: d.familia.clave });
+      aviso(r.en_segundo_plano ? `💹 Agregando ${r.en_segundo_plano} en segundo plano: aparecen en tu lista en unos minutos` : r.en_curso ? "Ya se están agregando" : `💹 ${r.agregados.length} agregados` + (Object.keys(r.fallidos).length ? `; fallaron: ${Object.keys(r.fallidos).join(", ")}` : ""));
+      setTimeout(refrescar, r.en_segundo_plano ? 15000 : 0);
+    }
     catch (e) { aviso(e.message); }
   };
   if ($("#acVigilar")) $("#acVigilar").onclick = async () => {

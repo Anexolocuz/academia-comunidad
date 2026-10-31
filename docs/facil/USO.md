@@ -25,7 +25,7 @@
 | 📈 Cómo aprendes | Tu progreso, tu memoria y tu nivel |
 | 🔭 Horizonte | Cuánto te falta para cada nivel a tu ritmo real, y cuánto antes llegas si te enfocas |
 | 🧪 Chequeo | Examen semanal de lo aprendido |
-| 💹 Acciones | Tus acciones con precio, alertas, noticias que las mueven (directas y por competidores, proveedores, economía…) y un pronóstico de lo **muy probable** a lo **poco probable**, que luego se compara con lo que pasó. Si anotas cuántas tienes, 💼 Mi cartera te dice cuánto vale todo y si estás muy concentrado. No es consejo para comprar o vender |
+| 💹 Acciones | Tus acciones con precio, alertas, noticias que las mueven (directas y por competidores, proveedores, economía…) y un pronóstico de lo **muy probable** a lo **poco probable**, que luego se compara con lo que pasó. Si anotas cuántas tienes, 💼 Mi cartera te dice cuánto vale todo y si estás muy concentrado. Hay un grupo plegable ⚡ con la energía eléctrica del mundo (unas 220 empresas, sin alertas). Con «⚙️ Cómo ver mi lista» las agrupas por tema, tipo de energía (renovables, nucleares…), dividendos (las que pagan de mayor a menor), país o sector. No es consejo para comprar o vender |
 | ⋯ Más | En el celular, arriba: Verificar, Horizonte, Cómo aprendes, Chequeo y Pruebas |
 
 **Consejo:** poco cada día rinde más que mucho un solo día.

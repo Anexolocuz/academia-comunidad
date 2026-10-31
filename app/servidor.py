@@ -1377,6 +1377,13 @@ def r_cola(usuario, q, d, h):
     """Qué está haciendo la IA para la Academia y qué viene después (se consulta cada 10 s)."""
     lista = ia.cola.lista()
     trabajos = [trabajo_visible(t, usuario, i) for i, t in enumerate(lista)]
+    adm = es_admin(h, usuario)
+    esperan = [t for t in lista if t.estado == "cola"]
+    for v, t in zip(trabajos, lista):   # reordenar: solo lo que espera, y solo lo propio (el administrador, todo)
+        grupo = [x for x in esperan if x.prioridad == t.prioridad]
+        v["mid"] = t.id if t.estado == "cola" and (adm or t.usuario == usuario) else None
+        v["primero"] = bool(grupo) and grupo[0] is t
+        v["ultimo"] = bool(grupo) and grupo[-1] is t
     recientes = sorted((t for t in ia.cola.trabajos.values()
                         if t.usuario == usuario and t.terminado and t.estado == "listo"),
                        key=lambda t: -t.terminado)[:8]
@@ -1390,7 +1397,31 @@ def r_cola(usuario, q, d, h):
             "recientes": [trabajo_visible(t, usuario) | {"terminado": t.terminado, "error": t.error} for t in recientes],
             "fallidos": [trabajo_visible(t, usuario) | {"id": t.id, "terminado": t.terminado, "error": t.error,
                                                          "reintentos": getattr(t, "reintentos", 0)} for t in fallidos],
-            "recursos": recursos, "nucleos": os.cpu_count(), "hora": time.time()}
+            "recursos": recursos, "nucleos": os.cpu_count(), "hora": time.time(), "admin": adm}
+
+
+@ruta("POST", "/api/cola/mover")
+def r_cola_mover(usuario, q, d, h):
+    """Reordena una tarea que espera: primero | ultimo | subir | bajar | urgente | quitar. Cada persona mueve solo lo suyo;
+    el administrador, cualquiera (también las tareas comunes del sistema)."""
+    x = ia.cola.trabajos.get(d.get("id"))
+    if not x or x.estado != "cola" or not (x.usuario == usuario or es_admin(h, usuario)):
+        return {"ok": False, "error": "esa tarea ya no está esperando en la cola o no es tuya"}
+    accion = d.get("accion")
+    if accion == "quitar":
+        quitados, _ = ia.cola.vaciar(lambda t: t.id == x.id)
+        return {"ok": bool(quitados)}
+    return {"ok": ia.cola.mover(x.id, accion)}
+
+
+@ruta("POST", "/api/cola/limpiar")
+def r_cola_limpiar(usuario, q, d, h):
+    """Vacía lo que ESPERA en la cola (no lo que corre ahora). Cada persona limpia solo lo suyo; con `todos` el
+    administrador limpia también lo de las demás personas y las tareas comunes del sistema. `fallidos`: además olvida
+    las que fallaron."""
+    todos = bool(d.get("todos")) and es_admin(h, usuario)
+    quitados, olvidados = ia.cola.vaciar(lambda t: todos or t.usuario == usuario, fallidos=bool(d.get("fallidos")))
+    return {"ok": True, "quitados": quitados, "fallidos_olvidados": olvidados}
 
 
 def foto_salud():
@@ -3159,7 +3190,14 @@ def r_acciones(usuario, q, d, h):
         traceback.print_exc()
         cartera = None
     return {"acciones": lista, "calibracion": ac.calibracion(usuario), "descargo": ac.DESCARGO,
-            "horizontes": ac.HORIZONTES, "cartera": cartera}
+            "horizontes": ac.HORIZONTES, "cartera": cartera, "vista": ac.vista_de(usuario), "temas": ac.temas(), "subtemas": ac.subtemas(),
+            "opciones": ac.VISTA_OPCIONES}
+
+
+@ruta("POST", "/api/acciones/vista")
+def r_acciones_vista(usuario, q, d, h):
+    """Cómo ve la persona su lista: agrupar por tema/dividendos/sector/moneda, ordenar, ventana del dividendo…"""
+    return {"ok": True, "vista": ac.guardar_vista(usuario, d)}
 
 
 @ruta("GET", "/api/acciones/buscar")
@@ -3227,6 +3265,9 @@ def r_accion(usuario, q, d, h):
     return {"simbolo": s, "nombre": i["nombre"], "moneda": i["moneda"], "bolsa": i["bolsa"], "tipo": i["tipo"],
             "sector": i.get("sector") if i.get("sector") != "-" else "", "industria": i.get("industria"),
             "meta": i["meta"], "serie": [[x[0], x[1]] for x in i["serie"] or []], "indicadores": ind,
+            "dividendos": {"vista": ac.dividendos_de(i, ac.vista_de(usuario)["dividendo_meses"]),
+                           "meses": ac.vista_de(usuario)["dividendo_meses"],
+                           "historial": [[t, a] for t, a in (i["meta"] or {}).get("dividendos", [])][-12:]},
             "velas": ac.velas(i["serie"]), "patrones": ac.patrones_velas(i["serie"]),
             "familia": _seguro(ac.familia, s, usuario), "con_composicion": bool(ac.REPRESENTANTE.get(s) or i["tipo"] == "ETF"),
             "lectura": ac.explicar_indicadores(ind), "relaciones": i.get("relaciones"),
@@ -3244,12 +3285,38 @@ def r_accion_composicion(usuario, q, d, h):
     return {"composicion": ac.composicion(_simbolo(q))}
 
 
+_familias_agregando = set()   # (usuario, clave) que se están agregando de fondo
+
+
 @ruta("POST", "/api/acciones/familia")
 def r_acciones_familia(usuario, q, d, h):
-    """Pone en vigilancia el S&P 500 y todas sus alternativas y competencia."""
-    hechos, fallidos = ac.agregar_familia(usuario)
-    registrar(usuario, "accion", detalle={"que": "familia", "agregados": len(hechos)})
-    return {"ok": True, "agregados": hechos, "fallidos": fallidos}
+    """Pone en vigilancia una familia (por defecto el S&P 500 y su competencia; `familia` = clave o nombre). Las que
+    tienen muchos símbolos (energía eléctrica: más de 200) se agregan de fondo y la respuesta es inmediata."""
+    nombre = str(d.get("familia") or "sp500")[:80]
+    f = next((x for x in ac.FAMILIAS if nombre in (x["clave"], x["nombre"])), None)
+    if not f:
+        raise ValueError("familia desconocida")
+    total = sum(len(g[1]) for g in f["grupos"])
+    if total <= 30:
+        hechos, fallidos = ac.agregar_familia(usuario, f["clave"])
+        registrar(usuario, "accion", detalle={"que": "familia", "familia": f["clave"], "agregados": len(hechos)})
+        return {"ok": True, "agregados": hechos, "fallidos": fallidos}
+    clave = (usuario, f["clave"])
+    if clave in _familias_agregando:
+        return {"ok": True, "agregados": [], "fallidos": {}, "en_curso": True}
+    _familias_agregando.add(clave)
+
+    def correr():
+        try:
+            hechos, fallidos = ac.agregar_familia(usuario, f["clave"])
+            registrar(usuario, "accion", detalle={"que": "familia", "familia": f["clave"], "agregados": len(hechos),
+                                                  "fallidos": len(fallidos)})
+        except Exception:
+            traceback.print_exc()
+        finally:
+            _familias_agregando.discard(clave)
+    threading.Thread(target=correr, daemon=True).start()
+    return {"ok": True, "agregados": [], "fallidos": {}, "en_segundo_plano": total}
 
 
 @ruta("POST", "/api/accion/noticias")
@@ -3316,14 +3383,20 @@ def lineas_acciones(u, refrescar=True):
     """Para Hermes: alertas activas y movimientos de la lista de la persona."""
     lista = ac.resumen(u, refrescar=refrescar)
     out = []
+    en_grupos = 0
     for a in lista:
         if a["precio"] is None:
+            continue
+        if a.get("grupo") and not a["alertas"]:   # los grupos plegables (energía) no inflan el resumen: solo si alertan
+            en_grupos += 1
             continue
         marca = "🔔 " if a["alertas"] else ""
         pr = a["pronostico"]
         out.append(f"{marca}{a['simbolo']} {a['precio']:.2f} {a['moneda'] or ''} ({a['cambio'] or 0:+.1f} %)"
                    + (f" — {', '.join(x['texto'] for x in a['alertas'])}" if a["alertas"] else "")
                    + (f" · pronóstico {pr['dias']} d: {pr['p_sube']:.0f} % de subir" if pr else ""))
+    if en_grupos:
+        out.append(f"(y {en_grupos} más en los grupos plegables de la Academia, sin alertas)")
     return out, any(a["alertas"] for a in lista)
 
 

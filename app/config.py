@@ -27,6 +27,9 @@ DEFECTO = {
     "host": "127.0.0.1",
     "puerto": 8092,
     "ia_url": "http://127.0.0.1:11434",          # servidor compatible con OpenAI (/v1/chat/completions)
+    "motor": "local",                             # «local» = la Academia habla con llama-swap; «hermes» = pasa por la API de un
+                                                  # perfil de Hermes (opcional, ver docs: Hermes como motor)
+    "hermes_url": "http://127.0.0.1:8643/p/academia",  # solo con motor «hermes»; la clave va en datos/secretos.json («hermes»)
     "modelo": "gemma3:12b",                       # el escaneo automático propone el que mejor cabe en tu PC
     "modelo_ligero": "",                          # opcional: modelo pequeño para cuando el grande está ocupado
     "modelos_compatibles": [],                    # otros modelos que pueden estar cargados A LA VEZ sin conflicto

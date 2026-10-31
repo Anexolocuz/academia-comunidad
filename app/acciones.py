@@ -28,11 +28,13 @@ import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+
+import familia_energia as _energia   # datos de la familia ⚡ energía eléctrica
 from datetime import datetime, timezone
 
 import curriculo as cur
 import noticias as nt
-from base import ejecutar, fila, filas
+from base import ejecutar, fila, filas, kv_get, kv_set
 
 ejecutar("""CREATE TABLE IF NOT EXISTS accion_info (
   simbolo TEXT PRIMARY KEY, nombre TEXT, moneda TEXT, bolsa TEXT, tipo TEXT, sector TEXT, industria TEXT,
@@ -45,12 +47,14 @@ ejecutar("""CREATE TABLE IF NOT EXISTS accion_vigilada (
   usuario TEXT, simbolo TEXT, orden INTEGER DEFAULT 0, nota TEXT,
   alerta_arriba REAL, alerta_abajo REAL, alerta_pct REAL DEFAULT 4,   -- avisar si el precio cruza o se mueve ±x % en el día
   visto REAL, agregada REAL, PRIMARY KEY (usuario, simbolo))""")
-for _col in ("cantidad REAL", "precio_compra REAL"):   # 💼 cartera (2026-10-28): cuántas tiene y a qué precio
+for _col in ("cantidad REAL", "precio_compra REAL", "grupo TEXT"):   # grupo: lista plegable (p. ej. energia)   # 💼 cartera (2026-10-28): cuántas tiene y a qué precio
     if _col.split()[0] not in {r["name"] for r in filas("PRAGMA table_info(accion_vigilada)")}:
         ejecutar(f"ALTER TABLE accion_vigilada ADD COLUMN {_col}")
 # Velas (2026-10-29): las series guardadas antes no traen la apertura; se marcan viejas para bajarlas de nuevo
 ejecutar("""UPDATE accion_info SET actualizado=0 WHERE serie IS NOT NULL AND serie!='[]'
             AND json_array_length(json_extract(serie,'$[0]'))<6""")
+# Dividendos (2026-10-29): las cotizaciones guardadas antes no los traen; se marcan viejas para bajarlas de nuevo
+ejecutar("""UPDATE accion_info SET actualizado=0 WHERE meta IS NOT NULL AND meta NOT LIKE '%"dividendos"%'""")
 ejecutar("""CREATE TABLE IF NOT EXISTS accion_composicion (
   simbolo TEXT PRIMARY KEY, fuente TEXT, fecha_datos TEXT, total INTEGER, filas TEXT, actualizado REAL)""")
 ejecutar("""CREATE TABLE IF NOT EXISTS accion_noticia (
@@ -73,6 +77,7 @@ YAHOO = "https://query1.finance.yahoo.com"
 SIMBOLO = re.compile(r"^[A-Za-z0-9.\-^=]{1,20}$")
 TIPOS = {"EQUITY": "acción", "ETF": "ETF", "INDEX": "índice", "MUTUALFUND": "fondo", "CRYPTOCURRENCY": "cripto",
          "CURRENCY": "divisa", "FUTURE": "futuro"}
+MAX_TOTAL = 400                  # tope de acciones vigiladas por persona (lista principal + grupos plegables)
 COTIZACION_VIGENTE = 300          # s: precios de menos de 5 min no se vuelven a pedir
 NOTICIAS_VIGENTES = 3 * 3600      # s: las noticias de un símbolo se buscan como mucho cada 3 h (salvo a mano)
 RELACIONES_VIGENTES = 30 * 86400
@@ -135,7 +140,7 @@ def buscar(q):
 
 
 def _descargar(simbolo):
-    url = f"{YAHOO}/v8/finance/chart/{urllib.parse.quote(simbolo)}?range=2y&interval=1d&includePrePost=false"
+    url = f"{YAHOO}/v8/finance/chart/{urllib.parse.quote(simbolo)}?range=2y&interval=1d&includePrePost=false&events=div"
     datos = json.loads(_get(url, 15))["chart"]
     if datos.get("error") or not datos.get("result"):
         raise ValueError((datos.get("error") or {}).get("description") or "símbolo desconocido")
@@ -155,7 +160,10 @@ def _descargar(simbolo):
     cambio = m.get("regularMarketChangePercent")
     if cambio is None and precio and previo:
         cambio = (precio / previo - 1) * 100
+    pagos = sorted((int(v.get("date") or k), float(v["amount"])) for k, v in
+                   ((r.get("events") or {}).get("dividends") or {}).items() if v.get("amount"))
     meta = {"precio": precio, "previo": previo, "cambio": cambio,
+            "dividendos": [[t, a] for t, a in pagos],      # [fecha, monto por acción] de los últimos 2 años
             "hora": m.get("regularMarketTime"), "max52": m.get("fiftyTwoWeekHigh"), "min52": m.get("fiftyTwoWeekLow"),
             "max_dia": m.get("regularMarketDayHigh"), "min_dia": m.get("regularMarketDayLow"),
             "volumen": m.get("regularMarketVolume"), "zona": m.get("exchangeTimezoneName")}
@@ -1021,10 +1029,127 @@ def simbolos_de(usuario):
     return [r["simbolo"] for r in lista(usuario)]
 
 
+# ------------------------------------------------------------------ dividendos y cómo se ve la lista
+VISTA_OPCIONES = {
+    "agrupar": ("tema", "subtema", "dividendos", "sector", "pais", "moneda", "ninguno"),      # primer nivel
+    "subagrupar": ("subtema", "dividendos", "pais", "sector", "moneda", "ninguno"),            # segundo nivel
+    "orden": ("manual", "dividendo", "cambio", "nombre"),
+    "dividendo_meses": (12, 24),
+    "abiertos": ("primero", "todos", "ninguno"),
+}
+VISTA_BASE = {"agrupar": "tema", "subagrupar": "subtema", "orden": "manual", "dividendo_meses": 12,
+              "abiertos": "primero", "mostrar_dividendo": True}
+
+# País de la bolsa donde cotiza el símbolo (por el sufijo de Yahoo); sin sufijo = EE. UU. salvo las excepciones.
+PAIS_SUFIJO = {
+    "TO": "🇨🇦 Canadá", "L": "🇬🇧 Reino Unido", "MC": "🇪🇸 España", "LS": "🇵🇹 Portugal", "MI": "🇮🇹 Italia", "PA": "🇫🇷 Francia",
+    "DE": "🇩🇪 Alemania", "HE": "🇫🇮 Finlandia", "VI": "🇦🇹 Austria", "BR": "🇧🇪 Bélgica", "SW": "🇨🇭 Suiza",
+    "WA": "🇵🇱 Polonia", "PR": "🇨🇿 Chequia", "AT": "🇬🇷 Grecia", "RO": "🇷🇴 Rumania", "OL": "🇳🇴 Noruega",
+    "CO": "🇩🇰 Dinamarca", "ST": "🇸🇪 Suecia", "T": "🇯🇵 Japón", "KS": "🇰🇷 Corea del Sur", "HK": "🇭🇰 Hong Kong",
+    "SS": "🇨🇳 China", "SZ": "🇨🇳 China", "NS": "🇮🇳 India", "BO": "🇮🇳 India", "BK": "🇹🇭 Tailandia", "KL": "🇲🇾 Malasia",
+    "JK": "🇮🇩 Indonesia", "SI": "🇸🇬 Singapur", "AX": "🇦🇺 Australia", "NZ": "🇳🇿 Nueva Zelanda", "SR": "🇸🇦 Arabia Saudita",
+    "IS": "🇹🇷 Turquía", "TA": "🇮🇱 Israel", "SA": "🇧🇷 Brasil", "SN": "🇨🇱 Chile", "CL": "🇨🇴 Colombia", "MX": "🇲🇽 México",
+    "LM": "🇵🇪 Perú", "BA": "🇦🇷 Argentina",
+}
+PAIS_EXCEPCION = {"PAM": "🇦🇷 Argentina", "EDN": "🇦🇷 Argentina", "CEPU": "🇦🇷 Argentina", "ENLT": "🇮🇱 Israel"}
+
+
+def pais_de(simbolo):
+    """País de la bolsa donde cotiza (no necesariamente donde opera la empresa): sufijo de Yahoo, o EE. UU."""
+    if simbolo in PAIS_EXCEPCION:
+        return PAIS_EXCEPCION[simbolo]
+    if simbolo.startswith("^"):
+        return "🌐 Índices"
+    suf = simbolo.rsplit(".", 1)[1].upper() if "." in simbolo else ""
+    return PAIS_SUFIJO.get(suf, "🇺🇸 Estados Unidos")
+
+
+def subtema_de(simbolo):
+    """Tipo de energía (renovable, nuclear, fósil, mixta, redes, equipos, almacenamiento) si es de la familia de energía."""
+    return _energia.FUENTE_DE.get(simbolo)
+
+
+def vista_de(usuario):
+    """Cómo ve esta persona su lista de acciones (agrupar, ordenar, ventana del dividendo…); lo no válido se ignora."""
+    v = dict(VISTA_BASE)
+    for k, x in (kv_get(f"acciones_vista:{usuario}") or {}).items():
+        if (k in VISTA_OPCIONES and x in VISTA_OPCIONES[k]) or (k == "mostrar_dividendo" and isinstance(x, bool)):
+            v[k] = x
+    return v
+
+
+def guardar_vista(usuario, datos):
+    """Guarda solo las opciones válidas (ver VISTA_OPCIONES); devuelve la vista resultante."""
+    v = vista_de(usuario)
+    for k, x in (datos or {}).items():
+        if k in VISTA_OPCIONES:
+            if x not in VISTA_OPCIONES[k]:
+                raise ValueError(f"valor no válido para «{k}»")
+            v[k] = x
+        elif k == "mostrar_dividendo":
+            if not isinstance(x, bool):
+                raise ValueError("«mostrar_dividendo» debe ser verdadero o falso")
+            v[k] = x
+    kv_set(f"acciones_vista:{usuario}", v)
+    return v
+
+
+def dividendos_de(i, meses=12):
+    """Lo que pagó una acción en los últimos `meses`: si paga, cuánto al año por acción, el rendimiento (anual sobre el
+    precio de hoy), cuántos pagos y el último. Incluye dividendos especiales. En fondos son las distribuciones.
+    `conocido` es False si aún no se bajaron sus dividendos (cotización guardada antes de esta función)."""
+    m = (i or {}).get("meta") or {}
+    divs = m.get("dividendos")
+    if divs is None:
+        return {"conocido": False, "paga": False, "anual": 0.0, "rend": None, "pagos": 0, "ultimo": None, "ultimo_monto": None}
+    ahora = time.time()
+    desde = ahora - meses * 30.4375 * 86400
+    pagos = [(t, a) for t, a in divs if desde < t <= ahora]
+    anual = sum(a for _, a in pagos) * 12 / meses
+    precio = m.get("precio")
+    ult = max(pagos) if pagos else None
+    return {"conocido": True, "paga": bool(pagos), "anual": anual, "pagos": len(pagos),
+            "rend": (anual / precio * 100) if pagos and precio else (0.0 if precio else None),
+            "ultimo": ult[0] if ult else None, "ultimo_monto": ult[1] if ult else None}
+
+
+def temas():
+    """Los temas en que se pueden agrupar las acciones: cada familia y «otras» (las que la persona buscó por su cuenta)."""
+    return [{"clave": f["clave"], "nombre": f"{f.get('icono', '')} {f['nombre']}".strip()} for f in FAMILIAS] + [
+        {"clave": "otras", "nombre": "📌 Otras que vigilas"}]
+
+
+def subtemas():
+    """Los tipos de energía (segundo nivel dentro de ⚡ energía eléctrica), en el orden en que se muestran."""
+    return [{"clave": k, "nombre": n} for k, n in _energia.FUENTES] + [{"clave": "sin", "nombre": "❔ Sin clasificar"}]
+
+
+_grupos_corriendo = threading.Lock()
+
+
+def _refrescar_grupos(simbolos):
+    """Precios de los grupos plegables (p. ej. los ~220 de energía): de fondo y cada 15 min como mucho, para que la
+    lista principal nunca espere a cientos de descargas."""
+    if not simbolos or not _grupos_corriendo.acquire(blocking=False):
+        return
+
+    def correr():
+        try:
+            cotizar(simbolos, 900)
+        except Exception:
+            pass
+        finally:
+            _grupos_corriendo.release()
+    threading.Thread(target=correr, daemon=True).start()
+
+
 def resumen(usuario, refrescar=True):
-    """La lista de la persona con precio, cambio, mini-gráfico de 30 días, último pronóstico y alertas."""
+    """La lista de la persona con precio, cambio, mini-gráfico de 30 días, último pronóstico, alertas y dividendo."""
+    vista = vista_de(usuario)
     vig = lista(usuario)
-    errores = cotizar([v["simbolo"] for v in vig]) if refrescar else {}
+    errores = cotizar([v["simbolo"] for v in vig if not v["grupo"]]) if refrescar else {}
+    if refrescar:
+        _refrescar_grupos([v["simbolo"] for v in vig if v["grupo"]])
     out = []
     for v in vig:
         i = info(v["simbolo"]) or {}
@@ -1041,8 +1166,15 @@ def resumen(usuario, refrescar=True):
         nuevas = fila("""SELECT COUNT(*) n FROM accion_noticia WHERE simbolo=? AND publicada>? AND
                          COALESCE(json_extract(analisis,'$.relevante'),1)""",
                       (v["simbolo"], max(v["visto"] or 0, time.time() - 3 * 86400)))["n"]
+        fam = _familia_de(v["simbolo"])
+        dv = dividendos_de(i, vista["dividendo_meses"])
         out.append({"simbolo": v["simbolo"], "nombre": i.get("nombre") or v["simbolo"], "moneda": i.get("moneda"),
-                    "bolsa": i.get("bolsa"), "tipo": i.get("tipo"), "precio": m.get("precio"), "cambio": m.get("cambio"),
+                    "tema": fam["clave"] if fam else "otras", "nucleo": bool(fam and v["simbolo"] in (fam.get("nucleo") or [])),
+                    "subtema": subtema_de(v["simbolo"]), "pais": pais_de(v["simbolo"]),
+                    "sector": i.get("sector") if i.get("sector") not in (None, "-") else "",
+                    "dividendo": dv,
+                    "bolsa": i.get("bolsa"), "tipo": i.get("tipo"), "grupo": v["grupo"],
+                    "precio": m.get("precio"), "cambio": m.get("cambio"),
                     "hora": m.get("hora"), "spark": [x[1] for x in serie[-30:]], "nota": v["nota"],
                     "alerta_arriba": v["alerta_arriba"], "alerta_abajo": v["alerta_abajo"], "alerta_pct": v["alerta_pct"],
                     "cantidad": v.get("cantidad"), "precio_compra": v.get("precio_compra"),
@@ -1074,12 +1206,17 @@ def alertas_de(v, m):
     return out
 
 
-def vigilar(usuario, simbolo, datos=None):
+def vigilar(usuario, simbolo, datos=None, grupo=None, alerta_pct=4):
+    """Pone la acción en la lista. `grupo` la manda a un grupo plegable (p. ej. «energia») que no cuenta para el tope de
+    60 de la lista principal y no recibe alertas de movimiento si `alerta_pct` es 0."""
     simbolo = simbolo.strip().upper() if not simbolo.startswith("^") else simbolo.strip()
     if not valido(simbolo):
         raise ValueError("símbolo inválido")
-    if len(lista(usuario)) >= 60:
-        raise ValueError("máximo 60 acciones vigiladas")
+    ya = lista(usuario)
+    if grupo is None and sum(1 for r in ya if not r["grupo"]) >= 60:
+        raise ValueError("máximo 60 acciones vigiladas en la lista principal")
+    if len(ya) >= MAX_TOTAL:
+        raise ValueError(f"máximo {MAX_TOTAL} acciones vigiladas en total")
     err = cotizar([simbolo], 120)
     if simbolo in err:
         raise ValueError(f"no encontré «{simbolo}» en Yahoo Finance")
@@ -1089,8 +1226,8 @@ def vigilar(usuario, simbolo, datos=None):
     else:
         completar_sector(simbolo)
     n = fila("SELECT COALESCE(MAX(orden),0)+1 n FROM accion_vigilada WHERE usuario=?", (usuario,))["n"]
-    ejecutar("""INSERT OR IGNORE INTO accion_vigilada(usuario,simbolo,orden,alerta_pct,visto,agregada)
-                VALUES(?,?,?,4,?,?)""", (usuario, simbolo, n, time.time(), time.time()))
+    ejecutar("""INSERT OR IGNORE INTO accion_vigilada(usuario,simbolo,orden,alerta_pct,visto,agregada,grupo)
+                VALUES(?,?,?,?,?,?,?)""", (usuario, simbolo, n, alerta_pct, time.time(), time.time(), grupo))
     return simbolo
 
 
@@ -1160,7 +1297,10 @@ def composicion(simbolo, forzar=False):
 
 # ------------------------------------------------------------------ alternativas y competencia de un índice
 FAMILIAS = [{
+    "clave": "sp500", "icono": "📈", "ancla": "^GSPC", "nucleo": [],     # ancla: el único que entra en la rutina diaria de la IA
     "nombre": "S&P 500 y su competencia",
+    "descripcion": ("Las alternativas y la competencia del S&P 500: los fondos que lo copian, otras formas de comprar el "
+                    "mercado y los índices rivales. Toca uno para ver su precio, sus velas y su composición."),
     "grupos": [
         ("📈 Fondos que copian el S&P 500 (mismo índice, distinto emisor)", [
             ("SPY", "El más antiguo y el que más se negocia; ideal para operar a corto plazo."),
@@ -1179,12 +1319,19 @@ FAMILIAS = [{
             ("QQQ", "Copia el Nasdaq-100."), ("DIA", "Copia el Dow Jones."), ("IWM", "Copia el Russell 2000.")]),
         ("🌍 Más allá de EE. UU.", [
             ("URTH", "Acciones de países desarrollados (MSCI World); EE. UU. pesa mucho pero no es todo.")])]}]
+FAMILIAS.append(_energia.FAMILIA)   # ⚡ energía eléctrica del mundo (2026-10-29)
+
+
+def _familia_de(simbolo):
+    """La familia a la que pertenece el símbolo (o a la que sirve de ancla), sin tocar la base."""
+    return next((x for x in FAMILIAS if simbolo == x.get("ancla")
+                 or any(simbolo == s for g in x["grupos"] for s, _ in g[1])), None)
 
 
 def familia(simbolo, usuario=None):
     """Panel de alternativas si `simbolo` pertenece a una familia (S&P 500 y los suyos): quién es, cuánto rinde frente
     a los demás y si ya está en vigilancia. Solo usa lo guardado (sin red)."""
-    f = next((x for x in FAMILIAS if simbolo == "^GSPC" or any(simbolo == s for g in x["grupos"] for s, _ in g[1])), None)
+    f = _familia_de(simbolo)
     if not f:
         return None
     mias = set(simbolos_de(usuario)) if usuario else set()
@@ -1199,31 +1346,43 @@ def familia(simbolo, usuario=None):
                            "precio": m.get("precio"), "moneda": i.get("moneda"), "cambio": m.get("cambio"),
                            "rend": {k: (ind["rend"] or {}).get(k) for k in ("1m", "3m", "1a")} if ind else None,
                            "volatilidad": ind["volatilidad"] if ind else None,
+                           "div_rend": (dividendos_de(i)["rend"] if i.get("meta") else None),
                            "tiene_composicion": s in REPRESENTANTE or i.get("tipo") == "ETF"})
         grupos.append({"titulo": titulo, "items": filas_})
-    return {"nombre": f["nombre"], "grupos": grupos, "simbolos": [it["simbolo"] for g in grupos for it in g["items"]]}
+    return {"clave": f["clave"], "nombre": f["nombre"], "descripcion": f["descripcion"], "nucleo": f.get("nucleo") or [],
+            "grupos": grupos, "simbolos": [it["simbolo"] for g in grupos for it in g["items"]]}
 
 
 def agregar_familia(usuario, nombre_familia="S&P 500 y su competencia"):
-    """Pone en vigilancia a todos los de la familia (los que ya están, se saltan). Devuelve (agregados, fallidos)."""
-    f = next(x for x in FAMILIAS if x["nombre"] == nombre_familia)
-    nuevos = [s for g in f["grupos"] for s, _ in g[1] if s not in set(simbolos_de(usuario))]
-    if "^GSPC" not in simbolos_de(usuario):
-        nuevos.insert(0, "^GSPC")
+    """Pone en vigilancia a todos los de la familia (los que ya están, se saltan). Devuelve (agregados, fallidos).
+    Si la familia tiene `nucleo`, solo esos van a la lista principal con alertas; el resto a su grupo plegable, sin
+    alertas de movimiento. Sin `nucleo` (el S&P 500) todos van a la lista principal, como siempre."""
+    f = next(x for x in FAMILIAS if nombre_familia in (x["nombre"], x["clave"]))
+    nucleo = set(f.get("nucleo") or [])
+    todos = [s for g in f["grupos"] for s, _ in g[1]]
+    if f.get("ancla"):
+        todos.insert(0, f["ancla"])
+    ya = set(simbolos_de(usuario))
+    nuevos = [s for s in dict.fromkeys(todos) if s not in ya]
     cotizar(nuevos, 120)
     hechos, fallidos = [], {}
     for s in nuevos:
+        principal = not nucleo or s in nucleo or s == f.get("ancla")
         try:
-            vigilar(usuario, s)
+            vigilar(usuario, s, grupo=None if principal else f["clave"], alerta_pct=4 if principal else 0)
             hechos.append(s)
         except Exception as e:
             fallidos[s] = str(e)
+    for s in nucleo & ya:   # un núcleo que ya estaba dentro del grupo sube a la lista principal
+        ejecutar("UPDATE accion_vigilada SET grupo=NULL, alerta_pct=4 WHERE usuario=? AND simbolo=? AND grupo=?",
+                 (usuario, s, f["clave"]))
     return hechos, fallidos
 
 
 def pronostico_bajo_demanda(simbolo):
-    """Los miembros de una familia (fondos y rivales del S&P 500) no se pronostican solos cada día para no ocupar la
-    GPU con 14 pronósticos casi iguales: solo el ancla (^GSPC) entra en la rutina diaria. Los demás se pronostican
-    cuando la persona lo pide; su estadística (casos, velas, composición) está siempre al día sin IA."""
-    f = familia(simbolo)
-    return bool(f) and simbolo != "^GSPC"
+    """Los miembros de una familia (fondos y rivales del S&P 500, el universo eléctrico) no se pronostican solos cada
+    día para no ocupar la GPU con decenas de pronósticos casi iguales: solo el ancla (^GSPC) y el `nucleo` (lo que la
+    persona pidió expresamente) entran en la rutina diaria. Los demás se pronostican cuando la persona lo pide; su
+    estadística (casos, velas, composición) está siempre al día sin IA."""
+    f = _familia_de(simbolo)
+    return bool(f) and simbolo != f.get("ancla") and simbolo not in (f.get("nucleo") or [])

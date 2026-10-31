@@ -141,6 +141,21 @@ que de verdad pasó.
 - **🧬 De qué se compone**: en fondos e índices, las mayores empresas con su porcentaje, cuánto pesan las demás y la fecha
   de los datos. **⚔️ Alternativas y competencia**: en el S&P 500 y sus fondos, el panel de rivales y alternativas con
   rendimientos comparados y el botón «➕ Vigilar a todos».
+- **⚡ Energía eléctrica del mundo**: botón en la lista (o «Vigilar a todos» en el panel de cualquiera de sus empresas). Pone
+  en tu lista principal a GE Vernova, Talen, Constellation, Vistra, NextEra, ISA, Celsia y GEB (con alertas y pronóstico) y,
+  en un grupo plegable «⚡ Energía eléctrica del mundo», a ~220 empresas de todos los países que generan, transmiten,
+  distribuyen o fabrican equipos de electricidad, más los fondos del sector. El grupo no tiene alertas de movimiento ni IA
+  diaria (así no llegan 200 avisos a Telegram ni se ocupa la GPU); toca una empresa para ver su precio y velas, y
+  pronostícala cuando quieras. Sus precios se renuevan de fondo cada 15 min.
+- **🗂️ Cómo ver mi lista** (⚙️ encima de la lista; se guarda por persona): **Agrupar por** tema (familia: S&P 500, energía, las que buscaste
+  tú), **tipo de energía** (renovables, nucleares, no renovables fósiles, mixtas, redes, equipos, almacenamiento), **dividendos** (pagan /
+  no pagan), sector, país de la bolsa, moneda o sin agrupar; **Subdividir por** lo mismo dentro de cada grupo (por defecto, la energía se
+  subdivide por tipo); **Ordenar cada grupo por** tu orden, dividendo de mayor a menor, cambio del día o nombre; **El dividendo se calcula
+  con** los últimos 12 meses o el promedio anual de 24; **Al abrir la lista** (primer grupo, todos o ninguno) y si se **muestra el
+  dividendo** en cada fila. Cada grupo dice cuántas pagan dividendo y su rendimiento promedio.
+- **💰 Dividendo**: rendimiento = lo que pagó por acción en los últimos 12 meses ÷ el precio de hoy (incluye pagos especiales; en fondos,
+  sus distribuciones). Un rendimiento muy alto puede ser un pago extraordinario o un precio que cayó: míralo con la historia del detalle.
+  La clasificación por tipo de energía es una guía por el negocio principal de cada empresa (las eléctricas que mezclan fuentes van en «mixtas»).
 - **¿Aciertan?**: al vencer el horizonte, cada pronóstico se cierra con el precio real: dirección acertada, puntaje de
   **Brier** (0 = perfecto, 0,25 = lanzar una moneda) y si el precio quedó dentro del rango. Antes de pedir uno puedes
   dar **tu propia estimación**: se mide igual y ves quién está mejor calibrado (práctica de verdad, no solo lectura).

@@ -25,6 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from xml.parsers import expat
 
 import curriculo as cur
 from base import DATOS, ejecutar, fila, filas, kv_get, kv_set
@@ -116,7 +117,18 @@ def _hijo(el, *nombres):
     return None
 
 
+def _sin_entidades(*_):
+    raise ValueError("el RSS declara entidades XML; se descarta (riesgo de expansión de entidades)")
+
+
 def _items(xml):
+    # Un RSS de internet no es confiable: ninguno necesita declarar entidades, y es lo que permite la «bomba» de expansión.
+    verificador = expat.ParserCreate()
+    verificador.EntityDeclHandler = _sin_entidades
+    try:
+        verificador.Parse(xml, True)
+    except expat.ExpatError as e:
+        raise ET.ParseError(str(e)) from e
     raiz = ET.fromstring(xml)
     out = []
     for el in raiz.iter():
@@ -143,8 +155,10 @@ def _items(xml):
 
 def _bajar(f):
     try:
+        if not url_publica(f["u"]):
+            return f, urllib.error.URLError("la fuente no es una dirección pública de internet")
         req = urllib.request.Request(f["u"], headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=25) as r:
+        with _abrir_publica(req, timeout=25) as r:
             return f, _items(r.read())
     except Exception as e:
         return f, e

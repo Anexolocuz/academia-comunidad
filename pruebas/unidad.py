@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
 for _f in (sys.stdout, sys.stderr):
@@ -26,6 +27,7 @@ import base  # noqa: E402
 base.iniciar()
 import curriculo as cur  # noqa: E402
 import acciones as ac  # noqa: E402
+import noticias as nt  # noqa: E402
 from base import ejecutar, fila  # noqa: E402
 
 U = "persona@prueba"
@@ -728,6 +730,159 @@ class PruebaCasosVelasComposicion(unittest.TestCase):
         self.assertTrue({"SPY", "VOO", "IVV", "RSP", "QQQ", "^DJI", "^RUT"} <= set(f["simbolos"]))
 
 
+class PruebaFamiliaEnergia(unittest.TestCase):
+    """⚡ Energía eléctrica del mundo (2026-10-29): datos de la familia y reparto lista principal / grupo plegable."""
+
+    def setUp(self):
+        self._cot, self._sec = ac.cotizar, ac.completar_sector
+        ac.cotizar = lambda simbolos, max_edad=0: {}          # sin internet
+        ac.completar_sector = lambda simbolo: None
+        self.u = "energia@prueba"
+        ejecutar("DELETE FROM accion_vigilada WHERE usuario=?", (self.u,))
+
+    def tearDown(self):
+        ac.cotizar, ac.completar_sector = self._cot, self._sec
+
+    def test_los_datos_estan_limpios(self):
+        f = next(x for x in ac.FAMILIAS if x["clave"] == "energia")
+        todos = [s for g in f["grupos"] for s, _ in g[1]]
+        self.assertGreaterEqual(len(todos), 200)
+        self.assertEqual(len(todos), len(set(todos)), "símbolos repetidos en la familia")
+        self.assertTrue(all(ac.valido(s) for s in todos))
+        self.assertTrue(all(q and len(q) > 8 for g in f["grupos"] for _, q in g[1]), "todos llevan una nota")
+        self.assertTrue(set(f["nucleo"]) <= set(todos))
+        self.assertEqual(set(f["nucleo"]), {"GEV", "TLN", "CEG", "VST", "NEE", "ISA.CL", "CELSIA.CL", "GEB.CL"})
+        otros = [s for x in ac.FAMILIAS if x is not f for g in x["grupos"] for s, _ in g[1]]
+        self.assertFalse(set(todos) & set(otros), "un símbolo no puede estar en dos familias")
+
+    def test_cada_simbolo_va_a_su_familia(self):
+        self.assertEqual(ac.familia("GEV")["clave"], "energia")
+        self.assertEqual(ac.familia("ISA.CL")["clave"], "energia")
+        self.assertEqual(ac.familia("SPY")["clave"], "sp500")
+        self.assertEqual(ac.familia("^GSPC")["clave"], "sp500")
+        self.assertIsNone(ac.familia("NVDA"))
+
+    def test_solo_el_nucleo_y_el_ancla_entran_en_la_rutina_diaria_de_la_ia(self):
+        self.assertFalse(ac.pronostico_bajo_demanda("GEV"))      # lo pidió la persona
+        self.assertFalse(ac.pronostico_bajo_demanda("^GSPC"))    # ancla del S&P 500
+        self.assertFalse(ac.pronostico_bajo_demanda("NVDA"))     # fuera de toda familia
+        self.assertTrue(ac.pronostico_bajo_demanda("XLU"))
+        self.assertTrue(ac.pronostico_bajo_demanda("IBE.MC"))
+        self.assertTrue(ac.pronostico_bajo_demanda("SPY"))
+
+    def test_agregar_la_familia_reparte_nucleo_y_grupo(self):
+        hechos, fallidos = ac.agregar_familia(self.u, "energia")
+        self.assertEqual(fallidos, {})
+        filas_ = ac.lista(self.u)
+        self.assertEqual(len(filas_), len(hechos))
+        principal = {r["simbolo"] for r in filas_ if not r["grupo"]}
+        self.assertEqual(principal, {"GEV", "TLN", "CEG", "VST", "NEE", "ISA.CL", "CELSIA.CL", "GEB.CL"})
+        self.assertTrue(all(r["alerta_pct"] == 4 for r in filas_ if not r["grupo"]))
+        self.assertTrue(all(r["grupo"] == "energia" and r["alerta_pct"] == 0 for r in filas_ if r["grupo"]))
+        self.assertEqual(ac.agregar_familia(self.u, "energia"), ([], {}))     # repetir no duplica
+
+    def test_el_tope_de_60_solo_cuenta_la_lista_principal(self):
+        for k in range(60):
+            ejecutar("INSERT INTO accion_vigilada(usuario,simbolo,orden) VALUES(?,?,?)", (self.u, f"T{k}", k))
+        with self.assertRaises(ValueError):
+            ac.vigilar(self.u, "AAA")
+        self.assertEqual(ac.vigilar(self.u, "AAA", grupo="energia", alerta_pct=0), "AAA")
+        r = next(x for x in ac.resumen(self.u, refrescar=False) if x["simbolo"] == "AAA")
+        self.assertEqual(r["grupo"], "energia")
+
+    def test_un_nucleo_que_estaba_en_el_grupo_sube_a_la_lista_principal(self):
+        ac.vigilar(self.u, "GEV", grupo="energia", alerta_pct=0)
+        ac.agregar_familia(self.u, "energia")
+        r = next(x for x in ac.lista(self.u) if x["simbolo"] == "GEV")
+        self.assertIsNone(r["grupo"])
+        self.assertEqual(r["alerta_pct"], 4)
+
+
+class PruebaDividendosYVista(unittest.TestCase):
+    """💰 Dividendos de los últimos 12/24 meses y preferencias de la lista (agrupar, ordenar) por persona."""
+
+    def _info(self, precio, pagos):
+        return {"meta": {"precio": precio, "dividendos": pagos}}
+
+    def test_cuatro_pagos_trimestrales_dan_el_rendimiento_anual(self):
+        ahora = time.time()
+        pagos = [[ahora - k * 90 * DIA, 1.0] for k in range(4)]
+        d = ac.dividendos_de(self._info(100.0, pagos), 12)
+        self.assertEqual((d["paga"], d["pagos"]), (True, 4))
+        self.assertAlmostEqual(d["anual"], 4.0)
+        self.assertAlmostEqual(d["rend"], 4.0)
+        self.assertEqual(d["ultimo_monto"], 1.0)
+
+    def test_la_ventana_de_24_meses_promedia_por_año(self):
+        ahora = time.time()
+        pagos = [[ahora - k * 90 * DIA, 1.0] for k in range(8)]       # 8 pagos en ~2 años
+        d = ac.dividendos_de(self._info(100.0, pagos), 24)
+        self.assertEqual(d["pagos"], 8)
+        self.assertAlmostEqual(d["anual"], 4.0)
+        self.assertLess(ac.dividendos_de(self._info(100.0, pagos), 12)["pagos"], 8)
+
+    def test_sin_pagos_no_paga_y_sin_datos_no_se_sabe(self):
+        d = ac.dividendos_de(self._info(50.0, []), 12)
+        self.assertEqual((d["conocido"], d["paga"], d["rend"]), (True, False, 0.0))
+        self.assertFalse(ac.dividendos_de({"meta": {"precio": 50.0}}, 12)["conocido"])
+        self.assertFalse(ac.dividendos_de(None, 12)["conocido"])
+
+    def test_un_pago_viejo_no_cuenta_en_la_ventana(self):
+        viejo = [[time.time() - 400 * DIA, 5.0]]
+        self.assertFalse(ac.dividendos_de(self._info(100.0, viejo), 12)["paga"])
+        self.assertTrue(ac.dividendos_de(self._info(100.0, viejo), 24)["paga"])
+
+    def test_la_vista_tiene_valores_por_defecto_y_valida_lo_que_se_guarda(self):
+        u = "vista@prueba"
+        ejecutar("DELETE FROM kv WHERE k=?", (f"acciones_vista:{u}",))
+        self.assertEqual(ac.vista_de(u), ac.VISTA_BASE)
+        v = ac.guardar_vista(u, {"agrupar": "dividendos", "subagrupar": "pais", "orden": "dividendo", "dividendo_meses": 24,
+                                 "mostrar_dividendo": False})
+        self.assertEqual((v["agrupar"], v["subagrupar"], v["orden"], v["dividendo_meses"], v["mostrar_dividendo"]),
+                         ("dividendos", "pais", "dividendo", 24, False))
+        self.assertEqual(ac.vista_de(u), v)
+        for malo in ({"agrupar": "color"}, {"orden": 3}, {"dividendo_meses": 7}, {"mostrar_dividendo": "sí"}):
+            with self.assertRaises(ValueError):
+                ac.guardar_vista(u, malo)
+        self.assertEqual(ac.vista_de(u), v)                       # lo rechazado no cambió nada
+        self.assertEqual(ac.guardar_vista(u, {"cosa_rara": 1}), v)  # lo desconocido se ignora
+
+    def test_cada_simbolo_de_energia_tiene_un_tipo_y_un_pais(self):
+        import familia_energia as fe
+        todos = [x for g in fe.GRUPOS for x, _ in g[1]]
+        self.assertEqual([x for x in todos if x not in fe.FUENTE_DE], [], "símbolos sin clasificar")
+        repetidos = [x for lista in fe._POR_FUENTE.values() for x in lista]
+        self.assertEqual(len(repetidos), len(set(repetidos)), "un símbolo en dos tipos de energía")
+        self.assertEqual(set(repetidos), set(todos))
+        self.assertTrue({k for k, _ in fe.FUENTES} == set(fe._POR_FUENTE))
+        self.assertEqual((ac.subtema_de("CEG"), ac.subtema_de("FSLR"), ac.subtema_de("NRG"), ac.subtema_de("SPY")),
+                         ("nuclear", "renovable", "fosil", None))
+        self.assertEqual([ac.pais_de(x) for x in ("NEE", "ISA.CL", "ACO-X.TO", "9501.T", "PAM", "^GSPC")],
+                         ["🇺🇸 Estados Unidos", "🇨🇴 Colombia", "🇨🇦 Canadá", "🇯🇵 Japón", "🇦🇷 Argentina", "🌐 Índices"])
+        self.assertEqual([t["clave"] for t in ac.subtemas()][-1], "sin")
+
+    def test_cada_persona_tiene_su_vista(self):
+        ac.guardar_vista("a@prueba", {"agrupar": "sector"})
+        self.assertEqual(ac.vista_de("a@prueba")["agrupar"], "sector")
+        self.assertEqual(ac.vista_de("b@prueba")["agrupar"], ac.VISTA_BASE["agrupar"])
+
+    def test_resumen_trae_tema_dividendo_y_sector(self):
+        u = "resumen@prueba"
+        ejecutar("DELETE FROM accion_vigilada WHERE usuario=?", (u,))
+        guardar_info("GEV", [880.0, 887.85])
+        guardar_info("NVDA", [100.0, 101.0])
+        for k, sim in enumerate(("GEV", "NVDA")):
+            ejecutar("INSERT INTO accion_vigilada(usuario,simbolo,orden) VALUES(?,?,?)", (u, sim, k))
+        ejecutar("UPDATE accion_info SET sector='Industrials' WHERE simbolo='GEV'")
+        r = {x["simbolo"]: x for x in ac.resumen(u, refrescar=False)}
+        self.assertEqual((r["GEV"]["tema"], r["GEV"]["nucleo"], r["GEV"]["sector"]), ("energia", True, "Industrials"))
+        self.assertEqual((r["NVDA"]["tema"], r["NVDA"]["nucleo"]), ("otras", False))
+        self.assertIn("rend", r["GEV"]["dividendo"])
+        self.assertEqual((r["GEV"]["subtema"], r["GEV"]["pais"]), ("equipos", "🇺🇸 Estados Unidos"))
+        self.assertIsNone(r["NVDA"]["subtema"])
+        self.assertEqual([t["clave"] for t in ac.temas()][-1], "otras")
+
+
 class PruebaReporteCalibracion(unittest.TestCase):
     """Títulos del análisis de la IA, calibración de la confianza declarada y series del reporte (sin internet ni IA)."""
 
@@ -773,7 +928,10 @@ class PruebaReporteCalibracion(unittest.TestCase):
         s = self.ad.series_reporte(self.u)
         self.assertTrue(all(x["min"] == 0 for x in s["dias"]))
         self.assertEqual(len(s["semanas"]), self.ad.SEMANAS_REPORTE)
-        ejecutar("INSERT INTO evento(usuario,ts,fuente,tipo,valor,directo) VALUES(?,?,?,?,?,0)", (self.u, time.time(), "t", "tiempo", 1800))
+        # Mediodía de hoy: el día de estudio empieza a las 4 a. m. (la madrugada cuenta para el día anterior), así que `time.time()`
+        # entre las 00:00 y las 04:00 caería en la barra de ayer y la prueba dependería de la hora a la que se corre.
+        mediodia = datetime.now().replace(hour=12, minute=0, second=0, microsecond=0).timestamp()
+        ejecutar("INSERT INTO evento(usuario,ts,fuente,tipo,valor,directo) VALUES(?,?,?,?,?,0)", (self.u, mediodia, "t", "tiempo", 1800))
         s = self.ad.series_reporte(self.u)
         self.assertAlmostEqual(sum(x["min"] for x in s["dias"]), 30, places=0)
         self.assertEqual(s["semanas"][-1]["min"], 30)
@@ -833,9 +991,13 @@ class PruebaTablero(unittest.TestCase):
         self.assertEqual(self.ad._ritmo_temas(self.u, 28), 0)
         self.assertEqual(self.ad._semanas_con_avance(self.u), 1)     # su semana es la de hace 40 días, no la de hoy
         s = self.ad.dominio_en_el_tiempo(self.u)
-        semana_actual = s[-1]["dominados"]
-        hace_6 = s[-7]["dominados"]
-        self.assertEqual((hace_6, semana_actual), (1, 1))       # ya estaba dominado hace 6 semanas: la curva no salta hoy
+        # La semana (lunes a domingo) en que cae «hace 40 días» depende del día en que se corre: se calcula, no se fija.
+        hoy = datetime.now().date()
+        lunes = lambda d: d - timedelta(days=d.weekday())  # noqa: E731
+        k = (lunes(hoy) - lunes(hoy - timedelta(days=40))).days // 7
+        self.assertEqual(s[-1 - k]["dominados"], 1)             # su semana: ahí ya cuenta
+        self.assertEqual(s[-1 - k - 1]["dominados"], 0)         # y la anterior no
+        self.assertEqual((s[-2]["dominados"], s[-1]["dominados"]), (1, 1))   # la curva no salta hoy
         ejecutar("DELETE FROM actividad WHERE usuario=?", (self.u,))
 
     def test_dominio_en_el_tiempo_es_acumulado_y_crece(self):
@@ -1145,6 +1307,30 @@ class PruebaEstadosDominio(unittest.TestCase):
         self.assertIn("error", self.es.responder(self.u, p, [{"j": 0}]))
         r = self.es.responder(self.u, p, [{"j": 0}, {"j": 1}, {"j": 0}, {"j": 0}])
         self.assertEqual((r["aciertos"], r["aprobada"]), (2, False))
+
+
+class NoticiasSeguridad(unittest.TestCase):
+    """RSS de fuentes externas: no es confiable. Sin entidades XML (expansión de entidades) y sin salir a direcciones
+    que no sean públicas (SSRF), ni siquiera al refrescar una fuente ya guardada."""
+
+    RSS = b"<?xml version='1.0'?><rss><channel><item><title>Hola</title><link>https://ejemplo.org/a</link></item></channel></rss>"
+    BOMBA = (b"<?xml version='1.0'?><!DOCTYPE r [<!ENTITY a 'aaaaaaaaaa'><!ENTITY b '&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;'>]>"
+             b"<rss><channel><item><title>&b;</title><link>https://ejemplo.org/a</link></item></channel></rss>")
+
+    def test_un_rss_normal_se_lee(self):
+        self.assertEqual([i["titulo"] for i in nt._items(self.RSS)], ["Hola"])
+
+    def test_rechaza_declaraciones_de_entidades(self):
+        with self.assertRaises(ValueError):
+            nt._items(self.BOMBA)
+        with self.assertRaises((ValueError, nt.ET.ParseError)):
+            nt._items(self.BOMBA.replace(b"<!ENTITY", b"<!entity"))
+
+    def test_refrescar_una_fuente_no_publica_no_hace_la_peticion(self):
+        for u in ("http://127.0.0.1:9/rss", "http://192.168.1.1/rss", "file:///etc/passwd", "http://[::1]/rss"):
+            f, r = nt._bajar({"u": u})
+            self.assertIsInstance(r, Exception, u)
+            self.assertIn("pública", str(r), u)
 
 
 if __name__ == "__main__":

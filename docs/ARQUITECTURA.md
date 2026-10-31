@@ -44,7 +44,7 @@ app/
                  p_sube anclada a la tasa base ±20), evaluar()/calibracion() (Brier), lista por persona (accion_vigilada);
                  casos() (5 zonas excluyentes del peor al mejor caso, suman 100), patrones_velas() (martillos y demás,
                  con su historia a 5 sesiones; la serie guarda también la apertura), composicion() (posiciones de un
-                 fondo/índice por stockanalysis.com, caché 7 días en accion_composicion) y familia() (S&P 500 y rivales)
+                 fondo/índice por stockanalysis.com, caché 7 días en accion_composicion) y familia() (S&P 500 y rivales; también la de ⚡ energía eléctrica, datos y tipo de energía en familia_energia.py; `grupo` en accion_vigilada), dividendos_de() (dividendos de Yahoo en `meta.dividendos`, rendimiento 12/24 meses) y vista_de()/guardar_vista() (agrupar en dos niveles, ordenar; `kv acciones_vista:<persona>`)
   nube.py        API de IA opcional: proveedores (OpenAI-compatibles y Anthropic), privacidad (`limpiar`), gasto y topes, reajuste
                  de parámetros, respaldo en la IA local; `intentar()` lo llama `Contexto._chat`
   secretos.py    datos/secretos.json (clave de la API, token de Telegram), permiso 600

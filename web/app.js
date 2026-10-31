@@ -127,6 +127,20 @@ function preguntarReintento(error) {
     });
   });
 }
+async function moverTrabajo(id, accion) {
+  try { const r = await api("cola/mover", { id, accion }); if (!r.ok) aviso(r.error || "Ya está en ese lugar"); }
+  catch (e) { aviso("No se pudo mover: " + e.message); }
+  E.colaHtml = null; if (location.hash.includes("cola")) refrescar();
+}
+async function limpiarCola(todos, fallidos) {
+  const que = todos ? "TODO lo que espera en la cola (de todas las personas y del sistema)" : "lo tuyo que espera en la cola";
+  if (!confirm(`¿Quitar ${que}${fallidos ? " y olvidar las tareas que fallaron" : ""}? Lo que ya está corriendo termina solo; lo quitado no se hace.`)) return;
+  try {
+    const r = await api("cola/limpiar", { todos, fallidos });
+    aviso(`🧹 ${r.quitados} tarea(s) quitada(s) de la cola${r.fallidos_olvidados ? ` y ${r.fallidos_olvidados} fallida(s) olvidada(s)` : ""}`);
+  } catch (e) { aviso("No se pudo limpiar: " + e.message); }
+  E.colaHtml = null; if (location.hash.includes("cola")) refrescar();
+}
 async function reintentarTrabajos(ids) {
   try { const r = await api("trabajo/reintentar", { ids }); aviso(`🔄 ${r.reintentados} tarea(s) de vuelta en la cola`); }
   catch (e) { aviso("No se pudo reintentar: " + e.message); }
@@ -371,7 +385,14 @@ VISTAS.cola = async () => {
       <span style="flex:1;min-width:0"><b>${esc(t.tipo)}</b>${t.detalle ? ` · ${esc(t.detalle)}` : ""}${t.mio ? ` <span class="etq">tuya</span>` : ""}
       ${t.fase && t.estado === "corriendo" ? `<br><span class="suave peq">${esc(t.fase)}</span>` : ""}
       ${t.espera_hasta ? `<br><span class="suave peq">reintenta a las ${hhmm(t.espera_hasta)} (la IA estaba ocupada)</span>` : ""}</span>
-      <span class="suave peq">${t.fondo ? "de fondo" : "te espera"}</span></li>`;
+      <span class="suave peq">${t.fondo ? "de fondo" : "te espera"}</span>
+      ${t.mid ? `<span class="fila" style="gap:.15rem;flex-wrap:nowrap">
+        <button class="btn peq" title="Pasar al principio de su grupo" ${t.primero ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","primero")'>⏫</button>
+        <button class="btn peq" title="Subir un puesto" ${t.primero ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","subir")'>▲</button>
+        <button class="btn peq" title="Bajar un puesto" ${t.ultimo ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","bajar")'>▼</button>
+        <button class="btn peq" title="Mandar al final de su grupo" ${t.ultimo ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","ultimo")'>⏬</button>
+        ${t.fondo ? `<button class="btn peq pri" title="Urgente: pasa a «te espera» y va primero" onclick='moverTrabajo("${t.mid}","urgente")'>⚡</button>` : ""}
+        <button class="btn peq" title="Quitar de la cola" onclick='moverTrabajo("${t.mid}","quitar")'>✖</button></span>` : ""}</li>`;
     const html = `<h1>⏳ Cola de la IA</h1>
       <p class="suave peq">Lo que la IA está haciendo para la Academia y lo que sigue: ${ia.paralelos > 1 ? `hasta ${ia.paralelos} tareas a la vez` : "una tarea a la vez"}; lo que pides tú va antes que lo de fondo.
         Si otra app (Hermes, Open WebUI…) usa la IA, todo espera sin interrumpirla. Se actualiza cada 10 s · última: ${hhmm(d.hora)}</p>
@@ -379,6 +400,14 @@ VISTAS.cola = async () => {
         <div class="suave peq">${ia.modo === "remoto" ? "IA en otro PC del tailnet" : "IA en este PC"} · cargado ahora: ${esc(ia.cargados.join(", ") || "ninguno")}</div></div>
       ${recursosHtml(r, d, pct, uso)}
       <h2>📋 Ahora y en cola (${d.trabajos.length})</h2>
+      ${(() => {
+        const mias = d.trabajos.filter((t) => t.mio && t.estado !== "corriendo").length;
+        const todas = d.trabajos.filter((t) => t.estado !== "corriendo").length;
+        const f = d.fallidos?.length ? true : false;
+        return mias || todas && d.admin || f ? `<p class="fila">
+          ${mias || f ? `<button class="btn peq" onclick='limpiarCola(false, ${f})'>🧹 Limpiar lo mío${mias ? ` (${mias})` : ""}${f ? " + fallidas" : ""}</button>` : ""}
+          ${d.admin && todas ? `<button class="btn peq" onclick='limpiarCola(true, ${f})'>🧹 Limpiar la cola de todos (${todas})</button>` : ""}</p>` : "";
+      })()}
       ${d.trabajos.length ? `<ul class="temas">${d.trabajos.map(fila).join("")}</ul>` : `<p class="vacio">Nada en cola: la IA está libre.</p>`}
       ${d.fallidos?.length ? `<h2>❌ Fallaron (${d.fallidos.length})</h2>
         <p class="suave peq">Se guardan 24 h. Al reintentar vuelven a la cola y la IA las hace de nuevo desde el principio.

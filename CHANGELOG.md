@@ -5,6 +5,51 @@ El número de la versión actual está en [`VERSION`](VERSION) (ver [docs/VERSIO
 
 ## [Sin publicar]
 
+## [1.5.0] - 2026-10-31
+
+### Seguridad
+- 🔒 **RSS sin entidades XML**: `noticias._items` rechaza cualquier fuente que declare entidades (`<!ENTITY …>`), que es lo que
+  permite la «bomba» de expansión de entidades. Ningún RSS legítimo las necesita.
+- 🔒 **Refrescar una fuente guardada también exige dirección pública**: `noticias._bajar` ya no usa `urlopen` directo; comprueba
+  `url_publica` y usa el abridor que revalida cada redirección. Antes, una fuente que fue pública al añadirla podía redirigir
+  después hacia el router u otro equipo de la red (o apuntar a `file://`) al refrescarse.
+- 🧪 Dos pruebas del reporte y del tablero ya no dependen de la hora ni del día de la semana en que se corren (fallaban entre las 00:00 y las 04:00 y los fines de semana; el código estaba bien: el día de estudio empieza a las 4 a. m.).
+- 🧪 3 pruebas nuevas (`NoticiasSeguridad`): RSS normal, rechazo de entidades y rechazo de direcciones no públicas (96 en total).
+
+### Nuevo
+- ↕️ **Reordenar la cola de la IA** (⏳ Cola): cada tarea que espera tiene ⏫ al principio de su grupo, ▲ ▼ un puesto, ⏬ al final,
+  ⚡ urgente (las de fondo pasan a «te espera» y van primero, como si las esperaras tú) y ✖ quitar. Cada persona mueve solo lo suyo;
+  el administrador, cualquiera. No afecta a lo que ya corre (`POST /api/cola/mover`, `Cola.mover` en `app/ia.py`).
+- 🧹 **Botón «Limpiar» en ⏳ Cola de la IA**: quita lo que ESPERA en la cola (no lo que corre ahora). Cada persona limpia solo lo suyo
+  (y puede olvidar sus tareas fallidas); el administrador, además, la cola de todos y las tareas comunes del sistema
+  (`POST /api/cola/limpiar`, `Cola.vaciar` en `app/ia.py`).
+- 🤝 **Hermes como motor de IA (opcional, apagado por defecto)**: `motor: "hermes"` en la configuración hace que la Academia mande
+  sus peticiones a la API local de un perfil de Hermes (`hermes_url`, clave en `datos/secretos.json`, grupo «hermes») en vez de a
+  llama-swap. Cambia solo el destino de la llamada (`app/ia.py`): la cola, los permisos, las cortesías con otras apps y el
+  análisis del JSON siguen siendo los de la Academia; el esquema JSON viaja en el mensaje porque esa API no admite
+  `response_format`. Con `motor: "local"` (por defecto) nada cambia. Guía: [docs/HERMES_MOTOR.md](docs/HERMES_MOTOR.md).
+- ⚡ **Energía eléctrica del mundo y su competencia** (`app/familia_energia.py`, segunda familia de 💹 Acciones): 229 símbolos en
+  16 grupos (generadoras independientes y nuclear, eléctricas reguladas de EE. UU., equipos de red y turbinas, solar, viento y
+  baterías, Canadá, Reino Unido, Península Ibérica, Italia-Francia-Alemania, resto de Europa, Japón y Corea, China y Hong Kong,
+  India, Sudeste asiático-Oceanía-Medio Oriente, Latinoamérica y fondos del sector). Cada símbolo se comprobó contra Yahoo Finance.
+- **Grupos plegables en la lista de acciones** (columna `grupo`): el universo eléctrico no mezcla ni satura la lista principal;
+  sus precios se renuevan de fondo cada 15 min, sin alertas de movimiento y sin IA diaria. El tope de 60 solo cuenta la lista
+  principal (tope total 400).
+- Las familias ahora llevan `clave`, `descripcion`, `ancla` y `nucleo`: el `nucleo` (lo que la persona pidió expresamente) entra a
+  la lista principal con alertas y pronóstico diario; el `ancla` (^GSPC en el S&P 500) también. «➕ Vigilar a todos» las agrega
+  de fondo cuando son muchas y el botón «⚡ Agregar la energía eléctrica del mundo» las ofrece desde la lista.
+- El resumen de Hermes no lista los grupos plegables salvo que alerten.
+- 🗂️ **Agrupar toda la lista de acciones, en dos niveles y configurable por persona** («⚙️ Cómo ver mi lista»): primer nivel por
+  tema (familia), tipo de energía, dividendos, sector, país de la bolsa, moneda o sin agrupar; segundo nivel (subdividir) por lo mismo.
+  Cada grupo muestra cuántas pagan dividendos y su rendimiento promedio. Se guarda en `kv acciones_vista:<persona>` y se valida
+  (`ac.vista_de` / `ac.guardar_vista`, `POST /api/acciones/vista`).
+- 🔆 **Tipos de energía** dentro de ⚡ energía eléctrica (`familia_energia.FUENTES`): renovables, nucleares, no renovables fósiles,
+  mixtas e integradas, redes, equipos y almacenamiento e hidrógeno. Cada uno de los 229 símbolos está en uno solo (lo comprueba una prueba).
+- 💰 **Dividendos** (`ac.dividendos_de`): se bajan de Yahoo con el precio (`events=div`, 2 años) y se calculan sobre los últimos 12 meses
+  o el promedio anual de 24: si paga, monto anual por acción, **rendimiento (anual ÷ precio de hoy)**, pagos y el último. Ordenar cada
+  grupo por «Dividendo, de mayor a menor» pone primero las que más rinden; las que no pagan van al final. Incluye pagos especiales y, en
+  los fondos, sus distribuciones. Aparece como etiqueta en cada fila, en el panel de competencia y en el detalle de cada acción.
+
 ## [1.4.0] - 2026-10-29
 
 ### Nuevo

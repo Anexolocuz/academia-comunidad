@@ -25,6 +25,7 @@ import uuid
 
 import config
 import nube
+import secretos
 
 # La configuración se lee en cada uso: cambiarla en Ajustes aplica sin reiniciar.
 def _c(clave):
@@ -289,6 +290,7 @@ class Cola:
     def __init__(self):
         self._h, self._cv = [], threading.Condition()
         self._n = itertools.count()
+        self._frente = itertools.count(-1, -1)   # números que van ANTES de todos los demás (botón «Primero»)
         self.trabajos = {}
         self.actuales = []    # las que corren ahora (hasta `paralelos()` a la vez)
         for i in range(MAX_PARALELOS):   # los hilos de más duermen; así el número se cambia sin reiniciar
@@ -354,6 +356,65 @@ class Cola:
             heapq.heappush(self._h, (t.prioridad, next(self._n), t))
             self._cv.notify()
         return True
+
+    def mover(self, tid, accion):
+        """Reordena un trabajo que ESPERA en la cola (no uno que ya corre). `accion`: primero | ultimo | subir | bajar
+        (dentro de su grupo: «te espera» o «de fondo») o urgente (pasa a «te espera» al frente, como si lo esperaras tú).
+        Lo reordenado vuelve a ser elegible de inmediato. Devuelve True si cambió algo."""
+        with self._cv:
+            entrada = next((x for x in self._h if x[2].id == tid), None)
+            if entrada is None:
+                return False
+            prioridad, _, t = entrada
+            grupo = sorted((x for x in self._h if x[0] == prioridad), key=lambda x: x[1])
+            lugar = next(i for i, x in enumerate(grupo) if x[2] is t)
+            if accion == "urgente":
+                if prioridad == 0:
+                    return False
+                nuevas = [(0, next(self._frente), t)]
+            elif accion == "primero":
+                if lugar == 0:
+                    return False
+                nuevas = [(prioridad, next(self._frente), t)]
+            elif accion == "ultimo":
+                if lugar == len(grupo) - 1:
+                    return False
+                nuevas = [(prioridad, next(self._n), t)]
+            elif accion in ("subir", "bajar"):
+                vecino = lugar - 1 if accion == "subir" else lugar + 1
+                if not 0 <= vecino < len(grupo):
+                    return False
+                otro = grupo[vecino]
+                nuevas = [(prioridad, otro[1], t), (prioridad, entrada[1], otro[2])]
+                self._h.remove(otro)
+            else:
+                return False
+            self._h.remove(entrada)
+            for nueva in nuevas:
+                nueva[2].no_antes = 0
+                self._h.append(nueva)
+            if accion == "urgente":
+                t.prioridad = 0
+            heapq.heapify(self._h)
+            self._cv.notify()
+        return True
+
+    def vaciar(self, quitar, fallidos=False):
+        """Quita de la cola los trabajos que ESPERAN (en la cola o en conflicto) para los que `quitar(t)` es verdadero.
+        Nunca toca los que corren ahora (no se pueden cortar sin perder lo hecho). Con `fallidos`, también olvida los
+        que fallaron. Devuelve (quitados, fallidos olvidados)."""
+        with self._cv:
+            ajenos = [x for x in self._h if not quitar(x[2])]
+            ids = {x[2].id for x in self._h if quitar(x[2])}
+            ids |= {t.id for t in self.trabajos.values() if t.estado == "conflicto" and quitar(t)}
+            self._h = ajenos
+            heapq.heapify(self._h)
+            for tid in ids:
+                self.trabajos.pop(tid, None)
+            malos = [k for k, t in self.trabajos.items() if fallidos and t.estado == "error" and quitar(t)]
+            for k in malos:
+                del self.trabajos[k]
+        return len(ids), len(malos)
 
     def subir(self, t):
         """Pasa un trabajo de fondo a interactivo (el usuario lo está esperando)."""
@@ -555,9 +616,22 @@ class Contexto:
         if esquema:
             cuerpo["response_format"] = {"type": "json_schema",
                                          "json_schema": {"name": "salida", "schema": esquema}}
-        req = urllib.request.Request(f"{LLAMA()}/v1/chat/completions",
-                                     data=json.dumps(cuerpo).encode(),
-                                     headers={"Content-Type": "application/json"})
+        url, cabeceras = f"{LLAMA()}/v1/chat/completions", {"Content-Type": "application/json"}
+        if _c("motor") == "hermes":
+            # Motor Hermes (opcional): la API de un perfil de Hermes no entiende response_format ni chat_template_kwargs,
+            # así que el esquema viaja en el propio mensaje; el perfil ya trabaja sin pensamiento. La cola, los permisos
+            # y la cortesía con otras apps (arriba, _modelo) siguen siendo los de la Academia.
+            url = f"{_c('hermes_url').rstrip('/')}/v1/chat/completions"
+            cabeceras["Authorization"] = f"Bearer {secretos.obtener('hermes')}"
+            cuerpo.pop("chat_template_kwargs", None)
+            cuerpo.pop("seed", None)
+            cuerpo["model"] = "academia"
+            if esquema:
+                cuerpo.pop("response_format", None)
+                cuerpo["messages"] = list(mensajes) + [{"role": "user", "content": (
+                    "Responde SOLO con un objeto JSON válido (sin texto antes ni después, sin bloque de código) que "
+                    "cumpla este esquema JSON:\n" + json.dumps(esquema, ensure_ascii=False))}]
+        req = urllib.request.Request(url, data=json.dumps(cuerpo).encode(), headers=cabeceras)
         salida = []
         if mostrar:
             self.t.texto = ""
