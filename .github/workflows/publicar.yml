@@ -10,7 +10,7 @@ jobs:
   version:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: La etiqueta coincide con VERSION
         run: test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"
       - uses: docker/setup-qemu-action@v3
