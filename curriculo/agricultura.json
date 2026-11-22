@@ -1,0 +1,50 @@
+{
+  "id": "agricultura",
+  "nombre": "Agricultura y sistemas agropecuarios",
+  "icono": "🌾",
+  "grupo": "Ciencias básicas",
+  "color": "#6ab04c",
+  "descripcion": "Del huerto y la formación agropecuaria básica a la agronomía, la zootecnia sostenible, la agricultura de precisión con sensores y la seguridad alimentaria.",
+  "recursos": [
+    {"t": "FAO — Organización de las Naciones Unidas para la Alimentación y la Agricultura", "u": "https://www.fao.org/es"},
+    {"t": "AGROSAVIA — investigación agropecuaria (Colombia)", "u": "https://www.agrosavia.co/"},
+    {"t": "Our World in Data — Agricultura y uso del suelo", "u": "https://ourworldindata.org/"}
+  ],
+  "modulos": [
+    {"id": "suelos_huerta", "t": "Suelos, semillas y huerta básica", "nivel": 1, "pre": [], "temas": [
+      "El suelo vivo|textura, materia orgánica, pH y retención de agua",
+      "Semillas, germinación y propagación de plantas",
+      "Nutrientes esenciales de las plantas|N-P-K y micronutrientes",
+      "Diseño y cuidado de una huerta|riego, luz, sustratos y compostaje"]},
+    {"id": "agronomia", "t": "Agronomía y manejo de cultivos", "nivel": 2, "pre": ["suelos_huerta", "biologia.vegetal"], "temas": [
+      "Cultivos de ciclo corto y perennes|café, maíz, papa, frutales",
+      "Rotación, asociación de cultivos y manejo de cobertura",
+      "Agrometeorología básica|heladas, radiación, evapotranspiración",
+      "Sistemas de labranza y conservación del suelo"]},
+    {"id": "sanidad_riego", "t": "Riego y sanidad vegetal", "nivel": 2, "pre": ["suelos_huerta"], "temas": [
+      "Sistemas de riego|gravedad, aspersión, goteo e hidroponía",
+      "Plagas, enfermedades y malezas|diagnóstico básico",
+      "Manejo integrado de plagas (MIP)|control biológico y cultural",
+      "Uso seguro y regulación de insumos agrícolas"]},
+    {"id": "pecuaria", "t": "Producción pecuaria sostenible", "nivel": 3, "pre": ["agronomia", "biologia.fisiologia"], "temas": [
+      "Nutrición animal y manejo de pasturas",
+      "Avicultura, porcicultura y ganadería|principios técnicos",
+      "Bienestar animal y sanidad preventiva",
+      "Sistemas silvopastoriles y reducción de emisiones"]},
+    {"id": "agroindustria", "t": "Poscosecha, agroindustria y economía rural", "nivel": 3, "pre": ["agronomia", "administracion.operaciones"], "temas": [
+      "Cosecha, almacenamiento y cadena de frío",
+      "Transformación agroindustrial y trazabilidad",
+      "Cadenas productivas, cooperativas y asociatividad",
+      "Costos de producción y rentabilidad agropecuaria"]},
+    {"id": "agritech", "t": "Agricultura de precisión y automatización", "nivel": 4, "pre": ["sanidad_riego", "tecnologia.panorama"], "temas": [
+      "Sensores de humedad, temperatura, EC y pH en campo",
+      "Control automatizado de riego e invernaderos",
+      "Drones, imágenes multiespectrales e índices NDVI",
+      "Análisis de datos agronómicos y modelos de rendimiento"]},
+    {"id": "horizonte", "t": "Horizonte: agroecología y seguridad alimentaria", "nivel": 5, "pre": ["agritech", "agroindustria"], "temas": [
+      "Agroecología y agricultura regenerativa a escala",
+      "Mejoramiento genético y edición génica en cultivos",
+      "Agricultura vertical y sistemas cerrados",
+      "Seguridad alimentaria global frente al cambio climático"]}
+  ]
+}

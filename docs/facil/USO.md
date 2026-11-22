@@ -16,7 +16,7 @@
 | | Para qué |
 |---|---|
 | ☀️ Hoy | Lo que toca hoy |
-| 🗺️ Ruta | Todas tus áreas, de lo básico a lo avanzado. 🎯 Ubícame / ⚡ Prueba de nivel si ya sabes algo; 📥 pega los cursos que hiciste fuera |
+| 🗺️ Ruta | Todas tus áreas, de lo básico a lo avanzado. 🎯 Ubícame / ⚡ Prueba de nivel si ya sabes algo; 📥 pega los cursos que hiciste fuera. En cada ruta y en cada lección: 📚 lecturas y 📰 noticias recomendadas |
 | 🔁 Repasar | Tarjetas que vuelven justo antes de que las olvides |
 | ✍️ Cuaderno | Escribir a mano (lápiz o dedo); la IA lo revisa |
 | 💬 Tutor | Pregúntale a la IA |
@@ -29,3 +29,8 @@
 | ⋯ Más | En el celular, arriba: Verificar, Horizonte, Cómo aprendes, Chequeo y Pruebas |
 
 **Consejo:** poco cada día rinde más que mucho un solo día.
+
+
+## ⚡ Reto y 🧠 Índice
+
+Toca **⚡ Reto** (en Hoy o en el menú): 10 preguntas, ~5 minutos, y tu Índice sube o baja según lo que sabes sin mirar. Más en [INDICE.md](INDICE.md).

@@ -1,0 +1,50 @@
+{
+  "id": "religiones",
+  "nombre": "Religiones del mundo (estudio comparado)",
+  "icono": "🕊",
+  "grupo": "Humanidades",
+  "color": "#a29bfe",
+  "descripcion": "Estudio académico y respetuoso de las religiones y cosmovisiones: historia, textos, prácticas, filosofía de la religión y su papel en la sociedad.",
+  "recursos": [
+    {"t": "Stanford Encyclopedia — Philosophy of Religion", "u": "https://plato.stanford.edu/entries/philosophy-religion/"},
+    {"t": "Pew Research Center — Religión", "u": "https://www.pewresearch.org/religion/"}
+  ],
+  "modulos": [
+    {"id": "estudio", "t": "Cómo se estudian las religiones", "nivel": 1, "pre": [], "temas": [
+      "Qué es una religión|definiciones académicas",
+      "Enfoques|histórico, sociológico, antropológico, filosófico",
+      "Mito, rito y símbolo",
+      "Laicidad y libertad religiosa",
+      "Diálogo interreligioso"]},
+    {"id": "abrahamicas", "t": "Religiones abrahámicas", "nivel": 2, "pre": ["estudio"], "temas": [
+      "Judaísmo|historia, textos y prácticas",
+      "Cristianismo|orígenes, iglesias y tradiciones",
+      "Islam|historia, Corán y escuelas",
+      "Puntos en común y diferencias",
+      "Religión en la historia de América Latina"]},
+    {"id": "asiaticas", "t": "Religiones y filosofías de Asia", "nivel": 2, "pre": ["estudio"], "temas": [
+      "Hinduismo",
+      "Budismo",
+      "Confucianismo y taoísmo",
+      "Sintoísmo",
+      "Sijismo y jainismo"]},
+    {"id": "indigenas", "t": "Cosmovisiones indígenas y afrodescendientes", "nivel": 3, "pre": ["estudio"], "temas": [
+      "Cosmovisiones de pueblos indígenas de Colombia",
+      "Religiones afroamericanas",
+      "Chamanismo y medicina tradicional|enfoque antropológico",
+      "Territorio, naturaleza y lo sagrado",
+      "Sincretismo religioso"]},
+    {"id": "filosofia_religion", "t": "Filosofía de la religión", "nivel": 4, "pre": ["abrahamicas", "filosofia.epistemologia"], "temas": [
+      "Argumentos sobre la existencia de Dios",
+      "El problema del mal",
+      "Fe y razón",
+      "Experiencia religiosa",
+      "Religión y ciencia|conflicto, independencia o diálogo"]},
+    {"id": "horizonte", "t": "Horizonte: religión y sociedad contemporánea", "nivel": 5, "pre": ["filosofia_religion", "indigenas"], "temas": [
+      "Secularización y nuevas espiritualidades",
+      "Religión, política y conflicto",
+      "Ciencia cognitiva de la religión",
+      "Religión en la era digital",
+      "Pluralismo religioso en Colombia y el mundo"]}
+  ]
+}

@@ -52,6 +52,12 @@
       "Riesgo existencial y largoplacismo",
       "Filosofía de la IA y alineación",
       "Transhumanismo y mejora humana",
-      "Debates actuales"]}
+      "Debates actuales"]},
+    {"id": "analitica_aplicada", "t": "Filosofía aplicada y argumentación avanzada", "nivel": 4, "pre": ["logica", "ciencia"], "temas": [
+      "Análisis conceptual|definir con precisión",
+      "Experimentos mentales|uso y límites",
+      "Filosofía de la tecnología|agencia y artefactos",
+      "Filosofía de la información",
+      "Escribir un ensayo filosófico riguroso"]}
   ]
 }

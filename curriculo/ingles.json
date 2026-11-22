@@ -1,74 +1,80 @@
 {
- "id": "ingles",
- "nombre": "Inglés (refuerzo a C2)",
- "icono": "EN",
- "grupo": "Idiomas",
- "color": "#636e72",
- "idioma": "en-US",
- "examen": "MCER / IELTS / TOEFL",
- "descripcion": "Ya lo sabes: aquí lo llevas a nivel profesional (C1-C2), técnico y académico. Examen de referencia: MCER / IELTS / TOEFL.",
- "recursos": [
-  {
-   "t": "BBC Learning English",
-   "u": "https://www.bbc.co.uk/learningenglish"
-  },
-  {
-   "t": "Cambridge Dictionary",
-   "u": "https://dictionary.cambridge.org"
-  },
-  {
-   "t": "YouGlish — pronunciación en contexto real",
-   "u": "https://youglish.com"
-  },
-  {
-   "t": "Purdue OWL — escritura académica",
-   "u": "https://owl.purdue.edu/owl/purdue_owl.html"
-  }
- ],
- "modulos": [
-  {
-   "id": "b2",
-   "t": "Consolidación B2",
-   "nivel": 3,
-   "pre": [],
-   "temas": [
-    "Tiempos verbales en profundidad|perfectos y continuos",
-    "Condicionales y modales de deducción",
-    "Phrasal verbs de uso frecuente",
-    "Pronunciación|schwa, acento de palabra, conexión",
-    "Escucha de podcasts técnicos"
-   ]
-  },
-  {
-   "id": "c1",
-   "t": "C1 — inglés profesional",
-   "nivel": 4,
-   "pre": [
-    "b2"
-   ],
-   "temas": [
-    "Escritura de correos y reportes técnicos",
-    "Inglés para ingeniería|vocabulario de sistemas, mecatrónica, finanzas",
-    "Presentaciones y pitch en inglés",
-    "Lectura de papers y documentación",
-    "Entrevistas de trabajo técnicas",
-    "Collocations y registro formal/informal"
-   ]
-  },
-  {
-   "id": "c2",
-   "t": "C2 — dominio",
-   "nivel": 5,
-   "pre": [
-    "c1"
-   ],
-   "temas": [
-    "Matices, modismos y humor",
-    "Debate y argumentación",
-    "Escritura académica avanzada|ensayos, papers",
-    "Negociación en inglés",
-    "Acentos del mundo"
-   ]
-  }
- ]
+  "id": "ingles",
+  "nombre": "Inglés (A1 a C2)",
+  "icono": "EN",
+  "grupo": "Idiomas",
+  "color": "#636e72",
+  "idioma": "en-US",
+  "examen": "MCER / IELTS / TOEFL",
+  "descripcion": "De cero a dominio, siguiendo el MCER: pronunciación, gramática, vocabulario y las cuatro habilidades (escuchar, hablar, leer y escribir), con inglés técnico, académico y profesional. Exámenes de referencia: Cambridge, IELTS, TOEFL.",
+  "recursos": [
+    {"t": "BBC Learning English", "u": "https://www.bbc.co.uk/learningenglish"},
+    {"t": "Cambridge Dictionary", "u": "https://dictionary.cambridge.org"},
+    {"t": "YouGlish — pronunciación en contexto real", "u": "https://youglish.com"},
+    {"t": "Purdue OWL — escritura académica", "u": "https://owl.purdue.edu/owl/purdue_owl.html"}
+  ],
+  "modulos": [
+    {"id": "fonetica", "t": "Sonidos del inglés y alfabeto fonético", "nivel": 1, "pre": [], "temas": [
+      "El alfabeto y deletrear",
+      "Vocales cortas, largas y diptongos|alfabeto fonético internacional",
+      "Consonantes difíciles para hispanohablantes|th, v/b, sh/ch, h, z",
+      "Acento de palabra y de oración",
+      "Ritmo y entonación|preguntas y afirmaciones"]},
+    {"id": "a1", "t": "A1 — primeros pasos", "nivel": 1, "pre": ["fonetica"], "temas": [
+      "Saludos, presentaciones y verbo to be",
+      "Números, horas y fechas",
+      "Presente simple y rutinas",
+      "Vocabulario de la casa, la familia y el trabajo",
+      "Pronunciación básica|vocales y sonidos difíciles para hispanohablantes"]},
+    {"id": "a2", "t": "A2 — situaciones cotidianas", "nivel": 2, "pre": ["a1"], "temas": [
+      "Pasado simple|verbos regulares e irregulares",
+      "Presente continuo y planes",
+      "Cantidades|countable/uncountable, some, any, much, many",
+      "Pedir, comprar, viajar y dar direcciones",
+      "Leer y escribir mensajes cortos y correos sencillos"]},
+    {"id": "b1", "t": "B1 — independencia", "nivel": 2, "pre": ["a2"], "temas": [
+      "Presente perfecto frente a pasado simple",
+      "Futuro|will, going to, presente continuo",
+      "Comparativos y superlativos",
+      "Primer y segundo condicional",
+      "Contar experiencias y opinar en una conversación",
+      "Escuchar conversaciones y videos con subtítulos"]},
+    {"id": "b2", "t": "Consolidación B2", "nivel": 3, "pre": [], "temas": [
+      "Tiempos verbales en profundidad|perfectos y continuos",
+      "Condicionales y modales de deducción",
+      "Phrasal verbs de uso frecuente",
+      "Pronunciación|schwa, acento de palabra, conexión",
+      "Escucha de podcasts técnicos",
+      "Voz pasiva y causativa|have something done",
+      "Estilo indirecto",
+      "Oraciones de relativo",
+      "Escribir ensayos de opinión|estructura y conectores",
+      "Conversación fluida|interrumpir, aclarar, mantener el turno"]},
+    {"id": "c1", "t": "C1 — inglés profesional", "nivel": 4, "pre": ["b2"], "temas": [
+      "Escritura de correos y reportes técnicos",
+      "Inglés para ingeniería|vocabulario de sistemas, mecatrónica, finanzas",
+      "Presentaciones y pitch en inglés",
+      "Lectura de papers y documentación",
+      "Entrevistas de trabajo técnicas",
+      "Collocations y registro formal/informal",
+      "Inversión y énfasis|cleft sentences",
+      "Escucha de conferencias y charlas técnicas",
+      "Escritura de informes y propuestas",
+      "Vocabulario académico|Academic Word List"]},
+    {"id": "examenes", "t": "Exámenes internacionales de inglés", "nivel": 4, "pre": ["b2"], "temas": [
+      "Formatos y niveles|Cambridge, IELTS, TOEFL",
+      "Estrategias de reading y listening",
+      "Writing tasks|cómo se califican",
+      "Speaking test|criterios y práctica",
+      "Plan de preparación y simulacros"]},
+    {"id": "c2", "t": "C2 — dominio", "nivel": 5, "pre": ["c1"], "temas": [
+      "Matices, modismos y humor",
+      "Debate y argumentación",
+      "Escritura académica avanzada|ensayos, papers",
+      "Negociación en inglés",
+      "Acentos del mundo",
+      "Registro y estilo|adaptar el texto a cada lector",
+      "Traducción e interpretación técnica español-inglés",
+      "Lectura de literatura en inglés"]}
+  ]
 }

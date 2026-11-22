@@ -1,0 +1,50 @@
+{
+  "id": "vida_practica",
+  "nombre": "Habilidades para la vida y economía doméstica",
+  "icono": "🏡",
+  "grupo": "Salud",
+  "color": "#f0932b",
+  "descripcion": "Saber vivir de forma autónoma: cocina y seguridad alimentaria, costura y mantenimiento del hogar, orientación de vida (Life Orientation), consumo y hogar sostenible.",
+  "recursos": [
+    {"t": "OMS — Cinco claves para la inocuidad de los alimentos", "u": "https://www.who.int/es/publications/i/item/9789241594639"},
+    {"t": "UNICEF — Habilidades para la vida", "u": "https://www.unicef.org/"},
+    {"t": "Superintendencia de Industria y Comercio (Colombia) — Derechos del consumidor", "u": "https://www.sic.gov.co/"}
+  ],
+  "modulos": [
+    {"id": "cocina", "t": "Cocina básica e inocuidad alimentaria", "nivel": 1, "pre": [], "temas": [
+      "Higiene, contaminación cruzada y conservación de alimentos",
+      "Técnicas culinarias esenciales|hervir, asar, saltear, hornear",
+      "Planificación de menús semanales equilibrados y económicos",
+      "Aprovechamiento de alimentos y reducción de desperdicios"]},
+    {"id": "hogar_oficios", "t": "Costura, orden y mantenimiento del hogar", "nivel": 1, "pre": [], "temas": [
+      "Costura básica y cuidado de prendas|botones, bastillas, textiles",
+      "Limpieza segura|productos compatibles y riesgos químicos en casa",
+      "Mantenimiento básico|herramientas, fijaciones, sellado y plomería simple",
+      "Seguridad eléctrica doméstica|tomacorrientes, brekers y prevención"]},
+    {"id": "orientacion_vida", "t": "Orientación de vida y relaciones saludables", "nivel": 2, "pre": ["cocina"], "temas": [
+      "Proyecto de vida y toma de decisiones vocacionales",
+      "Comunicación asertiva, límites y manejo de conflictos cotidianos",
+      "Salud sexual, reproductiva y autocuidado informado",
+      "Ciudadanía digital, huella en línea y seguridad personal"]},
+    {"id": "consumo_tramites", "t": "Consumo responsable y trámites cotidianos", "nivel": 2, "pre": ["finanzas.personales"], "temas": [
+      "Compra inteligente|comparar precios por unidad, calidad y vida útil",
+      "Derechos del consumidor, garantías y reclamaciones",
+      "Contratos cotidianos|arriendo, servicios públicos, laborales y seguros",
+      "Organización documental y trámites digitales seguros"]},
+    {"id": "gestion_domestica", "t": "Administración y logística del hogar", "nivel": 3, "pre": ["hogar_oficios", "consumo_tramites"], "temas": [
+      "Organización de espacios, inventarios domésticos y rutinas",
+      "Plan familiar de emergencias y kit de contingencia",
+      "Cuidado de personas dependientes y corresponsabilidad en el hogar",
+      "Gestión del tiempo entre estudio, trabajo y vida personal"]},
+    {"id": "eficiencia_hogar", "t": "Ergonomía y eficiencia en el hogar", "nivel": 4, "pre": ["gestion_domestica"], "temas": [
+      "Ergonomía del puesto de estudio y trabajo en casa",
+      "Eficiencia energética e hídrica en electrodomésticos y vivienda",
+      "Calidad del aire interior, iluminación y confort térmico",
+      "Reparabilidad y economía circular aplicada a bienes del hogar"]},
+    {"id": "horizonte", "t": "Horizonte: hogar autónomo y sostenible", "nivel": 5, "pre": ["eficiencia_hogar"], "temas": [
+      "Domótica local y automatización segura sin perder privacidad",
+      "Autogeneración energética doméstica y almacenamiento",
+      "Cultivo urbano en casa y autosuficiencia parcial",
+      "Estilos de vida minimalistas y sostenibles basados en evidencia"]}
+  ]
+}

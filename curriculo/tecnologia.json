@@ -35,6 +35,12 @@
       "Energía: fusión, almacenamiento, hidrógeno",
       "Computación cuántica y neuromórfica",
       "Interfaces cerebro-máquina",
-      "Tendencias del año|lo que cambia el mundo ahora"]}
+      "Tendencias del año|lo que cambia el mundo ahora"]},
+    {"id": "politica_tecnologica", "t": "Política, regulación y gobernanza tecnológica", "nivel": 4, "pre": ["evaluacion"], "temas": [
+      "Regulación de tecnologías emergentes|enfoques por riesgo",
+      "Propiedad intelectual y patentes",
+      "Estándares técnicos y su poder",
+      "Soberanía tecnológica y cadenas de suministro",
+      "Evaluación de impacto social de la tecnología"]}
   ]
 }

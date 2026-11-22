@@ -27,6 +27,7 @@
 
 ```bash
 ACADEMIA_DATOS=/tmp/prueba ACADEMIA_PUERTO=8099 python3 app/servidor.py   # prueba a mano, sin tus datos
+python3 pruebas/unidad_indice.py                                          # Índice y Reto
 python3 pruebas/humo.py                                                   # debe salir «✅ Todo bien»
 ```
 

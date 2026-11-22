@@ -11,6 +11,7 @@ import time
 
 import curriculo as cur
 import ia
+from indice import REGLA_OPCIONES
 from base import ejecutar, fila, filas, kv_get, kv_set
 
 NIVEL_TXT = cur.NIVELES
@@ -84,6 +85,8 @@ def _guardar_anterior(previa):
 def generar_leccion(ctx, tid, usuario, perfil, forzar=False, maxima=False):
     previa = fila("SELECT * FROM leccion WHERE usuario=? AND tema=?", (usuario, tid))
     t, area, m = contexto_tema(tid, usuario)
+    if previa and previa["completa"] == 0 and (previa["version"] or 1) >= VERSION_MAXIMA:
+        maxima = True   # a medias a máxima profundidad: se retoma en esa versión (si no, empezaría de cero)
     if maxima and previa and (previa["version"] or 1) >= VERSION_MAXIMA and previa["completa"] != 0:
         return {"tema": tid, "ya": True}   # ya está a máxima profundidad
     if previa and not forzar and not maxima and previa["completa"] != 0:
@@ -191,6 +194,30 @@ def _bloque(fuentes, papers, w0, p0):
     return "\n\n".join(partes)
 
 
+def _retomar_partes(usuario, tid, version):
+    """Si quedó una lección a medias de esta misma versión (se reinició el servicio o el PC), devuelve lo necesario para
+    seguir desde la siguiente parte: (plan, textos [cabecera, parte 1, …], fuentes web, papers). Antes de 2026-11-18
+    cada reinicio volvía a planear y escribir todo, y se perdían las partes ya hechas. Si algo no cuadra, None (de cero)."""
+    r = fila("""SELECT contenido, fuentes, plan, version FROM leccion
+                WHERE usuario=? AND tema=? AND completa=0 AND plan IS NOT NULL""", (usuario, tid))
+    if not r or (r["version"] or 1) != version:
+        return None
+    try:
+        plan, lista = json.loads(r["plan"]), json.loads(r["fuentes"] or "[]")
+    except ValueError:
+        return None
+    partes = plan.get("partes") or []
+    trozos = re.split(r"\n\n(?=## Parte \d+ · )", r["contenido"] or "")
+    hechas = trozos[1:]
+    if not partes or not trozos[0].startswith("## 🎯 Objetivos") or len(hechas) > len(partes) \
+            or any(not h.startswith(f"## Parte {i + 1} · ") for i, h in enumerate(hechas)):
+        return None
+    web = [{"titulo": x.get("titulo", ""), "url": x.get("url", "")} for x in lista if x.get("tipo") != "paper"]
+    papers = [{k: x.get(k) for k in ("titulo", "url", "autores", "anio", "revista", "citas", "abierto")}
+              for x in lista if x.get("tipo") == "paper"]
+    return plan, [trozos[0]] + hechas, web, papers
+
+
 def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
     """Lección profunda en 3 pasos dentro de UNA conversación (llama.cpp reusa la caché):
     1) plan: el tema dividido en 4-6 partes con sus ideas concretas;
@@ -200,11 +227,16 @@ def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
     P = PROFUNDIDAD[version]
     tid = t["id"]
     vecinos = [x["t"] for x in m["temas_obj"]]
-    ctx.fase("Buscando fuentes y documentos científicos")
     vistas_w, vistas_p = set(), set()
-    import aportadas
-    fuentes = [f for f in aportadas.fuentes_de(usuario, tid) + _fuentes_para(t, area)
-               if not (f["url"] in vistas_w or vistas_w.add(f["url"]))]    # las que aportó la persona, primero
+    retomada = _retomar_partes(usuario, tid, version)
+    if retomada:
+        ctx.fase("Retomando la lección donde iba")
+        fuentes = []
+    else:
+        ctx.fase("Buscando fuentes y documentos científicos")
+        import aportadas
+        fuentes = [f for f in aportadas.fuentes_de(usuario, tid) + _fuentes_para(t, area)
+                   if not (f["url"] in vistas_w or vistas_w.add(f["url"]))]    # las que aportó la persona, primero
     nivel_txt = NIVEL_TXT[m["nivel"]]
     prompt_plan = (
         f"Área: {area['nombre']} · Módulo: {m['t']} (nivel {m['nivel']}: {nivel_txt})\n"
@@ -223,20 +255,31 @@ def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
         "sabido; en niveles altos, formalismo, derivaciones y estado del arte. JSON compacto."
         + ("\n\n" + _bloque(fuentes, [], 1, 1) if fuentes else ""))
     mensajes = [{"role": "system", "content": SISTEMA_BASE}, {"role": "user", "content": prompt_plan}]
-    ctx.fase("Planeando la lección a fondo")
-    esquema = json.loads(json.dumps(ESQUEMA_PLAN))
-    esquema["properties"]["partes"]["minItems"], esquema["properties"]["partes"]["maxItems"] = P["partes"]
-    plan = ctx.chat(mensajes, max_tokens=4200 if version >= VERSION_MAXIMA else 3200, temperatura=0.4, esquema=esquema)
-    mensajes.append({"role": "assistant", "content": json.dumps(plan, ensure_ascii=False)})
-    papers = _papers(plan.get("consulta_cientifica"), vistas_p, P["papers_tema"])
-    partes = plan["partes"]
-    cabecera = ("## 🎯 Objetivos\n" + "\n".join(f"{i + 1}. {o}" for i, o in enumerate(plan["objetivos"]))
-                + "\n\n## 🗺️ Mapa de la lección\n"
-                + f"> **Pregunta guía:** {plan['pregunta_guia']}\n\n"
-                + (f"**Conviene saber antes:** {'; '.join(plan['prerrequisitos'])}\n\n" if plan["prerrequisitos"] else "")
-                + "\n".join(f"{i + 1}. **{p['titulo']}** — {'; '.join(p['ideas'][:4])}" for i, p in enumerate(partes)))
-    textos = [cabecera]
-    todas_f, todos_p = list(fuentes), list(papers)
+    if retomada:
+        plan, textos, todas_f, todos_p = retomada
+        partes = plan["partes"]
+        mensajes.append({"role": "assistant", "content": json.dumps(plan, ensure_ascii=False)})
+        for i, texto_i in enumerate(textos[1:]):     # la conversación tal como iba, para que siga sin repetirse
+            mensajes += [{"role": "user", "content": f"Escribe ahora la PARTE {i + 1} de {len(partes)}: «{partes[i]['titulo']}»."},
+                         {"role": "assistant", "content": texto_i}]
+        vistas_w.update(f["url"] for f in todas_f)
+        vistas_p.update(p["url"] for p in todos_p)
+        papers = list(todos_p) if len(textos) == 1 else []   # sin partes aún: la 1.ª lleva los papers del tema
+    else:
+        ctx.fase("Planeando la lección a fondo")
+        esquema = json.loads(json.dumps(ESQUEMA_PLAN))
+        esquema["properties"]["partes"]["minItems"], esquema["properties"]["partes"]["maxItems"] = P["partes"]
+        plan = ctx.chat(mensajes, max_tokens=4200 if version >= VERSION_MAXIMA else 3200, temperatura=0.4, esquema=esquema)
+        mensajes.append({"role": "assistant", "content": json.dumps(plan, ensure_ascii=False)})
+        papers = _papers(plan.get("consulta_cientifica"), vistas_p, P["papers_tema"])
+        partes = plan["partes"]
+        cabecera = ("## 🎯 Objetivos\n" + "\n".join(f"{i + 1}. {o}" for i, o in enumerate(plan["objetivos"]))
+                    + "\n\n## 🗺️ Mapa de la lección\n"
+                    + f"> **Pregunta guía:** {plan['pregunta_guia']}\n\n"
+                    + (f"**Conviene saber antes:** {'; '.join(plan['prerrequisitos'])}\n\n" if plan["prerrequisitos"] else "")
+                    + "\n".join(f"{i + 1}. **{p['titulo']}** — {'; '.join(p['ideas'][:4])}" for i, p in enumerate(partes)))
+        textos = [cabecera]
+        todas_f, todos_p = list(fuentes), list(papers)
 
     def guardar(completa):
         texto = "\n\n".join(textos)
@@ -257,6 +300,8 @@ def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
 
     guardar(0)
     for i, p in enumerate(partes):
+        if i < len(textos) - 1:     # ya escrita antes del reinicio
+            continue
         ctx.fase(f"Buscando fuentes de la parte {i + 1}/{len(partes)}")
         nf = _fuentes_web(f"{p['busqueda']}", vistas_w, P["web"])
         np_ = _papers(p["busqueda_en"], vistas_p, P["papers"])
@@ -318,6 +363,230 @@ def _leccion_a_fondo(ctx, t, area, m, perfil, usuario, version=VERSION_LECCION):
     return {"tema": tid}
 
 
+# --------------------------------------------------------------- actualizar comparando (sin rehacer todo)
+ESQUEMA_COMPARACION = {"type": "object", "properties": {
+    "resumen": {"type": "string"},
+    "cambios": {"type": "array", "maxItems": 3, "items": {"type": "object", "properties": {
+        "parte": {"type": "integer", "minimum": 1}, "que": {"type": "string"},
+        "fuentes": {"type": "array", "maxItems": 4, "items": {"type": "integer", "minimum": 1}}},
+        "required": ["parte", "que", "fuentes"]}}},
+    "required": ["resumen", "cambios"]}
+_RE_PARTE = re.compile(r"^## Parte (\d+) · ")
+
+
+def _secciones(contenido):
+    """La lección partida por sus títulos de nivel 2 («## …»), sin perder nada: unir la lista devuelve el texto."""
+    trozos = re.split(r"(?m)(?=^## )", contenido or "")
+    return [x for x in trozos if x]
+
+
+def _claves_fuente(f):
+    """Claves para reconocer una fuente ya usada aunque venga escrita distinto (DOI suelto o como enlace, www, /)."""
+    out = set()
+    for v in (f.get("doi"), f.get("url")):
+        v = re.sub(r"^https?://(dx\.)?(www\.)?", "", str(v or "").strip().lower()).rstrip("/")
+        v = re.sub(r"^doi\.org/", "", v)
+        if v:
+            out.add(v)
+    return out
+
+
+def comparacion_leccion(usuario, tid):
+    return kv_get(f"comparacion_leccion:{usuario}:{tid}")
+
+
+def actualizar_leccion(ctx, tid, usuario, perfil):
+    """🔄 Actualizar comparando: busca fuentes y documentos nuevos, los compara con lo que la lección ya tiene y
+    reescribe SOLO las partes que lo nuevo cambia de verdad (máx. 3). Si no hay nada nuevo, no toca la lección.
+    - Las fuentes nuevas se agregan al final con números nuevos: las citas existentes siguen valiendo.
+    - La versión anterior se guarda (se puede volver a ella) y los ejercicios se conservan.
+    - El autor (`modelo`) no cambia: lo actualizado queda anotado aparte (`comparacion_leccion:`), para que se sepa
+      qué partes escribió la IA local en una lección importada y verificada a mano.
+    Para rehacerla entera está ⚡ «Reescribir a fondo» (generar_leccion con forzar)."""
+    previa = fila("SELECT * FROM leccion WHERE usuario=? AND tema=?", (usuario, tid))
+    t, area, m = contexto_tema(tid, usuario)
+    if not previa or previa["completa"] == 0 or area.get("grupo") == "Idiomas" or area.get("idioma"):
+        # sin lección terminada (o de idiomas, sin fuentes que comparar): no hay con qué comparar
+        return generar_leccion(ctx, tid, usuario, perfil, forzar=False, maxima=False)
+    ahora = time.time()
+    fuentes = json.loads(previa["fuentes"] or "[]")
+    secciones = _secciones(previa["contenido"])
+    partes = {int(_RE_PARTE.match(s).group(1)): i for i, s in enumerate(secciones) if _RE_PARTE.match(s)}
+    registro = {"fecha": ahora, "modelo": str(ia.MODELO), "nuevas_web": 0, "nuevos_papers": 0, "partes": [],
+                "resumen": "", "sin_cambios": True}
+
+    # 1) lo que se encontró hoy (búsquedas en serie, pocas: nada de ráfagas al buscador)
+    ctx.fase("Buscando fuentes nuevas para comparar con la lección")
+    vistas = set().union(*[_claves_fuente(f) for f in fuentes]) if fuentes else set()
+    try:
+        plan = json.loads(previa["plan"]) if previa["plan"] else None
+    except ValueError:
+        plan = None
+    consultas = [p.get("busqueda") for p in (plan or {}).get("partes", []) if p.get("busqueda")][:2] \
+        or [f"{t['t']} {t['d']}".strip()]
+    nuevas = []
+    for q in consultas:
+        for f in _fuentes_web(q, set(), 3):
+            if not (_claves_fuente(f) & vistas):
+                vistas |= _claves_fuente(f)
+                nuevas.append(f)
+    nuevos_p = []
+    for p in _papers((plan or {}).get("consulta_cientifica") or t["t"], set(), 3):
+        if not (_claves_fuente(p) & vistas):
+            vistas |= _claves_fuente(p)
+            nuevos_p.append(p)
+    nuevas, nuevos_p = nuevas[:4], nuevos_p[:3]
+    if not partes or not (nuevas or nuevos_p):
+        registro["resumen"] = ("No apareció ninguna fuente nueva frente a las que ya tiene: la lección sigue al día."
+                               if partes else "La lección no está dividida por partes: usa «Reescribir a fondo».")
+        kv_set(f"comparacion_leccion:{usuario}:{tid}", registro)
+        return {"tema": tid, "sin_cambios": True, "comparacion": registro}
+
+    # 2) comparación: qué partes cambia lo nuevo. El modelo local no necesita la lección entera: recibe el mapa (o el
+    #    plan, con las ideas de cada parte) y un extracto de cada parte.
+    ctx.fase(f"Comparando {len(nuevas) + len(nuevos_p)} fuentes nuevas con lo que ya dice la lección")
+    nuevas_todas = nuevas + nuevos_p
+    mapa = next((x for x in secciones if x.startswith("## 🗺️")), "")
+    ideas = "\n".join(f"Parte {k + 1} · {p.get('titulo', '')}: {'; '.join(p.get('ideas', []))}"
+                      for k, p in enumerate((plan or {}).get("partes", [])))
+    resumen_partes = "\n\n".join(f"PARTE {n}: {secciones[i][:700]}" for n, i in sorted(partes.items()))
+    lista_nuevas = "\n".join(
+        f"({k + 1}) {f['titulo']} — {f['url']}\n{str(f.get('texto') or f.get('resumen') or '')[:900]}"
+        for k, f in enumerate(nuevas_todas))
+    esquema = json.loads(json.dumps(ESQUEMA_COMPARACION))
+    esquema["properties"]["cambios"]["items"]["properties"]["parte"]["maximum"] = max(partes)
+    esquema["properties"]["cambios"]["items"]["properties"]["fuentes"]["items"]["maximum"] = len(nuevas_todas)
+    comp = ctx.chat([{"role": "system", "content": SISTEMA_BASE}, {"role": "user", "content": (
+        f"Tema: **{t['t']}** ({area['nombre']} · {m['t']}).\nCompara lo que YA dice la lección con las FUENTES NUEVAS "
+        "encontradas hoy. Marca un cambio SOLO si una fuente nueva corrige algo, trae un dato o resultado más reciente "
+        "o cubre una idea importante que la parte no tiene (mira el mapa: lo que ya aparece en él está cubierto). Si lo "
+        "nuevo repite lo que ya está, no marques nada: «cambios» vacío está bien y es lo normal en una lección al día. "
+        "Máximo 3 partes. En «fuentes», los números (n) de las fuentes nuevas que justifican el cambio. Todo en "
+        "español. JSON compacto.\n\n"
+        + (f"MAPA DE LA LECCIÓN:\n{mapa[:3000]}\n\n" if mapa else "")
+        + (f"IDEAS DE CADA PARTE:\n{ideas[:3000]}\n\n" if ideas else "")
+        + f"LECCIÓN ACTUAL (extracto de cada parte):\n{resumen_partes[:8000]}\n\nFUENTES NUEVAS:\n{lista_nuevas[:7000]}")}],
+        max_tokens=1500, temperatura=0.2, esquema=esquema)
+    cambios = []
+    for c in comp.get("cambios", []):
+        usadas_c = sorted({k for k in c.get("fuentes", []) if 1 <= k <= len(nuevas_todas)})
+        if c.get("parte") in partes and usadas_c and c["parte"] not in [x["parte"] for x in cambios]:
+            cambios.append({"parte": c["parte"], "que": c.get("que", ""), "fuentes": usadas_c})
+    registro["resumen"] = comp.get("resumen", "")
+    if not cambios:
+        registro["descartadas"] = len(nuevas_todas)
+        kv_set(f"comparacion_leccion:{usuario}:{tid}", registro)
+        return {"tema": tid, "sin_cambios": True, "comparacion": registro}
+
+    # 3) estilo de citas según el autor: las de la IA local citan web [n] (por orden de las web) y papers [Pn]; las
+    #    importadas (Claude, Gemini) usan un solo [n] por orden de toda la lista, salvo que ya usen [Pn].
+    verificada = str(previa["modelo"] or "").lower().startswith(("claude-", "gemini-"))
+    estilo_p = not verificada or bool(re.search(r"\[P\d+\]", previa["contenido"]))
+    cont = {"web": sum(1 for f in fuentes if f.get("tipo") != "paper"),
+            "pap": max([int(str(f["n"])[1:]) for f in fuentes if str(f.get("n") or "").startswith("P")
+                        and str(f["n"])[1:].isdigit()] + [sum(1 for f in fuentes if f.get("tipo") == "paper")]),
+            "total": len(fuentes)}
+    numero, orden = {}, []          # número asignado a cada fuente nueva (solo al aceptarse una parte que la cita)
+
+    def asignar(k):
+        if estilo_p and k > len(nuevas):
+            cont["pap"] += 1
+            return f"P{cont['pap']}", "pap"
+        if estilo_p:
+            cont["web"] += 1
+            return str(cont["web"]), "web"
+        cont["total"] += 1
+        return str(cont["total"]), "total"
+
+    # 4) reescribir solo las partes marcadas, conservando su formato y TODAS sus citas
+    for c in cambios:
+        i = partes[c["parte"]]
+        actual = secciones[i]
+        titulo = actual.split("\n", 1)[0]
+        provis = {}
+        for k in c["fuentes"]:
+            if k not in numero:
+                provis[k] = asignar(k)
+        nums = {k: (numero[k] if k in numero else provis[k][0]) for k in c["fuentes"]}
+        bloque = "\n".join(f"[{nums[k]}] {nuevas_todas[k - 1]['titulo']} — {nuevas_todas[k - 1]['url']}\n"
+                           f"{str(nuevas_todas[k - 1].get('texto') or nuevas_todas[k - 1].get('resumen') or '')[:1500]}"
+                           for k in c["fuentes"])
+        ctx.fase(f"Actualizando la parte {c['parte']}: {c['que'][:60]}")
+        texto = ctx.chat([{"role": "system", "content": SISTEMA_BASE}, {"role": "user", "content": (
+            f"Actualiza esta parte de una lección sobre «{t['t']}» con lo que aportan las fuentes nuevas.\n"
+            f"Qué cambiar: {c['que']}\n\nReglas: conserva el título, la estructura (### Intuición, Desarrollo, Ejemplos, "
+            "Matices, Comprueba…), las fórmulas y TODAS las citas existentes tal cual; integra lo nuevo donde corresponde "
+            "(corrige, agrega el dato o la idea) y cítalo con los números de abajo. No acortes la parte ni repitas lo "
+            "que ya dice. Devuelve SOLO la parte completa en markdown, empezando por su título.\n\n"
+            f"PARTE ACTUAL:\n{actual}\n\nFUENTES NUEVAS (cítalas así):\n{bloque}")}],
+            max_tokens=5000, temperatura=0.4)
+        texto = str(texto or "").strip()
+        if not _RE_PARTE.match(texto):       # el modelo cambió o quitó el título: se repone el original
+            texto = titulo + "\n" + re.sub(r"^#+ [^\n]*\n", "", texto, count=1)
+        cab, _, cuerpo = texto.partition("\n")
+        texto = cab + "\n" + re.sub(r"(?m)^## ", "### ", cuerpo)    # otro «## » partiría mal la lección después
+        if estilo_p:
+            texto = limpiar_citas(texto, cont["web"], cont["pap"])
+        else:
+            texto = re.sub(r"(?<![\w\)\]])\[(\d{1,3})\]",
+                           lambda mm: mm.group(0) if int(mm.group(1)) <= cont["total"] else "", texto)
+        citas_antes = set(re.findall(r"(?<![\w\)\]])\[P?\d{1,3}\]", actual))
+        ok = len(texto) >= 0.6 * len(actual.strip()) and citas_antes <= set(re.findall(r"\[P?\d{1,3}\]", texto))
+        if not ok:                            # recortada o perdió citas: la parte queda como estaba
+            for k in sorted(provis, reverse=True):   # se devuelven los números que había tomado (eran los últimos)
+                cont[provis[k][1]] -= 1
+            continue
+        for k, (n, _) in provis.items():
+            numero[k] = n
+            orden.append(k)
+        secciones[i] = texto + ("\n\n" if actual.endswith("\n\n") else "\n" if actual.endswith("\n") else "")
+        registro["partes"].append({"parte": c["parte"], "que": c["que"], "fuentes": [nums[k] for k in c["fuentes"]]})
+    if not registro["partes"]:
+        registro["resumen"] += " (las reescrituras no pasaron el control de calidad: la lección quedó igual)"
+        kv_set(f"comparacion_leccion:{usuario}:{tid}", registro)
+        return {"tema": tid, "sin_cambios": True, "comparacion": registro}
+
+    # 5) guardar: versión anterior, fuentes nuevas al final (marcadas «agregada»: no se comprobaron a mano) y lista 📚
+    _guardar_anterior(previa)
+    marca = {"fecha": ahora, "modelo": str(ia.MODELO)}
+    agregar = []
+    for k in sorted(orden, key=lambda k: (numero[k].startswith("P"), int(numero[k].lstrip("P")))):
+        f = nuevas_todas[k - 1]
+        if k > len(nuevas):
+            agregar.append({"titulo": f["titulo"], "url": f["url"], "tipo": "paper", "autores": f.get("autores"),
+                            "anio": f.get("anio"), "revista": f.get("revista"), "citas": f.get("citas"),
+                            "abierto": f.get("abierto"), "agregada": marca,
+                            **({"n": numero[k]} if estilo_p else {})})
+        else:
+            agregar.append({"titulo": f["titulo"], "url": f["url"], "agregada": marca})
+    if estilo_p:   # la numeración web es por el orden de las web: las nuevas van tras las web y antes de los papers
+        fuentes_nuevas = ([f for f in fuentes if f.get("tipo") != "paper"] + [f for f in agregar if f.get("tipo") != "paper"]
+                          + [f for f in fuentes if f.get("tipo") == "paper"] + [f for f in agregar if f.get("tipo") == "paper"])
+    else:
+        fuentes_nuevas = fuentes + agregar
+    contenido = "".join(secciones)
+    lineas_f = "\n".join(f"- [{numero[k]}] {nuevas_todas[k - 1]['titulo']} — {nuevas_todas[k - 1]['url']}"
+                         for k in sorted(orden, key=lambda k: (numero[k].startswith("P"), int(numero[k].lstrip("P")))))
+    if "## 📚" in contenido:
+        contenido = contenido.rstrip() + "\n\n**Agregadas al actualizar (" + time.strftime("%Y-%m-%d") + "):**\n" + lineas_f + "\n"
+    else:
+        contenido = contenido.rstrip() + "\n\n## 📚 Fuentes y lecturas\n" + lineas_f + "\n"
+    ejecutar("UPDATE leccion SET contenido=?, fuentes=?, creado=? WHERE usuario=? AND tema=?",
+             (contenido, json.dumps(fuentes_nuevas, ensure_ascii=False), ahora, usuario, tid))
+    ejecutar("DELETE FROM verificacion WHERE usuario=? AND clave=?", (usuario, "tema:" + tid))   # era del texto anterior
+    registro.update({"sin_cambios": False, "nuevas_web": sum(1 for f in agregar if f.get("tipo") != "paper"),
+                     "nuevos_papers": sum(1 for f in agregar if f.get("tipo") == "paper")})
+    kv_set(f"comparacion_leccion:{usuario}:{tid}", registro)
+    return {"tema": tid, "sin_cambios": False, "comparacion": registro}
+
+
+def actualizada_por_ia_local(usuario, tid):
+    """¿La última «🔄 Actualizar» reescribió partes con un modelo que no se verifica a mano? (para re-verificarla)."""
+    c = comparacion_leccion(usuario, tid)
+    return bool(c and not c.get("sin_cambios") and c.get("partes")
+                and not str(c.get("modelo") or "").lower().startswith(("claude-", "gemini-")))
+
+
 ESQUEMA_EJERCICIOS = {
     "type": "object",
     "properties": {
@@ -327,7 +596,8 @@ ESQUEMA_EJERCICIOS = {
                 "tipo": {"type": "string", "enum": ["opcion", "abierta"]},
                 "pregunta": {"type": "string"},
                 "opciones": {"type": "array", "items": {"type": "string"}, "maxItems": 4},
-                "correcta": {"type": "integer", "minimum": 0, "maximum": 3},
+                # opción: índice 0-3; abierta: la respuesta modelo en texto (así lo pide el prompt de abajo)
+                "correcta": {"type": ["integer", "string"], "minimum": 0, "maximum": 3},
                 "explicacion": {"type": "string"}},
             "required": ["tipo", "pregunta", "opciones", "correcta", "explicacion"]}},
         "tarjetas": {"type": "array", "minItems": 5, "maxItems": 18, "items": {
@@ -346,7 +616,7 @@ def generar_ejercicios(ctx, t, area, contenido, previos=None):
     prompt = (
         f"Con base en TODA esta lección sobre «{t['t']}» (todas sus partes, no solo la última), crea:\n"
         "1) quiz: 8 preguntas que repartan las partes de la lección: 5 de tipo 'opcion' (4 opciones plausibles, "
-        "'correcta' = índice 0-3, distractores basados en errores comunes) y 3 de tipo 'abierta' (opciones = [], "
+        "'correcta' = índice 0-3, distractores basados en errores comunes; " + REGLA_OPCIONES + ") y 3 de tipo 'abierta' (opciones = [], "
         "correcta = 0) que exijan aplicar, derivar o explicar el porqué, no memorizar. 'explicacion' = por qué es "
         "correcta (para las abiertas: la respuesta modelo).\n"
         f"2) tarjetas: 10 a 16 tarjetas para repetición espaciada que cubran cada parte. {extra}\n"
@@ -431,7 +701,7 @@ def prueba_nivel(ctx, ref, usuario):
               f"({len(temas) * PREGUNTAS_POR_TEMA} en total), en el orden de los temas ('tema' = su índice): una de "
               "comprensión del concepto y otra de aplicación o cálculo. Dificultad media-alta: deben distinguir a quien "
               "realmente domina el tema de quien solo lo vio una vez. 4 opciones plausibles con errores típicos como "
-              f"distractores; explicación de 1-2 frases. Para variar, usa sobre todo estos enfoques: {', '.join(enfoques)}. "
+              f"distractores; explicación de 1-2 frases. {REGLA_OPCIONES} Para variar, usa sobre todo estos enfoques: {', '.join(enfoques)}. "
               "Cambia el orden de la opción correcta. Fórmulas en LaTeX corto entre $...$. JSON compacto."
               + ("\n\nEstas preguntas YA se usaron en intentos anteriores: NO las repitas ni hagas variantes con los mismos "
                  "datos; pregunta otros aspectos del tema, con otros números y situaciones:\n- "
@@ -664,7 +934,7 @@ def normalizar_puntaje(ev):
 
 
 # ------------------------------------------- nueva área completa con IA
-GRUPOS = ["Ingenierías", "Ciencias básicas", "Humanidades", "Negocios", "Idiomas", "Arte y diseño", "Salud", "Otros"]
+GRUPOS = ["Ingenierías", "Ciencias básicas", "Humanidades", "Ciencias sociales", "Negocios", "Idiomas", "Artes", "Salud", "Otros"]
 
 
 def crear_area(ctx, usuario, perfil, nombre, descripcion):
@@ -692,6 +962,8 @@ def crear_area(ctx, usuario, perfil, nombre, descripcion):
         "Cada módulo: id corto en minúsculas (snake_case), título, nivel, 4-7 temas con el formato 'Título|descripción corta', "
         "pre_propios (ids de módulos ANTERIORES de esta misma área) y pre_externos (módulos del catálogo existente que "
         "sean prerrequisito real; no repitas lo que el catálogo ya cubre: apóyate en él). icono = un emoji. "
+        "Elige 'grupo' según la disciplina real (Ciencias básicas para biología, neurociencia, física, química o matemáticas; "
+        "Ingenierías para sistemas, electrónica o robótica; Ciencias sociales para derecho, economía o política; Artes solo para artes). "
         "Todo en español. JSON compacto.\n\nCATÁLOGO EXISTENTE (ref = descripción):\n"
         + "\n".join(f"{r} = {d}" for r, d in catalogo))
     ctx.fase("Diseñando el currículo del área")
@@ -763,7 +1035,7 @@ def crear_quiz_tarea(ctx, usuario, perfil, tid, dificultad, cantidad, enfoque):
         + (f"Tarjetas que ha olvidado de este tema (refuérzalas): {'; '.join(f['frente'][:100] for f in fallos)}\n" if fallos else "")
         + (f"NO repitas estas preguntas de quizzes anteriores:\n- " + "\n- ".join(ya) + "\n" if ya else "")
         + "Preguntas de comprensión y aplicación (no de memoria literal), 4 opciones plausibles con errores típicos como "
-        "distractores, la correcta en posiciones variadas, explicación de 1-2 frases. Fórmulas en LaTeX corto entre $...$. "
+        "distractores, la correcta en posiciones variadas, explicación de 1-2 frases. " + REGLA_OPCIONES + " Fórmulas en LaTeX corto entre $...$. "
         "titulo = nombre corto del quiz. JSON compacto."
         + (f"\n\nLECCIÓN DE REFERENCIA (extracto):\n{lec['contenido'][:12000]}" if lec else ""))
     ctx.fase(f"Creando el quiz: {t['t']}")

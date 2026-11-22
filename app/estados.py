@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 
 import config  # noqa: F401  (fija la carpeta de datos antes de abrir la base)
 import curriculo as cur
+from indice import PISTA_MAX, REGLA_OPCIONES, pista
 from base import ejecutar, fila, filas, registrar
 
 ejecutar("""CREATE TABLE IF NOT EXISTS prueba_diferida (
@@ -204,12 +205,15 @@ def _previas(usuario, tema):
 
 
 def depurar(preguntas, previas):
-    """Primer filtro (sin IA): formato válido, 4 opciones distintas, índice correcto y nada que se parezca a lo ya preguntado."""
+    """Primer filtro (sin IA): formato válido, 4 opciones distintas, índice correcto, la correcta no delatada por ser mucho más
+    larga que las demás (se acertaría sin saber) y nada que se parezca a lo ya preguntado."""
     buenas = []
     for q in preguntas:
         ops = q.get("opciones") or []
         if (len(ops) != 4 or len({o.strip().lower() for o in ops}) != 4 or not isinstance(q.get("correcta"), int)
                 or not 0 <= q["correcta"] < 4 or len(q.get("pregunta", "")) < 25):
+            continue
+        if pista(ops, q["correcta"]) > PISTA_MAX:
             continue
         if any(parecida(q["pregunta"], p) > SIMILITUD_MAX for p in previas + [b["pregunta"] for b in buenas]):
             continue
@@ -232,7 +236,7 @@ def generar_banco(ctx, usuario, tema, etapa, perfil):
               + f"Escribe entre 5 y 6 preguntas de opción múltiple (4 opciones, una sola correcta) para una PRUEBA DIFERIDA (han pasado {DIAS_ETAPA[etapa - 1]} "
                 "días desde que dominó el tema). Deben medir comprensión y aplicación, no memoria de frases:\n"
                 "- Cada pregunta plantea un CASO NUEVO y concreto (un escenario, un dato, un fragmento) distinto de los ejemplos de la lección.\n"
-                "- Los distractores son errores conceptuales plausibles, no absurdos.\n- Una sola respuesta es correcta y defendible sin ambigüedad.\n"
+                "- Los distractores son errores conceptuales plausibles, no absurdos. " + REGLA_OPCIONES + "\n- Una sola respuesta es correcta y defendible sin ambigüedad.\n"
                 "- explicacion: por qué la correcta lo es y qué error delata cada distractor, en 2-3 frases.\nTodo en español.")
     r = ctx.chat([{"role": "system", "content": "Eres un examinador riguroso. Respondes en español."}, {"role": "user", "content": prompt}],
                  max_tokens=3000, temperatura=0.5, esquema=ESQUEMA_BANCO)

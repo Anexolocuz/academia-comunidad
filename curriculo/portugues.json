@@ -1,0 +1,57 @@
+{
+  "id": "portugues",
+  "nombre": "Portugués (A1 a C2)",
+  "icono": "PT",
+  "grupo": "Idiomas",
+  "color": "#10b981",
+  "idioma": "pt-BR",
+  "examen": "CELPE-Bras / CAPLE",
+  "descripcion": "De cero a dominio aprovechando la cercanía y las trampas con el español: fonética, gramática, lectura, expresión oral y variantes de Brasil y Portugal.",
+  "recursos": [
+    {"t": "Ciberdúvidas da Língua Portuguesa", "u": "https://ciberduvidas.iscte-iul.pt/"},
+    {"t": "Priberam — diccionario de portugués", "u": "https://dicionario.priberam.org/"},
+    {"t": "Instituto Camões — recursos de portugués", "u": "https://www.instituto-camoes.pt/"}
+  ],
+  "modulos": [
+    {"id": "fonetica", "t": "Sonidos del portugués y prosodia", "nivel": 1, "pre": [], "temas": [
+      "Vocales abiertas, cerradas, reducidas y nasales|ã, õ, ão",
+      "Consonantes y dígrafos|lh, nh, ch, r/rr, s/z, t/d palatalizadas",
+      "Acentuación gráfica y crase",
+      "Diferencias fonéticas entre Brasil, Portugal y África lusófona"]},
+    {"id": "a1", "t": "A1 — primeros pasos", "nivel": 1, "pre": ["fonetica"], "temas": [
+      "Saludos, presentaciones y pronombres|você, tu, a gente",
+      "Verbos ser, estar, ter y presente regular",
+      "Artículos, contracciones con preposiciones (do, no, ao, pelo)",
+      "Números, fechas y vocabulario cotidiano",
+      "Falsos amigos críticos entre español y portugués"]},
+    {"id": "a2", "t": "A2 — situaciones cotidianas", "nivel": 2, "pre": ["a1"], "temas": [
+      "Pretérito perfeito e imperfeito do indicativo",
+      "Futuro inmediato (ir + infinitivo) y planes",
+      "Pronombres átonos y colocación pronominal básica",
+      "Compras, viajes, restaurantes y correos sencillos"]},
+    {"id": "b1", "t": "B1 — independencia", "nivel": 2, "pre": ["a2"], "temas": [
+      "Superar el portuñol|errores de interferencia del español",
+      "Subjuntivo presente e imperfecto",
+      "Futuro do subjuntivo|el tiempo clave del portugués",
+      "Infinitivo pessoal|uso y concordancia",
+      "Comprensión oral con medios y podcasts lusófonos"]},
+    {"id": "b2", "t": "B2 — consolidación", "nivel": 3, "pre": ["b1"], "temas": [
+      "Mais-que-perfeito compuesto y tiempos compuestos",
+      "Voz pasiva, estilo indirecto y conectores",
+      "Expresiones idiomáticas y registro coloquial vs formal",
+      "Redacción de textos expositivos y argumentativos"]},
+    {"id": "c1", "t": "C1 — portugués profesional y académico", "nivel": 4, "pre": ["b2"], "temas": [
+      "Portugués de negocios, tecnología y ciencia",
+      "Redacción de informes, ensayos y correos ejecutivos",
+      "Presentaciones y negociación en entornos lusófonos",
+      "Acuerdo Ortográfico de la Lengua Portuguesa"]},
+    {"id": "examenes", "t": "Exámenes oficiales (CELPE-Bras y CAPLE)", "nivel": 4, "pre": ["b2"], "temas": [
+      "Formato del CELPE-Bras|tareas integradas de lectura, audio y escritura",
+      "Certificación CAPLE de portugués europeo",
+      "Estrategias de producción escrita e interacción oral"]},
+    {"id": "c2", "t": "C2 — dominio", "nivel": 5, "pre": ["c1"], "temas": [
+      "Literatura brasileña, portuguesa y africana en lengua portuguesa",
+      "Matices estilísticos, humor y retórica",
+      "Traducción e interpretación técnico-literaria español-portugués"]}
+  ]
+}

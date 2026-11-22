@@ -1,0 +1,64 @@
+{
+  "id": "frances",
+  "nombre": "Francés (A1 a C2)",
+  "icono": "FR",
+  "grupo": "Idiomas",
+  "color": "#3b82f6",
+  "idioma": "fr-FR",
+  "examen": "MCER / DELF / DALF / TCF",
+  "descripcion": "De cero a dominio siguiendo el MCER: fonética, gramática, vocabulario y las cuatro habilidades en francés cotidiano, académico y profesional.",
+  "recursos": [
+    {"t": "TV5MONDE — Apprendre le français", "u": "https://apprendre.tv5monde.com/"},
+    {"t": "RFI Savoirs — francés con noticias y audios", "u": "https://francaisfacile.rfi.fr/"},
+    {"t": "France Éducation international — DELF/DALF", "u": "https://www.france-education-international.fr/"},
+    {"t": "Le Robert — diccionario de francés", "u": "https://dictionnaire.lerobert.com/"}
+  ],
+  "modulos": [
+    {"id": "fonetica", "t": "Sonidos del francés y pronunciación", "nivel": 1, "pre": [], "temas": [
+      "El alfabeto y la ortografía|acentos, cedilla y letras mudas",
+      "Vocales orales y vocales nasales|an, en, in, on, un",
+      "Consonantes, r francesa y sonidos difíciles|u frente a ou",
+      "Liaison y enchaînement|cómo se unen las palabras al hablar",
+      "Ritmo, entonación y acento tónico"]},
+    {"id": "a1", "t": "A1 — primeros pasos", "nivel": 1, "pre": ["fonetica"], "temas": [
+      "Saludos, presentaciones y pronombres|tu frente a vous",
+      "Verbos être, avoir y presente de primer grupo (-er)",
+      "Artículos definidos, indefinidos y partitivos",
+      "Números, horas, fechas y vida cotidiana",
+      "Pedir información, orientarse y comprar"]},
+    {"id": "a2", "t": "A2 — situaciones cotidianas", "nivel": 2, "pre": ["a1"], "temas": [
+      "Passé composé con avoir y être",
+      "Imparfait frente a passé composé|narrar el pasado",
+      "Futur proche, futur simple y planes",
+      "Pronombres de objeto directo, indirecto, y y en",
+      "Escribir mensajes, invitaciones y correos sencillos"]},
+    {"id": "b1", "t": "B1 — independencia", "nivel": 2, "pre": ["a2"], "temas": [
+      "Expresar opinión, acuerdo y desacuerdo",
+      "Subjuntivo presente básico|obligación, deseo, emoción",
+      "Condicional presente e hipótesis",
+      "Oraciones de relativo y conectores lógicos",
+      "Comprensión oral con podcasts y entrevistas"]},
+    {"id": "b2", "t": "B2 — consolidación y argumentación", "nivel": 3, "pre": ["b1"], "temas": [
+      "Tiempos compuestos y concordancia del participio",
+      "Estilo indirecto y concordancia temporal",
+      "Voz pasiva y estructuras impersonales",
+      "Argumentación estructurada y ensayo de opinión",
+      "Lectura crítica de prensa y divulgación en francés"]},
+    {"id": "c1", "t": "C1 — francés profesional y académico", "nivel": 4, "pre": ["b2"], "temas": [
+      "Registro formal, administrativo y académico",
+      "Francés para ciencia, ingeniería y empresa",
+      "Síntesis de documentos y presentaciones orales",
+      "Matices, colocaciones y conectores avanzados",
+      "Entrevistas profesionales y redacción de informes"]},
+    {"id": "examenes", "t": "Exámenes oficiales (DELF, DALF y TCF)", "nivel": 4, "pre": ["b2"], "temas": [
+      "Estructura del DELF B1-B2 y DALF C1-C2",
+      "Estrategias de compréhension orale et écrite",
+      "Production écrite|síntesis y ensayo argumentativo",
+      "Production orale|monólogo, exposición y debate"]},
+    {"id": "c2", "t": "C2 — dominio", "nivel": 5, "pre": ["c1"], "temas": [
+      "Lectura de literatura y ensayo francófono",
+      "Retórica, ironía, registro coloquial y culto",
+      "Traducción técnica y precisión terminológica",
+      "Variedades de la francofonía|Francia, Canadá, África"]}
+  ]
+}

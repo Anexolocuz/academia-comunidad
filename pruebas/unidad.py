@@ -145,6 +145,25 @@ class CacheDeAreas(unittest.TestCase):
         a.pop(next(iter(a)))
         self.assertEqual(len(cur.areas(U)), len(a) + 1)
 
+    def test_cambiar_grupo_area_propia(self):
+        import servidor
+        import lecciones as lc
+        self.assertIn("Ciencias sociales", lc.GRUPOS)
+        self.assertIn("Artes", lc.GRUPOS)
+        area = {"id": "p_neuro_prueba", "nombre": "Neurociencia", "grupo": "Arte y diseño",
+                "modulos": [{"id": "m", "t": "M", "nivel": 1, "temas": ["Tema"]}]}
+        ejecutar("INSERT OR REPLACE INTO area_extra(id,usuario,datos,creado) VALUES(?,?,?,0)",
+                 ("p_neuro_prueba", U, json.dumps(area)))
+        try:
+            self.assertIn("error", servidor.r_area_grupo(U, {}, {"id": "biologia", "grupo": "Ciencias básicas"}, None))
+            self.assertIn("error", servidor.r_area_grupo(U, {}, {"id": "p_neuro_prueba", "grupo": "Inventado"}, None))
+            self.assertIn("error", servidor.r_area_grupo("otra@persona", {}, {"id": "p_neuro_prueba", "grupo": "Ciencias básicas"}, None))
+            res = servidor.r_area_grupo(U, {}, {"id": "p_neuro_prueba", "grupo": "Ciencias básicas"}, None)
+            self.assertEqual(res, {"ok": True, "grupo": "Ciencias básicas"})
+            self.assertEqual(cur.areas(U)["p_neuro_prueba"]["grupo"], "Ciencias básicas")
+        finally:
+            ejecutar("DELETE FROM area_extra WHERE id='p_neuro_prueba'")
+
 
 # ------------------------------------------------------------------ API de IA opcional, avisos y modo corto
 import http.server  # noqa: E402
@@ -530,6 +549,97 @@ class PruebaCarrilNube(unittest.TestCase):
             config.C.clear()
             config.C.update(antes[2])
 
+
+    def test_fondo_de_a_uno_y_slot_libre_para_la_persona(self):
+        """Pedido 2026-11-18: dos lecciones a la vez avanzaban a media velocidad y lo que pedía la persona esperaba.
+        Con `fondo_a_la_vez` = 1 el segundo slot solo toma lo que alguien espera en pantalla (prioridad 0)."""
+        import config
+        ia, c = self._cola()
+        antes = dict(config.C)
+        config.C["trabajos_nube"] = 0
+        try:
+            lec1, lec2 = self._t("leccion", 1), self._t("leccion", 2)
+            tutor = (0, 3, self._t("tutor", 3)[2])
+            corriendo = type("C", (), {"prioridad": 1, "carril": ""})()
+            c.actuales = [corriendo]
+            self.assertIsNone(c._elegir([lec2], "local"))               # ya hay una de fondo: la segunda espera
+            self.assertIs(c._elegir([lec2, tutor], "local"), tutor)     # lo que pide la persona entra enseguida
+            c.actuales = []
+            self.assertIs(c._elegir([lec1, lec2], "local"), lec1)       # sin nada corriendo: la primera de la fila
+            config.C["fondo_a_la_vez"] = 0                              # 0 = sin límite (comportamiento anterior)
+            c.actuales = [corriendo]
+            self.assertIs(c._elegir([lec2], "local"), lec2)
+        finally:
+            config.C.clear()
+            config.C.update(antes)
+
+    def test_estimacion_de_la_cola(self):
+        """Pedido 2026-11-18: cuánto falta para que empiece cada tarea y a qué hora termina."""
+        import config
+        import ia
+        antes = dict(config.C)
+        config.C.update({"trabajos_paralelos": 2, "fondo_a_la_vez": 1, "trabajos_nube": 0})
+
+        def T(tipo, prioridad, estado="cola", inicio=None, fase=""):
+            t = ia.Trabajo(tipo, None, prioridad, "u", tipo)
+            t.estado, t.inicio, t.fase = estado, inicio, fase
+            return t
+        try:
+            dur = {"leccion": 3600, "tutor": 60}
+            ahora = 10_000.0
+            corriendo = T("leccion", 1, "corriendo", ahora - 1800, "Escribiendo parte 4/6: algo")   # va por la mitad
+            l2, l3, tut = T("leccion", 1), T("leccion", 1), T("tutor", 0)
+            e = ia.estimar([corriendo, tut, l2, l3], dur, ahora)
+            self.assertAlmostEqual(e[corriendo.id][1], 1800 * (1 - 3.5 / 6) / (3.5 / 6), delta=1)   # ritmo real de la tarea
+            fin1 = e[corriendo.id][1]
+            self.assertEqual(e[tut.id], (0, 60))                         # lo tuyo entra en el slot libre
+            self.assertAlmostEqual(e[l2.id][0], fin1, delta=1)          # el fondo va de a uno
+            self.assertAlmostEqual(e[l3.id][0], fin1 + 3600, delta=1)
+            self.assertAlmostEqual(e[l3.id][1], fin1 + 7200, delta=1)
+            config.C["fondo_a_la_vez"] = 0                              # sin límite: dos lecciones a la vez
+            e = ia.estimar([corriendo, l2, l3], dur, ahora)
+            self.assertEqual(e[l2.id][0], 0)
+        finally:
+            config.C.clear()
+            config.C.update(antes)
+
+    def test_esperar_por_la_gpu_no_cambia_el_orden(self):
+        """2026-11-18: con Hermes usando la GPU, cada tarea de fondo volvía a la cola AL FINAL de su grupo, así que las
+        lecciones rotaban (1 2 3 → 2 3 1 → 3 1 2). Al esperar debe conservar su puesto."""
+        import heapq
+        import itertools
+        import threading
+        import ia
+        c = object.__new__(ia.Cola)
+        c._h, c._cv, c._n, c.trabajos, c.actuales = [], threading.Condition(), itertools.count(), {}, []
+        ts = [ia.Trabajo("leccion", lambda ctx: None, 2, "u", f"t{i}") for i in (1, 2, 3)]
+        for t in ts:
+            heapq.heappush(c._h, (t.prioridad, next(c._n), t))
+        antes = (ia.pc_ocupado, ia.otros_modelos)
+        ia.pc_ocupado, ia.otros_modelos = (lambda: False), (lambda **k: ["hermes"])
+        try:
+            for _ in range(3):                       # el hilo toma la primera, la GPU está ocupada, la devuelve
+                t = c._sacar(min(c._h))
+                c._correr(t)
+                for x in c._h:
+                    x[2].no_antes = 0
+            self.assertEqual([x[2].etiqueta for x in sorted(c._h)], ["t1", "t2", "t3"])
+        finally:
+            ia.pc_ocupado, ia.otros_modelos = antes
+
+    def test_cola_en_pausa_cero(self):
+        """`trabajos_paralelos` = 0 deja el carril local en pausa sin romper la estimación."""
+        import config
+        import ia
+        antes = dict(config.C)
+        try:
+            config.C["trabajos_paralelos"] = 0
+            self.assertEqual(ia.paralelos(), 0)
+            t = ia.Trabajo("leccion", None, 1, "u", "t1")
+            self.assertEqual(ia.estimar([t], {"leccion": 3600}, 10_000.0), {})
+        finally:
+            config.C.clear()
+            config.C.update(antes)
 
 class PruebaRelevanciaFuentes(unittest.TestCase):
     def test_descarta_lo_que_comparte_una_sola_palabra_y_las_portadas(self):
@@ -1239,12 +1349,15 @@ class PruebaEstadosDominio(unittest.TestCase):
 
     def test_depurar_descarta_formato_malo_y_preguntas_repetidas(self):
         bien = {"pregunta": "Un laboratorio observa que la membrana de una célula deja pasar agua pero no sales; ¿qué principio explica esto?",
-                "opciones": ["Permeabilidad selectiva", "Fotosíntesis", "Mitosis", "Replicación"], "correcta": 0, "explicacion": "x"}
+                "opciones": ["Permeabilidad selectiva", "Transporte por difusión", "Presión osmótica alta", "Ósmosis celular inversa"],
+                "correcta": 0, "explicacion": "x"}
+        delatada = dict(bien, pregunta="Caso nuevo: una célula vegetal en agua destilada no estalla aunque entra agua; ¿por qué ocurre?",
+                        opciones=["Porque la pared celular resiste la presión de turgencia", "Mitosis", "Ósmosis", "Lisis"])   # la correcta se delata por su largo
         repetida = dict(bien, pregunta=bien["pregunta"] + " (otra vez)")
         dos_iguales = dict(bien, pregunta="Otro caso distinto sobre ribosomas en la síntesis de proteínas dentro del citoplasma", opciones=["a", "a", "b", "c"])
         corta = dict(bien, pregunta="¿Qué?")
         mala_correcta = dict(bien, pregunta="Una pregunta suficientemente larga sobre mitocondrias y la respiración celular aerobia", correcta=7)
-        r = self.es.depurar([bien, repetida, dos_iguales, corta, mala_correcta], previas=[])
+        r = self.es.depurar([bien, repetida, dos_iguales, corta, mala_correcta, delatada], previas=[])
         self.assertEqual(r, [bien])
         self.assertEqual(self.es.depurar([bien], previas=[bien["pregunta"]]), [])         # ya se preguntó en el quiz
         self.assertLess(self.es.parecida("membrana plasmática selectiva", "ribosomas sintetizan proteínas"), 0.2)
@@ -1331,6 +1444,95 @@ class NoticiasSeguridad(unittest.TestCase):
             f, r = nt._bajar({"u": u})
             self.assertIsInstance(r, Exception, u)
             self.assertIn("pública", str(r), u)
+
+
+class Recomendaciones(unittest.TestCase):
+    """📚 Lecturas y 📰 noticias recomendadas: solo fuentes verificadas de OTRAS lecciones, sin repetir las de la lección
+    abierta, y nada de áreas ajenas al perfil."""
+
+    def setUp(self):
+        import recomendaciones as reco
+        self.reco = reco
+        a = cur.areas()["matematicas"]
+        self.m = a["modulos"][0]
+        self.t0, self.t1, self.t2 = (t["id"] for t in self.m["temas_obj"][:3])
+        ejecutar("DELETE FROM leccion WHERE usuario=?", (U,))
+        ejecutar("DELETE FROM avance WHERE usuario=?", (U,))
+        ejecutar("""INSERT INTO perfil(usuario,datos,creado,actualizado) VALUES(?,?,0,0)
+                    ON CONFLICT(usuario) DO UPDATE SET datos=excluded.datos""",
+                 (U, json.dumps({"pesos": {"matematicas": 3}})))
+        def leccion(tid, modelo, fuentes):
+            ejecutar("""INSERT INTO leccion(usuario,tema,contenido,ejercicios,fuentes,modelo,creado,version,completa)
+                        VALUES(?,?,?,?,?,?,?,3,1)""", (U, tid, "## 🎯 Objetivos", "{}", json.dumps(fuentes), modelo, time.time()))
+        leccion(self.t0, "claude-opus-5-5", [{"titulo": "Propia", "url": "https://propia.org/a", "tipo": "paper"}])
+        leccion(self.t1, "claude-opus-5-5", [{"titulo": "Verificada", "url": "https://verificada.org/b", "tipo": "paper"},
+                                             {"titulo": "Propia repetida", "url": "https://propia.org/a", "tipo": "web"}])
+        leccion(self.t2, "modelo-local-test", [{"titulo": "Sin verificar", "url": "https://local.org/c", "tipo": "paper"}])
+
+    def test_lecturas_de_un_tema(self):
+        r = self.reco.para_tema(U, self.t0, {nt.GLOBAL: 2})
+        urls = [l["u"] for l in r["lecturas"]]
+        self.assertIn("https://verificada.org/b", urls)          # de otra lección verificada del módulo
+        self.assertNotIn("https://propia.org/a", urls)            # ya está en las fuentes de la lección abierta
+        self.assertNotIn("https://local.org/c", urls)             # fuente de la IA local: no se recomienda
+        self.assertEqual(len(urls), len(set(urls)))
+        self.assertTrue(urls.index("https://verificada.org/b") < len(urls))
+
+    def test_area_ajena_al_perfil(self):
+        self.assertIn("error", self.reco.para_area(U, "quimica", {nt.GLOBAL: 2}))
+        q = cur.areas()["quimica"]["modulos"][0]["temas_obj"][0]["id"]
+        self.assertIn("error", self.reco.para_tema(U, q, {nt.GLOBAL: 2}))
+
+
+class ContenidosComunidad(unittest.TestCase):
+    """Apartado independiente contenidos/: listado e importación sin pisar lecciones existentes."""
+
+    def test_importar_y_no_sobrescribir(self):
+        import argparse, gzip, sqlite3
+        sys.path.insert(0, str(RAIZ / "contenidos"))
+        import importar as imp
+        # Verificar que --listar corre limpio si contenidos/indice.json existe
+        if (RAIZ / "contenidos" / "indice.json").exists():
+            self.assertEqual(imp.listar(), 0)
+        # Crear un paquete temporal mínimo e importarlo en una copia temporal
+        with tempfile.TemporaryDirectory() as tmp_datos, tempfile.TemporaryDirectory() as tmp_pkg:
+            pkg = Path(tmp_pkg)
+            (pkg / "rutas").mkdir()
+            (pkg / "lecciones").mkdir()
+            (pkg / "rutas" / "areas_propias.json").write_text(json.dumps([
+                {"id": "p_demo", "nombre": "Demo", "grupo": "Ciencias básicas", "modulos": []}
+            ]), encoding="utf-8")
+            (pkg / "rutas" / "rutas_vivas.json").write_text(json.dumps([
+                {"area": "matematicas", "datos": {"modulos_extra": []}}
+            ]), encoding="utf-8")
+            with gzip.open(pkg / "lecciones" / "matematicas.json.gz", "wt", encoding="utf-8") as f:
+                json.dump({"area": "matematicas", "lecciones": [{
+                    "tema": "matematicas.aritmetica.0",
+                    "contenido": "## 🎯 Objetivos\n1. Probar.\n\n## Parte 1 · Base\nTexto.",
+                    "ejercicios": {"quiz": []},
+                    "fuentes": [],
+                    "modelo": "comunidad",
+                    "version": 3,
+                    "completa": 1,
+                }]}, f)
+            antes = imp.CONTENIDOS
+            try:
+                imp.CONTENIDOS = pkg
+                args = argparse.Namespace(usuario="local", datos=tmp_datos, area=None,
+                                          sin_rutas=False, sin_lecciones=False, sobrescribir=False)
+                self.assertEqual(imp.importar(args), 0)
+                db = sqlite3.connect(str(Path(tmp_datos) / "academia.db"))
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM area_extra WHERE usuario='local'").fetchone()[0], 1)
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM ruta_extra WHERE usuario='local'").fetchone()[0], 1)
+                self.assertTrue(db.execute("SELECT contenido FROM leccion WHERE usuario='local' AND tema='matematicas.aritmetica.0'").fetchone()[0].startswith("## 🎯 Objetivos"))
+                # Segunda importación sin --sobrescribir no pisa cambios del usuario
+                db.execute("UPDATE leccion SET contenido='propia' WHERE usuario='local' AND tema='matematicas.aritmetica.0'")
+                db.commit()
+                self.assertEqual(imp.importar(args), 0)
+                self.assertEqual(db.execute("SELECT contenido FROM leccion WHERE usuario='local' AND tema='matematicas.aritmetica.0'").fetchone()[0], "propia")
+                db.close()
+            finally:
+                imp.CONTENIDOS = antes
 
 
 if __name__ == "__main__":

@@ -1,0 +1,52 @@
+{
+  "id": "educacion",
+  "nombre": "Educación, pedagogía y sistemas educativos",
+  "icono": "🎓",
+  "grupo": "Humanidades",
+  "color": "#6c5ce7",
+  "descripcion": "Cómo se organiza la educación en el mundo (CINE/UNESCO y currículos por continente), educación inicial, pedagogía por dominios, formación dual y evaluación.",
+  "recursos": [
+    {"t": "UNESCO — Clasificación CINE / ISCED", "u": "https://uis.unesco.org/"},
+    {"t": "Ministerio de Educación Nacional de Colombia", "u": "https://www.mineducacion.gov.co/"},
+    {"t": "OCDE — Educación y Panorama PISA", "u": "https://www.oecd.org/education/"},
+    {"t": "The Learning Scientists — pedagogía con evidencia", "u": "https://www.learningscientists.org/"}
+  ],
+  "modulos": [
+    {"id": "sistemas_mundo", "t": "Sistemas educativos del mundo y niveles CINE", "nivel": 1, "pre": [], "temas": [
+      "Clasificación Internacional Normalizada de la Educación (CINE / ISCED)|niveles 0 a 8 de la UNESCO",
+      "Educación en Colombia y América Latina|preescolar, básica, media académica/técnica y superior",
+      "Modelos de América del Norte y Europa|créditos, AP/Honors, ramas y formación dual",
+      "Modelos de Asia, Oceanía y África|currículo nacional, educación moral, HASS y habilidades para la vida",
+      "Educación formal, no formal e informal|aprendizaje autónomo a lo largo de la vida"]},
+    {"id": "inicial", "t": "Educación inicial y primera infancia", "nivel": 1, "pre": ["sistemas_mundo"], "temas": [
+      "Desarrollo psicomotor y juego en la primera infancia",
+      "Desarrollo socioemocional y apego en edad preescolar",
+      "Iniciación a la lectura, lenguaje y conciencia fonológica",
+      "Iniciación al pensamiento lógico-matemático|conteo, formas y clasificación"]},
+    {"id": "pedagogia", "t": "Pedagogía y diseño de enseñanza", "nivel": 2, "pre": ["sistemas_mundo", "psicologia.dominios_aprendizaje"], "temas": [
+      "Corrientes pedagógicas|constructivismo, aprendizaje significativo y enfoque por competencias",
+      "Planificar por dominios de Bloom|objetivos cognitivos, psicomotores y afectivos",
+      "Enseñanza de habilidades prácticas y tutoría paso a paso|andamiaje y modelado",
+      "Educación cívica, moral y convivencia escolar en perspectiva comparada"]},
+    {"id": "dual_tecnica", "t": "Educación técnica, vocacional y formación dual", "nivel": 3, "pre": ["pedagogia"], "temas": [
+      "El modelo de educación dual (Alemania, Suiza)|estudio y práctica en empresa",
+      "Media técnica y formación para el trabajo|Colombia (SENA) y marcos de cualificaciones",
+      "Aprendizaje basado en proyectos (ABP) y en problemas",
+      "Transferencia de lo aprendido al entorno laboral real"]},
+    {"id": "evaluacion", "t": "Evaluación del aprendizaje y retroalimentación", "nivel": 3, "pre": ["pedagogia"], "temas": [
+      "Evaluación diagnóstica, formativa y sumativa",
+      "Diseño de rúbricas y criterios observables",
+      "Retroalimentación efectiva|corregir errores sin desmotivar",
+      "Evitar la ilusión de competencia y el sesgo en exámenes"]},
+    {"id": "politica_calidad", "t": "Currículo, calidad y política educativa", "nivel": 4, "pre": ["evaluacion", "sociales.politica"], "temas": [
+      "Currículo centralizado frente a currículo descentralizado",
+      "Evaluaciones internacionales (PISA, TIMSS)|qué miden y sus límites",
+      "Equidad educativa, brechas digitales y educación rural",
+      "Educación inclusiva y diseño universal para el aprendizaje (DUA)"]},
+    {"id": "horizonte", "t": "Horizonte educativo", "nivel": 5, "pre": ["politica_calidad", "psicologia.tecnicas_estudio"], "temas": [
+      "Sistemas de tutoría inteligente y aprendizaje adaptativo",
+      "Microcredenciales y validación de aprendizaje autónomo",
+      "Educación en ingeniería para la era de la IA",
+      "Investigación actual en ciencias del aprendizaje"]}
+  ]
+}

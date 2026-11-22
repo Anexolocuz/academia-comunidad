@@ -386,12 +386,15 @@ DICCIONARIO = [
      "Verificación objetiva (el código se ejecuta); métrica «ejercicios resueltos sin ver la solución»."),
     ("prueba_diferida", "Pruebas diferidas (a los 3, 14 y 45 días de dominar un tema): sus preguntas, tus respuestas y el resultado.",
      "Estado de dominio 5 «domina» y la métrica de pruebas diferidas aprobadas."),
+    ("reto_respuesta / reto", "Cada respuesta de los ⚡ Retos (pregunta, tema, nivel, si acertaste y en cuánto tiempo) y los retos con sus preguntas.",
+     "Calcular tu 🧠 Índice (se recalcula desde estas respuestas), récord, evolución y qué estudiar después de un reto."),
     ("nota", "Notas sobre ti guardadas por Hermes o por ti.", "Contexto adicional para Hermes."),
     ("noticia / sintesis", "Noticias descargadas y su análisis (no son datos personales).",
      "Pestaña Noticias."),
 ]
 TABLAS_USUARIO = ["perfil", "avance", "tarjeta", "repaso", "actividad", "cuaderno", "entrega", "tarea", "chat", "objetivo", "area_extra",
-                  "chequeo", "instantanea", "nota", "codigo_ejercicio", "codigo_intento", "prueba_diferida"]
+                  "chequeo", "instantanea", "nota", "codigo_ejercicio", "codigo_intento", "prueba_diferida",
+                  "reto_respuesta", "reto"]
 
 
 

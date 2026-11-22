@@ -1,5 +1,9 @@
 {
-  "id": "quimica", "nombre": "Química", "icono": "⚗", "grupo": "Ciencias básicas", "color": "#fdcb6e",
+  "id": "quimica",
+  "nombre": "Química",
+  "icono": "⚗",
+  "grupo": "Ciencias básicas",
+  "color": "#fdcb6e",
   "descripcion": "La ciencia de la materia: materiales, baterías, semiconductores, energía y vida.",
   "recursos": [
     {"t": "OpenStax — Química 2e y Química: átomos primero", "u": "https://openstax.org/subjects/science"},
@@ -63,6 +67,12 @@
       "Baterías de nueva generación y almacenamiento de energía",
       "Captura de carbono y combustibles sintéticos",
       "Química de la vida sintética",
-      "Tendencias actuales|avances recientes"]}
+      "Tendencias actuales|avances recientes"]},
+    {"id": "acidos_bases", "t": "Ácidos, bases y química en disolución", "nivel": 2, "pre": ["estequiometria"], "temas": [
+      "Disoluciones y concentración|molaridad, ppm",
+      "Ácidos y bases|Arrhenius, Brønsted-Lowry, Lewis",
+      "pH, pOH y soluciones amortiguadoras",
+      "Titulaciones y curvas de valoración",
+      "Solubilidad y precipitación"]}
   ]
 }

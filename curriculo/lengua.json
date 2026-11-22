@@ -1,0 +1,69 @@
+{
+  "id": "lengua",
+  "nombre": "Lengua castellana y literatura",
+  "icono": "✒",
+  "grupo": "Humanidades",
+  "color": "#c0392b",
+  "descripcion": "Leer, escribir y argumentar con precisión: gramática, redacción académica y técnica, literatura y lingüística, de lo básico a la frontera.",
+  "recursos": [
+    {"t": "Fundéu — dudas del español", "u": "https://www.fundeu.es/"},
+    {"t": "Biblioteca Virtual Miguel de Cervantes", "u": "https://www.cervantesvirtual.com/"},
+    {"t": "Purdue OWL — escritura académica (inglés)", "u": "https://owl.purdue.edu/"}
+  ],
+  "modulos": [
+    {"id": "comunicacion", "t": "Comunicación y comprensión lectora", "nivel": 1, "pre": [], "temas": [
+      "Elementos de la comunicación|emisor, mensaje, canal, contexto",
+      "Niveles de lectura|literal, inferencial, crítico",
+      "Idea principal, tesis y estructura de un texto",
+      "Tipologías textuales|narrativo, expositivo, argumentativo, instructivo",
+      "Resumen, paráfrasis y mapas conceptuales"]},
+    {"id": "gramatica", "t": "Gramática y ortografía del español", "nivel": 1, "pre": ["comunicacion"], "temas": [
+      "Categorías gramaticales|sustantivo, verbo, adjetivo, adverbio, preposición",
+      "La oración simple y compuesta|sujeto, predicado, complementos",
+      "Concordancia y conjugación verbal|modos y tiempos",
+      "Acentuación y tildes|reglas generales y diacríticas",
+      "Puntuación|coma, punto y coma, dos puntos",
+      "Errores frecuentes y cómo resolver dudas|norma y uso"]},
+    {"id": "redaccion", "t": "Redacción y argumentación", "nivel": 2, "pre": ["gramatica"], "temas": [
+      "Del párrafo al texto|cohesión y coherencia, conectores",
+      "Argumentación|tesis, argumentos, contraargumentos y falacias",
+      "Escritura académica|ensayo, informe, citas y normas APA",
+      "Redacción técnica|manuales, especificaciones, correos profesionales",
+      "Revisión y edición de textos|claridad, concisión, lenguaje sencillo"]},
+    {"id": "literatura", "t": "Literatura: géneros y lectura crítica", "nivel": 2, "pre": ["comunicacion"], "temas": [
+      "Géneros literarios|narrativa, lírica, drama, ensayo",
+      "Figuras retóricas y análisis de poemas",
+      "Narratología|narrador, tiempo, personajes",
+      "Comentario de texto literario",
+      "Literatura y sociedad|contexto histórico de una obra"]},
+    {"id": "hispanoamericana", "t": "Literatura hispanoamericana y universal", "nivel": 3, "pre": ["literatura"], "temas": [
+      "Del Siglo de Oro al Romanticismo|Cervantes, Quevedo, Bécquer",
+      "Modernismo y vanguardias|Darío, Vallejo, Borges",
+      "El boom latinoamericano|García Márquez, Cortázar, Vargas Llosa, Fuentes",
+      "Clásicos universales|Homero, Shakespeare, Dostoievski, Kafka",
+      "Literatura contemporánea en español"]},
+    {"id": "linguistica", "t": "Lingüística", "nivel": 3, "pre": ["gramatica"], "temas": [
+      "Qué estudia la lingüística|signo, lengua y habla",
+      "Fonética y fonología del español",
+      "Morfología y sintaxis",
+      "Semántica y pragmática|significado, contexto, actos de habla",
+      "Sociolingüística|variedades del español, registro"]},
+    {"id": "discurso", "t": "Discurso, retórica y oratoria", "nivel": 4, "pre": ["redaccion"], "temas": [
+      "Retórica clásica|ethos, pathos, logos",
+      "Análisis crítico del discurso|medios y política",
+      "Oratoria y presentaciones orales|estructura y voz",
+      "Escritura persuasiva y divulgación científica",
+      "Debate y negociación argumentada"]},
+    {"id": "horizonte", "t": "Horizonte: lenguaje y tecnología", "nivel": 5, "pre": ["linguistica", "discurso"], "temas": [
+      "Lingüística computacional y procesamiento del lenguaje natural|cómo «leen» las máquinas",
+      "Escritura con IA|qué cambia en autoría y estilo",
+      "Lectura digital y comprensión|evidencia sobre pantallas y papel",
+      "Lenguas en riesgo y diversidad lingüística",
+      "Debates actuales del español|norma, inclusión y cambio"]},
+    {"id": "clasicas", "t": "Lenguas clásicas: latín, griego y etimología", "nivel": 3, "pre": ["gramatica"], "temas": [
+      "Latín elemental|pronunciación, casos y declinaciones",
+      "Sintaxis y textos básicos en latín|verbos, concordancia y traducción",
+      "Griego clásico elemental|alfabeto, flexión nominal y vocabulario base",
+      "Raíces grecolatinas en español|prefijos, sufijos y léxico científico-técnico"]}
+  ]
+}

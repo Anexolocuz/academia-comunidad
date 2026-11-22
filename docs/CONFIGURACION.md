@@ -69,7 +69,10 @@ Lo escribe el instalador o la configuración automática. Tras editarlo a mano, 
   "modelos_compatibles": [],                // modelos de OTRAS apps que pueden estar cargados a la vez sin esperar
   "searx_url": "",                          // SearXNG; vacío = sin búsqueda web
   "aigate_url": "",                         // monitor de GPU: URL que devuelve JSON {"busy": true|false} o {"game": …}
-  "trabajos_paralelos": 1,                  // tareas de IA a la vez (= llama-server --parallel N)
+  "trabajos_paralelos": 1,                  // tareas de IA a la vez (= llama-server --parallel N; 0 = carril local en pausa)
+  "fondo_a_la_vez": 1,                      // de esas, cuántas de fondo (lecciones, noticias); 0 = sin límite. Con 1 cada
+                                            // lección termina antes y el resto de slots queda para lo que pides en pantalla;
+                                            // con 2 slots, 2 de fondo producen algo más en total pero cada una va más lenta
   "lecciones_adelantadas": 2,               // lecciones listas sin leer por persona (0 = solo al abrirlas)
   "noticias_a_fondo_por_persona": 8,        // noticias diarias a máxima profundidad por persona
   "regiones_por_defecto": {"global": 2},    // regiones de noticias (0-3) de quien aún no eligió las suyas

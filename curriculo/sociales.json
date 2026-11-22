@@ -1,0 +1,65 @@
+{
+  "id": "sociales",
+  "nombre": "Ciencias sociales y ciudadanía",
+  "icono": "🗺",
+  "grupo": "Ciencias sociales",
+  "color": "#16a085",
+  "descripcion": "Geografía, Estado, Constitución y democracia, sociología y derechos humanos: entender la sociedad y participar en ella.",
+  "recursos": [
+    {"t": "Constitución de Colombia (Constitute Project)", "u": "https://www.constituteproject.org/constitution/Colombia_2015"},
+    {"t": "OpenStax — Introduction to Sociology", "u": "https://openstax.org/details/books/introduction-sociology-3e"},
+    {"t": "OpenStax — Introduction to Political Science", "u": "https://openstax.org/details/books/introduction-political-science"},
+    {"t": "Declaración Universal de los Derechos Humanos (ONU)", "u": "https://www.un.org/es/about-us/universal-declaration-of-human-rights"},
+    {"t": "Our World in Data", "u": "https://ourworldindata.org/"}
+  ],
+  "modulos": [
+    {"id": "geografia_fisica", "t": "Geografía física", "nivel": 1, "pre": [], "temas": [
+      "Coordenadas, mapas y escalas",
+      "Relieve y tectónica de placas en el paisaje",
+      "Climas y biomas del mundo",
+      "Hidrografía y cuencas",
+      "Geografía física de Colombia|regiones naturales"]},
+    {"id": "geografia_humana", "t": "Geografía humana y económica", "nivel": 1, "pre": ["geografia_fisica"], "temas": [
+      "Población|demografía, pirámides, migraciones",
+      "Ciudades y urbanización",
+      "Actividades económicas y territorio",
+      "Geopolítica y fronteras",
+      "Desigualdad territorial en Colombia y el mundo"]},
+    {"id": "estado", "t": "Estado, Constitución y democracia", "nivel": 1, "pre": [], "temas": [
+      "Qué es el Estado|poder, territorio, población",
+      "Formas de gobierno y separación de poderes",
+      "La Constitución de Colombia de 1991|principios y estructura",
+      "Derechos fundamentales y mecanismos de protección|tutela, acción popular",
+      "Participación ciudadana|voto, consulta, cabildo"]},
+    {"id": "sociologia", "t": "Sociología", "nivel": 2, "pre": ["geografia_humana"], "temas": [
+      "Qué estudia la sociología|hechos sociales",
+      "Socialización, cultura e identidad",
+      "Estratificación y movilidad social",
+      "Instituciones|familia, educación, trabajo",
+      "Métodos de investigación social|encuestas, entrevistas, etnografía"]},
+    {"id": "derechos", "t": "Derechos humanos y convivencia", "nivel": 2, "pre": ["estado"], "temas": [
+      "Historia y fundamento de los derechos humanos",
+      "Sistema universal e interamericano de protección",
+      "Conflicto, resolución pacífica y mediación",
+      "Diversidad, inclusión y no discriminación",
+      "Derecho internacional humanitario"]},
+    {"id": "politica", "t": "Ciencia política", "nivel": 3, "pre": ["estado", "sociologia"], "temas": [
+      "Sistemas electorales y partidos",
+      "Políticas públicas|ciclo y evaluación",
+      "Relaciones internacionales|realismo, liberalismo, constructivismo",
+      "Opinión pública y medios",
+      "Corrupción, transparencia y rendición de cuentas"]},
+    {"id": "investigacion", "t": "Investigación social cuantitativa", "nivel": 4, "pre": ["sociologia", "matematicas.probabilidad"], "temas": [
+      "Diseño de encuestas y muestreo",
+      "Indicadores sociales|pobreza multidimensional, Gini, IDH",
+      "Causalidad en ciencias sociales|experimentos y cuasiexperimentos",
+      "Datos abiertos y análisis reproducible",
+      "Ética de la investigación con personas"]},
+    {"id": "horizonte", "t": "Horizonte: sociedad digital", "nivel": 5, "pre": ["politica", "investigacion"], "temas": [
+      "Democracia y redes sociales|polarización y desinformación",
+      "Ciencias sociales computacionales",
+      "Futuro del trabajo y automatización",
+      "Migración y cambio climático",
+      "Gobernanza global de la tecnología"]}
+  ]
+}

@@ -1,0 +1,1081 @@
+[
+  {
+    "area": "administracion",
+    "datos": {
+      "temas": {
+        "fundamentos": [
+          "Alfabetización digital avanzada y gestión de IA generativa|Uso de IA para automatización de tareas rutinarias y gestión de flujos de trabajo.",
+          "Automatización de flujos de trabajo (Zapier/Make)|Orquestación de herramientas para la productividad personal.",
+          "Orquestación de agentes de IA|Transición de la gestión manual de tareas a la coordinación de agentes autónomos para ejecutar procesos.",
+          "Alfabetización en prompts para asistencia administrativa|Técnicas de ingeniería de prompts para optimizar tareas de gestión diaria.",
+          "Auditoría de registros y control horario digital|Verificación y supervisión de registros de actividad en entornos de trabajo automatizados"
+        ],
+        "proyectos": [
+          "Metodologías ágiles (Scrum y Kanban)|Implementación práctica de marcos de trabajo ágiles para gestión de resultados."
+        ],
+        "operaciones": [
+          "Gestión de procesos con BPMN y sistemas ERP|Modelado de procesos de negocio y uso de software de gestión (SAP/Odoo) para control de inventarios y caja.",
+          "LLMs en la gestión de la cadena de suministro|Aplicación de modelos de lenguaje de gran tamaño para mejorar la toma de decisiones e innovación en la cadena de suministro",
+          "Administración de sistemas ERP y entornos SaaS integrados|Gestión y conectividad de plataformas de software como servicio en la cadena de valor."
+        ],
+        "estrategia": [
+          "Análisis de datos (SQL) y visualización (Power BI/Tableau)|Transformación de datos en insights para la toma de decisiones estratégicas.",
+          "Definición y seguimiento de OKRs|Alineación de objetivos estratégicos con resultados clave medibles."
+        ],
+        "direccion": [
+          "Gestión de riesgos y cumplimiento (Compliance)|Marcos normativos y mitigación de riesgos legales/operativos.",
+          "Modelos de simulación para la toma de decisiones|Uso de modelos matemáticos y computacionales para predecir escenarios.",
+          "Ciberseguridad en la gestión de datos|Fundamentos de protección de activos digitales y mitigación de riesgos cibernéticos en la toma de decisiones.",
+          "Finanzas corporativas impulsadas por IA|Uso de Machine Learning, NLP y RPA para mejorar la eficiencia y la toma de decisiones financieras en la gobernanza corporativa",
+          "Integración de biodiversidad en marcos ESG|Incorporación de la contabilidad de extinción ecocéntrica y biodiversidad en la estrategia de sostenibilidad",
+          "Contabilidad de gestión ambiental|Uso de la contabilidad de gestión ambiental para la toma de decisiones estratégicas"
+        ],
+        "horizonte": [
+          "Gobernanza de datos|Políticas, estándares y seguridad en el manejo de activos de información.",
+          "IoT y tecnologías inteligentes en entornos urbanos y empresariales|Integración de sensores y conectividad para la gestión de Smart Cities y procesos.",
+          "IA aplicada a la salud mental y bienestar organizacional|Uso de herramientas tecnológicas para monitorear y mejorar el bienestar de los equipos.",
+          "IA contemplativa y ética de la conciencia artificial|Exploración de las fronteras de la inteligencia artificial y su interacción con la conciencia.",
+          "IA aplicada a la innovación y la investigación|Uso de modelos de IA para acelerar ciclos de innovación y descubrimiento de nuevas oportunidades de negocio"
+        ],
+        "personas": [
+          "Gestión de equipos híbridos y remotos|Comunicación y coordinación en entornos de trabajo no presenciales (N2)."
+        ],
+        "marketing": [
+          "Gestión de CRM (Salesforce/HubSpot)|Administración de la relación con el cliente mediante software especializado (N3)."
+        ]
+      },
+      "modulos": []
+    }
+  },
+  {
+    "area": "agricultura",
+    "datos": {
+      "temas": {
+        "agronomia": [
+          "Nutrición de precisión|Transición de fertilización convencional a nutrición basada en requerimientos específicos del cultivo y suelo"
+        ],
+        "agroindustria": [
+          "Trazabilidad digital|Implementación de estándares de sostenibilidad y seguimiento digital en la cadena de valor"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 Gestión de datos y conectividad agrícola",
+          "nivel": 4,
+          "pre": [
+            "agricultura.agritech"
+          ],
+          "temas": [
+            "Telemetría en gestión de riego|Transmisión de datos remotos para optimización de recursos",
+            "Protocolos de comunicación IoT|Estándares para la interconexión de sensores en campo",
+            "Integración de datos multiespectrales|Fusión de información de drones con modelos de rendimiento",
+            "Gestión de plataformas de datos agronómicos|Uso de software para la toma de decisiones basada en datos"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "ambiente",
+    "datos": {
+      "temas": {
+        "contaminacion": [
+          "Estrategias de economía circular industrial|Diseño de sistemas cerrados de recursos y procesos de aprovechamiento en la industria."
+        ],
+        "modelacion": [
+          "Análisis de datos ambientales masivos (Big Data)|Procesamiento y gestión de grandes volúmenes de datos provenientes de sensores y satélites."
+        ],
+        "horizonte": [
+          "Auditoría de estándares ESG|Evaluación de criterios ambientales, sociales y de gobernanza en organizaciones.",
+          "Evaluación de viabilidad de captura de carbono|Análisis técnico y económico de tecnologías para la remoción de CO2."
+        ]
+      },
+      "modulos": []
+    }
+  },
+  {
+    "area": "biologia",
+    "datos": {
+      "temas": {
+        "celula": [
+          "Monitoreo de parámetros en biorreactores y producción de biológicos|Control de variables fisicoquímicas para el cultivo celular a escala industrial."
+        ],
+        "bioinformatica": [
+          "Gestión de datos experimentales mediante LIMS|Sistemas de gestión de información de laboratorio para trazabilidad digital.",
+          "Modelado de redes metabólicas y biología de sistemas|Representación matemática de interacciones moleculares para predicción de fenotipos.",
+          "Pipelines de análisis de proteómica y transcriptómica|Flujos de trabajo computacionales para el procesamiento de datos de expresión génica y proteica.",
+          "Desarrollo de scripts para el procesamiento automatizado de datos ómicos|Automatización de flujos de trabajo computacionales para manejar grandes volúmenes de datos genómicos y proteómicos.",
+          "Modelos fundacionales de lenguaje para proteínas y secuencias|Uso de LLMs bilingües aplicados a la predicción de estructura y función proteica tras la era AlphaFold2.",
+          "Modelos generativos de contexto largo en genómica|Implementación de arquitecturas tipo GENERator para el análisis de secuencias genómicas extensas."
+        ],
+        "horizonte": [
+          "Marcos éticos para biología sintética y medicina personalizada|Debate bioético sobre la manipulación de la vida y la privacidad genómica.",
+          "Arquitectura de sistemas biológicos de novo|Diseño y construcción de circuitos genéticos y sistemas biológicos desde cero mediante biología sintética.",
+          "Ingeniería de comunidades microbianas|Diseño y control de microbiotas sintéticas para aplicaciones en medicina de precisión.",
+          "IA multimodal en diagnóstico clínico|Integración de modelos fundacionales de radiología sintética para el diagnóstico pan-tumoral."
+        ],
+        "bioingenieria": [
+          "Integración de señales biomédicas en sistemas de control|Cierre del lazo de control entre la señal biológica detectada y la respuesta del actuador mecánico/electrónico."
+        ],
+        "neuro": [
+          "Diseño de interfaces cerebro-computador (BCI)|Principios de transducción de señales neuronales, captura de biopotenciales y decodificación de intención mediante hardware especializado"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 Automatización y Robótica de Laboratorio",
+          "nivel": 3,
+          "pre": [
+            "biologia.celula",
+            "biologia.bioinformatica"
+          ],
+          "temas": [
+            "Automatización de pipeteo y estaciones de trabajo robóticas|Uso de hardware robótico para la ejecución de protocolos de alta precisión y volumen.",
+            "Sistemas de control de procesos biotecnológicos|Implementación de algoritmos de control en entornos de cultivo celular.",
+            "Interconexión de hardware de laboratorio con LIMS|Integración de sensores y actuadores con sistemas de gestión de datos.",
+            "Cumplimiento de normativas GMP/GLP en entornos automatizados|Aplicación de Buenas Prácticas de Manufactura y Laboratorio en la operación de hardware y software biotecnológico."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 biologia.calidad_regulatoria",
+          "nivel": 3,
+          "pre": [
+            "biologia.upd1",
+            "biologia.celula"
+          ],
+          "temas": [
+            "Sistemas de Gestión de Calidad (QMS) en biotecnología|Estructura y control de calidad en procesos biológicos.",
+            "Validación de sistemas computarizados y software (CSV)|Aseguramiento de la integridad de datos en LIMS y pipelines de bioinformática.",
+            "Protocolos de Bioseguridad y Gestión de Residuos|Normativa internacional para el manejo de agentes biológicos y desechos químicos.",
+            "Auditoría de procesos y trazabilidad de muestras|Control de la cadena de custodia desde la toma de muestra hasta el análisis de datos.",
+            "Gestión de riesgos en procesos biotecnológicos|Identificación y mitigación de fallos en la producción de biológicos."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "ciberseguridad",
+    "datos": {
+      "temas": {
+        "fundamentos": [
+          "Identificación de ataques de ingeniería social mediante IA|Detección de deepfakes, phishing generado por LLMs y manipulación sintética."
+        ],
+        "grc": [
+          "Evaluación de riesgos en la cadena de suministro de software|Análisis de dependencias, SBOM (Software Bill of Materials) y riesgos de terceros.",
+          "Comunicación de riesgo para la alta dirección|Traducción de métricas técnicas a impacto financiero y de negocio"
+        ],
+        "horizonte": [
+          "Defensa contra ataques adversarios en modelos de IA|Envenenamiento de datos (data poisoning), ataques de evasión y extracción de modelos.",
+          "Diseño de arquitectura de seguridad post-cuántica|Algoritmos resistentes a la computación cuántica y transición de infraestructura.",
+          "Seguridad de la cadena de suministro de software (Software Supply Chain Security)|Protección de artefactos, dependencias y pipelines de CI/CD.",
+          "Seguridad en transacciones financieras con IA y Computación Cuántica|Protección de sistemas financieros contra amenazas duales derivadas del avance de la IA y la computación cuántica."
+        ],
+        "defensa": [
+          "Threat Hunting basado en TTPs (MITRE ATT&CK)|Búsqueda proactiva de amenazas que han evadido controles automáticos utilizando patrones de comportamiento.",
+          "Monitoreo y respuesta con EDR (Endpoint Detection and Response)|Uso de herramientas de detección y respuesta en puntos finales para visibilidad profunda del host."
+        ],
+        "redes": [
+          "Gestión de identidades y accesos (IAM) en entornos Zero Trust|Implementación de controles de identidad como nuevo perímetro de red."
+        ],
+        "nube": [
+          "Seguridad en el ciclo de vida de desarrollo (SDLC)|Integración de escaneos de seguridad en pipelines de CI/CD",
+          "Seguridad en aplicaciones cloud-native|Transición segura de aplicaciones basadas en contenedores a arquitecturas nativas de la nube",
+          "Privacidad y técnicas trust-centric|Implementación de técnicas de mejora de la privacidad y confianza en arquitecturas cloud-native",
+          "Orquestación de cargas de trabajo en el Edge|Seguridad en la despliegue y gestión de contenedores en entornos de computación perimetral (Edge Computing)."
+        ],
+        "malware": [
+          "Uso de LLM para análisis de código y malware|Aplicación de modelos de lenguaje extensos para asistir en la ingeniería inversa y análisis de software malicioso",
+          "Ataques adversarios en detectores de Android|Técnicas para evadir detectores de malware en Android mediante ataques a nivel de características (feature-level)",
+          "Defensa de Android mediante Deep Learning|Implementación de modelos de aprendizaje profundo para la detección de malware en sistemas operativos móviles",
+          "Purificación de ataques adversarios|Técnicas para mitigar ataques de evasión mediante purificación en detectores de malware Android"
+        ],
+        "ot": [
+          "Resiliencia ante transformaciones digitales|Gestión de la resiliencia empresarial ante los desafíos de la transformación digital en entornos industriales"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 ciberseguridad.laboratorios_practicos",
+          "nivel": 1,
+          "pre": [
+            "ciberseguridad.linux",
+            "ciberseguridad.redes"
+          ],
+          "temas": [
+            "Configuración de entornos de virtualización y sandboxing|Uso de Proxmox, VMware o VirtualBox para entornos aislados.",
+            "Despliegue de laboratorios de ataque y defensa (Purple Teaming)|Montaje de entornos controlados para pruebas de herramientas.",
+            "Uso de plataformas de entrenamiento hands-on|Integración de plataformas tipo TryHackMe o HackTheBox en el flujo de estudio.",
+            "Documentación técnica de hallazgos en laboratorio|Práctica de registro de procesos para auditoría."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 Seguridad en Infraestructuras Críticas y Convergencia IT/OT",
+          "nivel": 4,
+          "pre": [
+            "ciberseguridad.ot",
+            "ciberseguridad.redes"
+          ],
+          "temas": [
+            "Seguridad en sistemas de control de procesos críticos|Protección de infraestructuras esenciales frente a ataques dirigidos.",
+            "Convergencia IT/OT y gestión de riesgos híbridos|Integración segura de redes corporativas con redes de control industrial.",
+            "Resiliencia operativa en entornos industriales|Estrategias para mantener la continuidad en caso de compromiso de sistemas OT."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "etica",
+    "datos": {
+      "temas": {
+        "digital": [
+          "Auditoría de cumplimiento de normativas de privacidad de datos|Verificación técnica y legal de la gestión de datos según estándares internacionales.",
+          "Gobernanza de IA y marcos regulatorios internacionales|Implementación de estructuras de control para el despliegue de sistemas de IA.",
+          "Colaboración Humano-IA y Prompt Engineering ético|Uso responsable de modelos generativos y mitigación de riesgos en la interacción con agentes inteligentes.",
+          "Evaluación de riesgos de sesgo en conjuntos de datos operativos|Identificación técnica de sesgos en la fase de recolección y preprocesamiento.",
+          "Implementación de técnicas de explicabilidad (XAI) en modelos de ML|Uso de métodos para hacer que las decisiones de modelos 'caja negra' sean comprensibles.",
+          "Gestión de la transparencia en sistemas de decisión automatizada|Protocolos para asegurar que el flujo de decisión algorítmica sea auditable.",
+          "Supervisión de sesgos en modelos de IA generativa|Monitoreo continuo de sesgos y deriva ética en sistemas de generación de contenido"
+        ],
+        "negocios": [
+          "Integración de la ética en la estrategia de alta dirección|Uso de marcos éticos para la toma de decisiones corporativas de alto nivel.",
+          "Mitigación de riesgos reputacionales tecnológicos|Gestión de las consecuencias de imagen derivadas de fallos o sesgos tecnológicos.",
+          "Visión estratégica de impacto social y sostenibilidad global|Planificación de largo plazo alineando objetivos de negocio con bienestar global.",
+          "Integración de la ética en la estrategia de negocio|Alineación de los valores éticos con los objetivos financieros y operativos de la organización.",
+          "Diseño de marcos de reporte ESG para inversores|Creación de métricas de impacto ambiental, social y de gobernanza para mercados financieros.",
+          "Mitigación de riesgos reputacionales por uso de IA generativa|Gestión de la ética en la creación de contenido y propiedad intelectual mediante IA.",
+          "Interpretación estratégica de datos para la toma de decisiones|Uso ético de analítica avanzada para la dirección de empresas"
+        ],
+        "aplicada": [
+          "Dilemas éticos en la cadena de suministro|Evaluación de integridad y estándares éticos en la logística, proveedores y procesos de adquisición."
+        ],
+        "horizonte": [
+          "Marcos de seguridad para modelos de interfaces neuronales embebidas|Protocolos éticos y de seguridad para la integración biológica de implantes",
+          "Seguridad de modelos en interfaces neuronales embebidas|Marcos de seguridad unificados cuando los certificados de seguridad fallan en implantes",
+          "Integración biológica en interfaces biohíbridas|Consideraciones éticas sobre la integración de implantes neuronales con tejido biológico"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 Ética de la Información y Datos",
+          "nivel": 1,
+          "pre": [],
+          "temas": [
+            "Alfabetización digital para la gestión ética de datos|Fundamentos de manejo de información con integridad.",
+            "Integridad en la documentación de procesos|Reportes y trazabilidad de conductas éticas.",
+            "Principios de veracidad y calidad de la información|Evitar la desinformación desde la base técnica."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 Ética de la Gestión y Liderazgo",
+          "nivel": 4,
+          "pre": [
+            "etica.teorias",
+            "etica.negocios"
+          ],
+          "temas": [
+            "Liderazgo de equipos multidisciplinarios en crisis de valores|Gestión de conflictos éticos en equipos diversos y toma de decisiones bajo presión moral.",
+            "Pensamiento sistémico aplicado a procesos éticos|Análisis de cómo las decisiones individuales afectan la integridad de sistemas complejos.",
+            "Responsabilidad proactiva vs. cumplimiento legal|Transición del enfoque reactivo (normativo) al enfoque preventivo (gestión de incertidumbre)."
+          ]
+        },
+        {
+          "id": "upd3",
+          "t": "🆕 etica.gobernanza_datos",
+          "nivel": 4,
+          "pre": [
+            "etica.digital",
+            "etica.upd1"
+          ],
+          "temas": [
+            "Gestión de la arquitectura de gobernanza de datos y modelos|Diseño de estructuras técnicas y organizativas para el control de activos de datos.",
+            "Integración de la ética en la estrategia de negocio de alto nivel|Alineación de valores éticos con la toma de decisiones corporativas macro.",
+            "Cumplimiento normativo técnico (AI Act y GDPR)|Traducción de leyes de IA y privacidad en requisitos de ingeniería."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "filosofia",
+    "datos": {
+      "temas": {
+        "epistemologia": [
+          "Análisis epistemológico de modelos de conocimiento computacional|Evaluación de la validez de la información procesada por agentes no humanos."
+        ],
+        "mente": [
+          "Definición de ontologías para la conciencia en sistemas sintéticos|Construcción de marcos conceptuales para la existencia de estados mentales en IA."
+        ],
+        "politica": [
+          "Desarrollo de marcos normativos para sistemas autónomos|Regulación y gobernanza de la agencia de máquinas en la sociedad.",
+          "Diseño de marcos de argumentación corporativa|Construcción y evaluación de estructuras dialécticas y normativas aplicadas a la deliberación estratégica y resolución de dilemas en organizaciones."
+        ],
+        "horizonte": [
+          "Liderazgo estratégico en debates sobre transhumanismo|Gestión de la dirección ética y técnica de la mejora humana.",
+          "Cultura epistémica de la seguridad de la IA|Análisis de cómo se construye el conocimiento y las creencias en el campo de la seguridad de la IA (AI Safety).",
+          "Crítica a la terminología de IA de frontera|Análisis semántico y filosófico de los términos 'frontier AI' y sus implicaciones en la regulación y percepción de riesgo.",
+          "Imaginarios de la IA y especulación tecnológica|Estudio crítico de las visiones especulativas y los imaginarios sociales sobre el futuro de la IA.",
+          "Cosmopolitismo y visiones transhumanistas del orden global|Análisis de las visiones transhumanistas sobre el orden mundial desde la era de la Gran Guerra hasta la era digital."
+        ],
+        "intro": [
+          "Curaduría de bases de datos de contenido humanístico|Gestión y validación de fuentes de conocimiento para la construcción de ontologías.",
+          "Redacción de síntesis argumentativas|Técnicas de síntesis de argumentos complejos para entornos digitales y profesionales.",
+          "Análisis de sesgos en modelos de lenguaje (LLMs)|Estudio de cómo los sesgos cognitivos y falacias se manifiestan en la generación de texto por IA."
+        ],
+        "ciencia": [
+          "Ética de la investigación y responsabilidad científica|Responsabilidad del ingeniero ante la causalidad y el impacto de sus modelos."
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 filosofia.etica_digital",
+          "nivel": 4,
+          "pre": [
+            "filosofia.intro",
+            "filosofia.ciencia"
+          ],
+          "temas": [
+            "Auditoría de sesgos algorítmicos y justicia en ML|Detección y mitigación de prejuicios en modelos de aprendizaje automático.",
+            "Ética de la implementación y alineación de IA|Transición de la ética teórica a la aplicación técnica en sistemas.",
+            "Impacto socio-tecnológico en la innovación|Evaluación de consecuencias de nuevas tecnologías en la estructura social.",
+            "Responsabilidad algorítmica y rendición de cuentas (Accountability)|Marcos de responsabilidad legal y moral en decisiones automatizadas."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 filosofia.liderazgo_interdisciplinario",
+          "nivel": 4,
+          "pre": [
+            "filosofia.politica",
+            "filosofia.upd1"
+          ],
+          "temas": [
+            "Liderazgo de equipos interdisciplinarios (Humanidades + Ingeniería)|Gestión de la comunicación entre perfiles técnicos y humanistas.",
+            "Ética en el ciclo de desarrollo de productos (Ethics by Design)|Integración de la reflexión ética desde la fase de requerimientos hasta el despliegue.",
+            "Gestión de la complejidad en sistemas socio-técnicos|Toma de decisiones en entornos donde la tecnología y la sociedad convergen."
+          ]
+        },
+        {
+          "id": "upd3",
+          "t": "🆕 filosofia.gobernanza_global",
+          "nivel": 5,
+          "pre": [
+            "filosofia.politica",
+            "filosofia.horizonte"
+          ],
+          "temas": [
+            "Gobernanza global de tecnologías emergentes|Tratados internacionales y regulación de IA/Biotecnología.",
+            "Geopolítica de la tecnología|Soberanía tecnológica y competencia de potencias en hardware/software.",
+            "Derechos digitales y de la personalidad sintética|Estatus jurídico de agentes autónomos.",
+            "Regulación de la frontera biotecnológica|Ética y leyes sobre la edición genética y mejora humana."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "finanzas",
+    "datos": {
+      "temas": {
+        "matematica_fin": [
+          "Limpieza y preparación de datos financieros|Tratamiento de outliers, valores nulos y normalización de series temporales para análisis.",
+          "Modelización financiera avanzada con Python|Uso de librerías (Pandas, NumPy) para simulaciones y proyecciones.",
+          "Visualización de datos financieros (Dashboards/BI)|Creación de tableros de control para interpretación de métricas en tiempo real.",
+          "Consultas y manipulación de datos con SQL|Uso de lenguaje SQL para la extracción y transformación de bases de datos financieras"
+        ],
+        "economia": [
+          "Interpretación de escenarios macroeconómicos para decisiones|Análisis de impacto de variables macro en la estrategia de inversión y corporativa.",
+          "Gestión de riesgo sistémico en entornos de incertidumbre extrema|Análisis de fallos en cascada y contagio financiero en mercados globales."
+        ],
+        "mercados": [
+          "Gestión de riesgos de ciberseguridad financiera|Protección de activos digitales y mitigación de riesgos tecnológicos en transacciones.",
+          "Estrategias de Momentum y Trend-Following|Construcción de marcos de trabajo para portafolios multi-activo basados en tendencias de mercado.",
+          "Gestión de riesgos en carteras de valores bancarios|Estrategias para mitigar riesgos en entornos de alta volatilidad en activos bancarios."
+        ],
+        "horizonte": [
+          "Supervisión de pipelines de datos financieros automatizados|Transición de la limpieza manual a la gestión de flujos de datos automatizados.",
+          "Reporte y cumplimiento de estándares ESG|Integración de métricas de sostenibilidad en la valoración y reportes financieros.",
+          "Gobernanza de IA y ética financiera|Marcos de control, supervisión y dilemas éticos en el uso de modelos de inteligencia artificial para decisiones financieras",
+          "Detección de fraude con IA en DeFi|Aplicación de ciclos de vida de proyectos de IA para identificar actividades fraudulentas en finanzas descentralizadas."
+        ],
+        "contabilidad": [
+          "Conciliación automatizada de transacciones|Uso de scripts para el cruce de registros contables y detección de discrepancias."
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 finanzas.gestion_estrategica",
+          "nivel": 4,
+          "pre": [
+            "finanzas.corporativas",
+            "finanzas.mercados"
+          ],
+          "temas": [
+            "Comunicación de insights financieros a stakeholders|Storytelling de datos y traducción de métricas técnicas a lenguaje de negocio.",
+            "Liderazgo de proyectos de transformación digital financiera|Gestión del cambio y adopción de nuevas tecnologías en departamentos financieros.",
+            "Influencia en la alta dirección mediante visión de negocio|Alineación de la estrategia financiera con los objetivos globales de la organización."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 finanzas.arquitectura_datos",
+          "nivel": 4,
+          "pre": [
+            "finanzas.matematica_fin",
+            "finanzas.horizonte"
+          ],
+          "temas": [
+            "Arquitectura de pipelines de datos financieros|Diseño de flujos de datos desde la captura hasta el reporte.",
+            "Gobernanza de datos y ética financiera|Cumplimiento de estándares de calidad, integridad y ética en el uso de datos.",
+            "Automatización de procesos financieros (RPA)|Implementación de bots para tareas contables y de conciliación.",
+            "Integración de modelos de IA en flujos productivos|Conexión de modelos predictivos con sistemas de decisión en tiempo real."
+          ]
+        },
+        {
+          "id": "upd3",
+          "t": "🆕 finanzas.gestion_patrimonial",
+          "nivel": 5,
+          "pre": [
+            "finanzas.mercados",
+            "finanzas.inversion"
+          ],
+          "temas": [
+            "Dirección estratégica de carteras de alto patrimonio|Gestión de activos complejos para clientes de alto nivel (HNWI).",
+            "Planificación fiscal internacional para grandes capitales|Optimización de estructuras de inversión en múltiples jurisdicciones.",
+            "Asset Allocation avanzado y optimización de fronteras|Estrategias de distribución de activos más allá de la media-varianza."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "fisica",
+    "datos": {
+      "temas": {
+        "mecanica_analitica": [
+          "Modelado numérico de sistemas físicos (Python/MATLAB)|Implementación computacional de ecuaciones diferenciales para sistemas dinámicos.",
+          "Redes neuronales informadas por la física (PINNs) en mecánica|Uso de modelos de aprendizaje profundo que respetan las leyes de la mecánica clásica para resolver ecuaciones diferenciales."
+        ],
+        "moderna": [
+          "Machine Learning aplicado a la física (PINNs)|Uso de redes neuronales informadas por la física para resolver problemas de frontera.",
+          "Diseño de experimentos para materiales|Protocolos de caracterización física y térmica de nuevos materiales"
+        ],
+        "cuantica": [
+          "Algoritmos para simulación cuántica|Desarrollo de lógica computacional aplicada a estados cuánticos.",
+          "Sistemas cuánticos masivos e interfaces de gravedad|Estudio de la transición entre mecánica cuántica y efectos gravitatorios en sistemas de muchos cuerpos."
+        ],
+        "horizonte": [
+          "Arquitecturas para computación cuántica|Diseño de hardware y sistemas de control para procesadores cuánticos.",
+          "Traducción de principios físicos a aplicaciones industriales|Escalamiento de fenómenos físicos a soluciones de ingeniería comercializable.",
+          "Benchmarking de IA en investigación física|Evaluación de capacidades de modelos de lenguaje y razonamiento en problemas de física de frontera."
+        ],
+        "mediciones": [
+          "Automatización de protocolos de prueba mediante scripts|Programación de secuencias de medición para reducir error humano y aumentar repetibilidad.",
+          "Gestión de datos experimentales en entornos digitales|Flujos de trabajo desde la adquisición (DAQ) hasta el almacenamiento estructurado.",
+          "Mantenimiento preventivo de equipos de medición|Protocolos de calibración, verificación de deriva y cuidado de instrumentación técnica.",
+          "Sistemas de adquisición de datos (DAQ)|Implementación de hardware y software para la captura de señales analógicas y digitales",
+          "Calibración de instrumentos bajo estándares SI|Procedimientos formales de calibración, patrones metrológicos y trazabilidad al Sistema Internacional para garantizar la exactitud de los instrumentos."
+        ],
+        "electromagnetismo": [
+          "Simulación de circuitos electromagnéticos|Modelado de comportamiento de circuitos mediante herramientas computacionales",
+          "Programación de microcontroladores para sistemas físicos|Implementación de lógica de control y adquisición de datos en hardware embebido."
+        ],
+        "estadistica": [
+          "Caracterización de semiconductores y dispositivos de estado sólido|Metodologías analíticas y experimentales para medir propiedades de transporte eléctrico, bandas y comportamiento de dispositivos de estado sólido.",
+          "Operadores informados por la física (PI-Operators)|Uso de redes neuronales y operadores para resolver problemas de mecánica de sólidos y fluidos."
+        ],
+        "fluidos_termo": [
+          "PINNs aplicados a la dinámica de fluidos|Integración de restricciones físicas en redes neuronales para la simulación de flujos."
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 fisica.simulacion_avanzada",
+          "nivel": 4,
+          "pre": [
+            "fisica.mecanica_analitica",
+            "fisica.electromagnetismo"
+          ],
+          "temas": [
+            "Método de Elementos Finitos (FEA)|Simulación de tensiones y deformaciones en sólidos.",
+            "Dinámica de Fluidos Computacional (CFD)|Simulación de flujos y transferencia de calor mediante Navier-Stokes numéricos.",
+            "Simulación electromagnética avanzada|Modelado de campos en geometrías complejas."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 fisica.control_sistemas",
+          "nivel": 3,
+          "pre": [
+            "fisica.mecanica_analitica",
+            "fisica.electromagnetismo"
+          ],
+          "temas": [
+            "Modelado de sistemas dinámicos|Representación matemática de sistemas físicos mediante ecuaciones diferenciales.",
+            "Teoría de control clásico (PID)|Control de lazo cerrado para estabilidad de sistemas mecánicos y eléctricos.",
+            "Espacio de estados|Representación matricial para sistemas multivariables (clave para mecatrónica).",
+            "Estabilidad de Lyapunov|Análisis de estabilidad en sistemas no lineales.",
+            "Control digital y muestreo|Implementación de leyes de control en microcontroladores (puente con Sistemas)."
+          ]
+        },
+        {
+          "id": "upd3",
+          "t": "🆕 fisica.instrumentacion_industrial",
+          "nivel": 3,
+          "pre": [
+            "fisica.mediciones",
+            "fisica.electromagnetismo"
+          ],
+          "temas": [
+            "Protocolos de comunicación industrial|Estándares de transmisión de datos en entornos de ingeniería.",
+            "Ciberseguridad en sistemas físicos (OT)|Protección de la integridad de datos y control en infraestructuras industriales.",
+            "Instrumentación inteligente y sensores IoT|Integración de sensores conectados en la red de medición."
+          ]
+        },
+        {
+          "id": "upd4",
+          "t": "🆕 Tecnologías de sensores cuánticos",
+          "nivel": 5,
+          "pre": [
+            "fisica.cuantica",
+            "fisica.electromagnetismo"
+          ],
+          "temas": [
+            "Sensing atómico y molecular|Uso de plataformas de precisión para detección de campos fundamentales.",
+            "Sensores ópticos cuánticos|Aplicación de estados entrelazados para superar el límite estándar de medición.",
+            "Metrología cuántica industrial|Transición de la detección cuántica a aplicaciones tecnológicas prácticas."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "matematicas",
+    "datos": {
+      "temas": {
+        "logica": [
+          "Automatización de cálculos mediante scripts y lógica computacional|Implementación de lógica matemática en lenguajes de programación para resolución de problemas."
+        ],
+        "probabilidad": [
+          "Programación de scripts para análisis estadístico|Automatización de cálculos de probabilidad y estadística mediante código para cubrir competencia N2.",
+          "Ingeniería de características (Feature Engineering)|Transformación de variables crudas en representaciones matemáticas útiles para modelos estadísticos"
+        ],
+        "avanzada": [
+          "Matemáticas de la sostenibilidad y transición energética|Modelado matemático aplicado a sistemas de energía renovable y eficiencia de recursos.",
+          "Modelos de lenguaje y arquitecturas de transformadores|Fundamentos matemáticos de los mecanismos de atención y procesamiento de secuencias",
+          "Optimización topológica|Métodos para diseño estructural basado en la distribución de material",
+          "Physics-Informed Neural Networks (PINNs)|Redes neuronales que incorporan leyes físicas en su función de pérdida"
+        ],
+        "algebra_lineal": [
+          "Descomposiciones de matrices (SVD y PCA)|Aplicación de álgebra lineal para reducción de dimensionalidad y extracción de características."
+        ],
+        "edo": [
+          "Teoría de control y sistemas dinámicos|Modelado de sistemas físicos (mecatrónica) mediante ecuaciones diferenciales y estabilidad de sistemas."
+        ],
+        "optimizacion": [
+          "Optimización cuántica|Principios de velocidad en optimización convexa mediante dinámica cuántica",
+          "Programación matemática para recursos naturales|Modelado de recursos naturales y cambio climático mediante programación matemática"
+        ],
+        "horizonte": [
+          "Seguridad en aprendizaje profundo|Análisis de envenenamiento de datos (Data Poisoning) y robustez"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 matematicas.gestion_y_etica",
+          "nivel": 3,
+          "pre": [
+            "matematicas.probabilidad",
+            "matematicas.optimizacion"
+          ],
+          "temas": [
+            "Ética digital e interpretabilidad de modelos|Análisis de sesgos en algoritmos y marcos éticos en la toma de decisiones automatizadas.",
+            "Gestión de proyectos de ciencia de datos|Metodologías ágiles aplicadas al ciclo de vida de modelos matemáticos y tecnológicos.",
+            "Modelado de riesgos financieros|Aplicación de probabilidad y procesos estocásticos a la administración de finanzas.",
+            "Gobernanza de datos|Principios de gestión, calidad y cumplimiento normativo de los activos de datos"
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 matematicas.seguridad_ia",
+          "nivel": 5,
+          "pre": [
+            "matematicas.avanzada",
+            "matematicas.horizonte"
+          ],
+          "temas": [
+            "Envenenamiento de datos|Ataques de integridad en el entrenamiento de modelos",
+            "Robustez adversarial|Resistencia a perturbaciones en inputs",
+            "Privacidad diferencial|Protección de datos en modelos estadísticos"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "mecanica",
+    "datos": {
+      "temas": {
+        "introduccion": [
+          "Razonamiento basado en datos de instrumentación|Interpretación de señales de sensores y procesamiento de datos crudos para diagnóstico.",
+          "Pensamiento sistémico aplicado al diseño|Análisis de interdependencias entre subsistemas mecánicos, eléctricos y de control.",
+          "Interpretación de planos técnicos y GD&T|Aplicación de Tolerancias Geométricas y Dimensionales para asegurar la intercambiabilidad de piezas"
+        ],
+        "dinamica": [
+          "Análisis de fallas en sistemas hidráulicos y neumáticos|Diagnóstico de componentes de potencia fluida y lógica de control de fluidos."
+        ],
+        "maquinas_termicas": [
+          "Gestión de la sostenibilidad en procesos térmicos|Evaluación de impacto ambiental y eficiencia de recursos en ciclos de potencia."
+        ],
+        "horizonte": [
+          "Diseño de sistemas para transición energética|Integración de tecnologías de hidrógeno y solar en sistemas mecánicos.",
+          "Metamateriales inteligentes y manipulación de ondas|Diseño de estructuras para control de ondas y metamateriales basados en LLM"
+        ],
+        "elementos": [
+          "Modelado 3D paramétrico y ensamblajes complejos|Uso de software CAD para la creación de modelos con restricciones geométricas y gestión de relaciones entre componentes en ensamblajes de múltiples piezas.",
+          "Diseño técnico aplicado a proyectos de infraestructura|Criterios de dimensionamiento mecánico, selección de componentes estructurales y aplicación de normativas técnicas en proyectos de infraestructura e instalaciones industriales."
+        ],
+        "manufactura": [
+          "Control de calidad en planta|Métodos estadísticos y de inspección para asegurar la conformidad de procesos"
+        ],
+        "vibraciones": [
+          "Descomposición espectral bayesiana|Identificación modal eficiente utilizando vibración ambiental mediante métodos probabilísticos",
+          "Sensado acústico táctil activo|Uso de vibraciones de cuerda para sensado táctil mediante señales acústicas"
+        ],
+        "gestion": [
+          "Mantenimiento predictivo basado en IA|Implementación de algoritmos de aprendizaje automático para la detección de fallas y gestión inteligente de activos",
+          "Optimización de activos basada en sensores|Marcos de trabajo para la optimización de sistemas de energía mediante datos de sensores y transformación digital"
+        ],
+        "simulacion": [
+          "Aceleración de CFD mediante Machine Learning|Uso de modelos de ML para reducir tiempos de cómputo en simulaciones de entornos construidos",
+          "Método de Elementos Discretos (DEM)|Simulación de procesos agrícolas y de materiales granulares"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 ciberseguridad.ot",
+          "nivel": 5,
+          "pre": [
+            "mecanica.horizonte",
+            "mecanica.simulacion"
+          ],
+          "temas": [
+            "Seguridad en redes industriales (ICS/SCADA)|Protección de protocolos de comunicación en entornos de manufactura.",
+            "Defensa de sistemas ciber-físicos|Mitigación de ataques que afectan la integridad física de la maquinaria.",
+            "Gestión de vulnerabilidades en IoT industrial|Seguridad en la capa de sensores y actuadores conectados.",
+            "Protocolos de respuesta ante incidentes en planta|Procedimientos de recuperación de sistemas críticos tras un ataque."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 mecanica.control_automatizacion",
+          "nivel": 3,
+          "pre": [
+            "mecanica.dinamica",
+            "mecanica.manufactura"
+          ],
+          "temas": [
+            "Modelado matemático de sistemas físicos|Transformada de Laplace aplicada a sistemas mecánicos y térmicos.",
+            "Control PID y sintonización|Control de lazo cerrado para estabilidad de procesos.",
+            "Programación de PLC y lógica de control|Implementación de lógica de escalera y control de procesos industriales.",
+            "Sensores y actuadores industriales|Interfaz entre el mundo físico y el digital (transductores, servomotores).",
+            "Sistemas de control distribuido (DCS)|Arquitecturas de control para plantas de gran escala."
+          ]
+        },
+        {
+          "id": "upd3",
+          "t": "🆕 mecanica.direccion_proyectos",
+          "nivel": 5,
+          "pre": [
+            "mecanica.gestion"
+          ],
+          "temas": [
+            "Dirección estratégica de proyectos de gran escala|Gestión de proyectos complejos bajo estándares internacionales (PMBOK/Agile) aplicados a infraestructura y planta.",
+            "Gestión de riesgos técnicos y financieros|Identificación y mitigación de riesgos en proyectos de ingeniería, integrando el impacto en el flujo de caja.",
+            "Gestión de stakeholders y comunicación técnica|Comunicación de decisiones técnicas a niveles ejecutivos y gestión de interesados en proyectos multidisciplinarios.",
+            "Planificación de recursos y presupuestación de ingeniería|Estimación de costos, asignación de capital y control de cronogramas en entornos industriales.",
+            "Evaluación de viabilidad económica de proyectos|Cálculo de VAN, TIR y Payback aplicados a la implementación de nuevas tecnologías o plantas."
+          ]
+        },
+        {
+          "id": "upd4",
+          "t": "🆕 mecanica.automatizacion",
+          "nivel": 2,
+          "pre": [
+            "mecanica.upd2"
+          ],
+          "temas": [
+            "Lógica de control secuencial|Implementación de algoritmos de control en entornos industriales",
+            "Sistemas de control de lazo cerrado|Aplicación de retroalimentación para estabilidad de procesos",
+            "Interfaz Hombre-Máquina (HMI)|Diseño de paneles de control para la interacción con procesos automatizados"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "mecatronica",
+    "datos": {
+      "temas": {
+        "automatizacion": [
+          "Protocolos de comunicación IIoT (MQTT, OPC UA)|Implementación de conectividad para la integración de datos en la nube y sistemas de manufactura inteligente.",
+          "Configuración de redes de comunicación de campo (Profinet, EtherCAT)|Protocolos de comunicación determinística para sincronización de movimiento y datos en tiempo real.",
+          "Integración de ROS 2 con sistemas industriales|Puentes de comunicación entre software robótico (ROS 2) y entornos de control industrial (PLC/SCADA)"
+        ],
+        "vision": [
+          "Sistemas de percepción mediante fusión de sensores|Integración de datos de múltiples fuentes (visión, LiDAR, IMU) para una comprensión del entorno robusta.",
+          "Redes neuronales convolucionales (CNN) para visión|Arquitecturas de aprendizaje profundo aplicadas a la detección de objetos y segmentación.",
+          "Entrenamiento y despliegue de modelos (Edge AI)|Optimización de modelos de IA para ejecución en hardware embebido (Jetson, microcontroladores avanzados).",
+          "Despliegue de modelos en el borde (Edge AI)|Optimización de redes neuronales para ejecución en hardware con recursos limitados (Jetson, microcontroladores avanzados)",
+          "Razonamiento mediante modelos de lenguaje visual|Integración de capacidades de razonamiento y bootstrapping de percepción en VLM",
+          "Segmentación semántica y reconocimiento de acción humana|Algoritmos avanzados para detección de objetos y reconocimiento de actividad"
+        ],
+        "diseno": [
+          "Simulación multidominio para Gemelos Digitales|Modelado que integra mecánica, electrónica y control en un entorno virtual sincronizado con el físico.",
+          "Gestión de proyectos técnicos (Metodologías Ágiles)|Scrum y Kanban aplicados al desarrollo de hardware y software mecatrónico.",
+          "Arquitecturas de Gemelos Digitales mediante hipergrafos|Uso de Constraint Hypergraphs como marco unificador para simulaciones"
+        ],
+        "mecanismos": [
+          "Operación de maquinaria CNC y herramientas de manufactura|Programación de trayectorias, compensación de herramientas y control de procesos de mecanizado."
+        ],
+        "materiales": [
+          "Mantenimiento preventivo de sistemas electromecánicos|Estrategias de diagnóstico de fallas, lubricación, desgaste de componentes y gestión de vida útil."
+        ],
+        "circuitos": [
+          "Cableado de tableros bajo normativa eléctrica|Técnicas de conexionado físico, enrutamiento estructurado, selección de protecciones y cumplimiento de normativas de seguridad en tableros eléctricos industriales."
+        ],
+        "robotica": [
+          "Modelos de acción-lenguaje-visión (VLA)|Integración de modelos multimodales para la manipulación robótica mediante visión y lenguaje.",
+          "Aprendizaje de dinámica con redes neuronales líquidas|Uso de Liquid Neural Networks para el aprendizaje de cinemática inversa y dinámica de manipuladores.",
+          "Manipulación háptica y táctil|Demostraciones visuo-táctiles-cinemáticas para manipulación de contacto rico (DexViTac).",
+          "Manipulación háptica y táctil de contacto rico|Técnicas de recolección de demostraciones visuo-táctiles para manipulación dexterous"
+        ],
+        "control_avanzado": [
+          "Control Predictivo Diferenciable|Implementación de MPC utilizando técnicas de diferenciación para optimización.",
+          "Control Predictivo Basado en Datos (Data-Driven MPC)|Garantías de sistemas teóricos aplicadas al control predictivo mediante conjuntos de datos.",
+          "Garantías teóricas en control basado en datos|Estudio de garantías sistemas-teóricas para MPC basado en datos"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 Ciberseguridad Industrial (OT)",
+          "nivel": 4,
+          "pre": [
+            "mecatronica.digital",
+            "mecatronica.automatizacion"
+          ],
+          "temas": [
+            "Seguridad en redes industriales y protocolos|Protección de tráfico en redes Profinet, EtherCAT y entornos IIoT.",
+            "Defensa de sistemas de control (ICS/SCADA)|Mitigación de ataques en controladores lógicos y estaciones de supervisión.",
+            "Gestión de vulnerabilidades en entornos OT|Identificación y parcheo de riesgos en sistemas de tiempo real.",
+            "Arquitecturas de red segura (Zero Trust en industria)|Segmentación de redes y control de acceso en plantas automatizadas."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 Inteligencia Artificial aplicada a la Autonomía",
+          "nivel": 5,
+          "pre": [
+            "mecatronica.vision",
+            "mecatronica.robotica"
+          ],
+          "temas": [
+            "Deep Learning para percepción robótica|Arquitecturas para interpretación de entornos complejos",
+            "Aprendizaje por refuerzo (RL)|Entrenamiento de agentes para tareas de manipulación y navegación",
+            "Modelos de lenguaje para robótica (VLA)|Uso de modelos visión-lenguaje-acción para ejecución de tareas",
+            "Fusión multimodal de datos|Integración de visión, tacto y lenguaje en un solo modelo de decisión"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "psicologia",
+    "datos": {
+      "temas": {
+        "cognicion": [
+          "Interpretación de métricas de carga cognitiva y engagement digital|Uso de datos para medir el esfuerzo mental y la atención en interfaces digitales.",
+          "Modelado de procesos de toma de decisiones|Representación formal y matemática de la elección bajo incertidumbre y sesgos"
+        ],
+        "aprendizaje": [
+          "Gestión de entornos de aprendizaje digital (LMS) con enfoque neuroeducativo|Diseño y administración de plataformas de aprendizaje basadas en principios de neurociencia.",
+          "Aplicación de protocolos de refuerzo en entornos digitales|Diseño e instrumentación de programas de reforzamiento conductual, retroalimentación inmediata y mecánicas de contingencia en software y plataformas de aprendizaje."
+        ],
+        "social": [
+          "Facilitación de la comunicación en equipos remotos y entornos híbridos|Dinámicas de grupo y cohesión en entornos de trabajo deslocalizados.",
+          "Análisis de datos para detección de patrones de riesgo conductual|Identificación de comportamientos anómalos o de riesgo mediante análisis de datos.",
+          "Arquitectura de bienestar y rendimiento cognitivo en entornos corporativos|Diseño de entornos de trabajo optimizados para la función ejecutiva y la reducción de la fatiga mental.",
+          "Dirección estratégica de arquitectura cognitiva organizacional|Alineación de los procesos cognitivos de los equipos con los objetivos estratégicos de la empresa.",
+          "Mitigación de conflictos en entornos de trabajo digital|Estrategias psicológicas para la resolución de disputas en comunicación asíncrona y remota."
+        ],
+        "salud": [
+          "Gestión de datos de bienestar en aplicaciones de salud|Monitorización y uso de métricas de salud digital para la prevención."
+        ],
+        "fundamentos": [
+          "Alfabetización básica en herramientas de IA para registro de datos|Uso de herramientas de IA para la captura y organización de datos conductuales."
+        ],
+        "desarrollo": [
+          "Ajustes de accesibilidad cognitiva para neurodivergencia|Adaptación de entornos y procesos para perfiles neurodivergentes."
+        ],
+        "horizonte": [
+          "Alfabetización en IA aplicada al análisis de comportamiento humano|Fundamentos de cómo la IA interpreta patrones de conducta.",
+          "Diseño de sistemas de aprendizaje adaptativo basados en neurofeedback|Creación de software que ajusta la dificultad según la respuesta fisiológica/cerebral.",
+          "Investigación aplicada en BCI|Protocolos experimentales y validación de interfaces cerebro-computadora",
+          "Machine Psychology|Análisis de la cognición y comportamiento en modelos de lenguaje (LLMs)",
+          "Modelos fundacionales de la cognición|Uso de modelos fundacionales para predecir y capturar procesos cognitivos humanos",
+          "Protección de la cognición humana en la era de la IA|Estrategias y marcos para salvaguardar las capacidades cognitivas frente a la dependencia tecnológica"
+        ],
+        "neurociencia": [
+          "Diseño de intervenciones basadas en evidencia neurocientífica|Protocolos de aplicación práctica de hallazgos neurocientíficos en entornos de alto rendimiento",
+          "Eje microbiota-cerebro|Impacto de la microbiota intestinal en el eje hipotalámico-pituitario-adrenal y la señalización cognitiva"
+        ],
+        "memoria": [
+          "Diseño de programas de entrenamiento de memoria y atención|Metodología para la formulación de intervenciones sistemáticas basadas en repetición espaciada, práctica de recuperación y control ejecutivo aplicadas al estudio de alta exigencia."
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 etica.digital",
+          "nivel": 4,
+          "pre": [
+            "psicologia.cognicion",
+            "psicologia.social"
+          ],
+          "temas": [
+            "Auditoría de sesgos en algoritmos de selección de talento|Detección y mitigación de prejuicios en sistemas de IA de RRHH.",
+            "Ética en la manipulación de la atención digital|Análisis moral del diseño de interfaces persuasivas.",
+            "Privacidad y soberanía de datos neurocognitivos|Protección de la información derivada de BCI y biométricos.",
+            "Responsabilidad algorítmica en la toma de decisiones|Marco legal y moral de las decisiones automatizadas."
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 psicologia.ingenieria_aprendizaje",
+          "nivel": 5,
+          "pre": [
+            "psicologia.horizonte",
+            "psicologia.neurociencia"
+          ],
+          "temas": [
+            "Arquitectura de sistemas de aprendizaje adaptativo|Diseño de software que ajusta la dificultad según la carga cognitiva del usuario",
+            "Implementación de bucles de neurofeedback|Integración de señales biológicas en sistemas de control de aprendizaje",
+            "Modelado computacional del aprendizaje por refuerzo|Uso de algoritmos de IA para replicar procesos de aprendizaje biológico",
+            "Modelado de aprendizaje por IA|Algoritmos de aprendizaje profundo aplicados a la adquisición de conocimiento"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "quimica",
+    "datos": {
+      "temas": {
+        "avanzada": [
+          "Modelado y simulación de propiedades moleculares|Uso de software para predecir comportamiento físico-químico (N4).",
+          "Espectroscopía Raman avanzada|Uso de Raman espectromicroscopía para caracterización de materiales y aplicaciones biomédicas.",
+          "Aplicaciones de IA en química analítica y descubrimiento de fármacos|Uso de modelos de IA para optimizar procesos analíticos y acelerar el descubrimiento de moléculas."
+        ],
+        "materiales": [
+          "Estrategias de descarbonización industrial|Aplicación de la química para la reducción de huella de carbono en procesos (N4)."
+        ],
+        "horizonte": [
+          "Economía circular aplicada a la química|Ciclo de vida de materiales y regeneración de recursos (N5).",
+          "Tecnologías CCUS|Captura, utilización y almacenamiento de carbono mediante procesos químicos y biológicos.",
+          "Almacenamiento de hidrógeno|Materiales avanzados para el almacenamiento físico y químico de hidrógeno.",
+          "Flujos de trabajo GenAI para materiales (MOFA)|Integración de Inteligencia Artificial Generativa con simulaciones para el descubrimiento de materiales de captura de carbono."
+        ],
+        "materia": [
+          "Manejo de instrumentación analítica básica (pH-metros, balanzas, espectrofotómetros)|Competencia N1 requerida para la preparación de soluciones y reactivos."
+        ],
+        "organica": [
+          "Técnicas de separación: Cromatografía (capilar, de gases y líquida)|Métodos de purificación y separación de mezclas orgánicas complejas.",
+          "Protocolos de control de calidad (GMP)|Implementación de Buenas Prácticas de Manufactura en procesos orgánicos"
+        ],
+        "estequiometria": [
+          "Diseño de experimentos (DoE) aplicado a estequiometría y rendimiento|Optimización de variables para maximizar el rendimiento de reacciones."
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 Química de Datos y Automatización",
+          "nivel": 4,
+          "pre": [
+            "quimica.avanzada",
+            "quimica.estequiometria"
+          ],
+          "temas": [
+            "Análisis estadístico de datos experimentales|Tratamiento de error y significancia en mediciones (N3).",
+            "Sistemas de gestión de información de laboratorio (LIMS)|Integración de datos químicos en entornos digitales (N1).",
+            "Automatización de procesos químicos|Control de variables mediante sistemas industriales (N2).",
+            "Ciberseguridad en sistemas de control de procesos (OT)|Protección de infraestructuras químicas críticas (N4).",
+            "Automatización de flujos de trabajo de laboratorio (High-Throughput)|Sistemas de cribado masivo y ejecución de protocolos automatizados.",
+            "Gobernanza de datos científicos|Ética, integridad y gestión de la procedencia de datos experimentales"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "sistemas",
+    "datos": {
+      "temas": {
+        "programacion": [
+          "AI-assisted development (Copilots y prompting para ingeniería)|Uso profesional de herramientas de asistencia para acelerar la implementación de lógica.",
+          "Diagnóstico y resolución de incidencias con IA|Metodologías y flujos de trabajo para depuración asistida, análisis automatizado de trazas de error y remediación guiada de fallos en código usando asistentes de lenguaje."
+        ],
+        "ingsoft": [
+          "DevSecOps (Integración de seguridad en el ciclo de vida)|Automatización de pruebas de seguridad y cumplimiento en pipelines de CI/CD.",
+          "AI-assisted development tools|Uso profesional de herramientas de IA integradas en el flujo de desarrollo de software"
+        ],
+        "ia": [
+          "MLOps (Ingeniería de despliegue y ciclo de vida de modelos)|Gestión de pipelines de datos, entrenamiento continuo y monitoreo de modelos en producción.",
+          "Safety Alignment|Alineación de seguridad en modelos de lenguaje para prevenir comportamientos no deseados.",
+          "Despliegue y optimización de LLMs locales|Estrategias de cuantización, optimización de memoria de video y ejecución de modelos de lenguaje en infraestructura local y privada utilizando motores de inferencia eficientes.",
+          "Quantum Machine Learning|Búsqueda de arquitecturas de ML mediante aprendizaje por refuerzo cuántico"
+        ],
+        "gestion_ti": [
+          "Gobernanza ética de la IA y cumplimiento normativo|Marcos legales, sesgos algorítmicos y gestión del ciclo de vida de agentes de IA.",
+          "Gestión del ciclo de vida de la IA agéntica|Gobernanza y administración de agentes autónomos en entornos críticos (Ref: 2026, preprint).",
+          "Estrategia tecnológica y gobernanza de datos|Definición de hojas de ruta tecnológicas alineadas al negocio y marcos de gestión de datos para la toma de decisiones."
+        ],
+        "seguridad": [
+          "Gestión de identidades y accesos (IAM)|Control de acceso basado en roles (RBAC), políticas de identidad y autenticación moderna.",
+          "Seguridad en modelos de IA|Protección contra ataques adversarios y vulnerabilidades en arquitecturas de aprendizaje automático."
+        ],
+        "distribuidos": [
+          "Observabilidad y monitoreo avanzado|Logs, métricas, trazado distribuido y telemetría para sistemas complejos.",
+          "Orquestación autónoma de recursos|Políticas de gestión de recursos basadas en agentes y modelos de IA (HELIOS).",
+          "Control de acceso basado en blockchain para entornos cloud|Implementación de mecanismos de seguridad descentralizados en sistemas distribuidos (Ref: 2024, 106 citas).",
+          "Microservicios escalables para la nube|Diseño y despliegue de arquitecturas de microservicios altamente escalables.",
+          "Orquestación de sistemas a gran escala para era agéntica|Gestión de flujos masivos de agentes y workloads dinámicos (MegaFlow)"
+        ],
+        "horizonte": [
+          "Arquitectura de software para sistemas cuánticos|Diseño de software especializado para hardware cuántico (Ref: 2023, 93 citas).",
+          "Interfaz Cuántico-HPC|Integración de sistemas de computación cuántica con sistemas de computación de alto rendimiento"
+        ],
+        "so": [
+          "Automatización de tareas con scripts|Creación y ejecución de scripts (Bash/Python) para gestión de sistemas y flujos de trabajo"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 Computación de Borde (Edge Computing)",
+          "nivel": 4,
+          "pre": [
+            "sistemas.distribuidos",
+            "sistemas.so"
+          ],
+          "temas": [
+            "Cloud-Native Workload Orchestration at the Edge|Orquestación de cargas de trabajo nativas de la nube en dispositivos de borde.",
+            "TinyML|Implementación de modelos de aprendizaje automático en dispositivos con recursos limitados.",
+            "Edge-to-Cloud Continuity|Gestión de la continuidad de datos y procesos entre el borde y la nube."
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "area": "tecnologia",
+    "datos": {
+      "temas": {
+        "historia": [
+          "Uso de IA generativa para asistencia operativa y resolución de problemas|Fundamentos de interacción con modelos de lenguaje para optimizar flujos de trabajo técnicos.",
+          "Mantenimiento de hardware y sistemas operativos|Fundamentos de la infraestructura física y lógica que sostiene la computación.",
+          "Agentes autónomos y evolución de la IA|Transición de la IA generativa a sistemas capaces de ejecutar tareas complejas de forma independiente"
+        ],
+        "panorama": [
+          "Diseño de arquitecturas de sistemas integrados (IA + Software/Hardware)|Integración de capas de inteligencia en sistemas físicos y lógicos.",
+          "Gestión de la transición energética en infraestructuras locales|Implementación técnica de energías renovables en sistemas de ingeniería.",
+          "Análisis de datos para la toma de decisiones (Data-driven)|Fundamentos de recolección y procesamiento de datos para la interpretación de sistemas tecnológicos."
+        ],
+        "evaluacion": [
+          "Optimización de procesos mediante eficiencia energética y sostenibilidad|Aplicación de criterios de sostenibilidad en el diseño y operación tecnológica.",
+          "Soberanía de datos e influencia en la geopolítica tecnológica|Análisis de cómo el control de datos define el poder de las naciones.",
+          "Especialización en IA aplicada al sector específico|Aplicación de modelos de IA en dominios concretos (Mecatrónica, Finanzas, etc.).",
+          "Gestión de la soberanía de datos y cumplimiento transfronterizo|Navegación de marcos legales internacionales sobre el flujo de datos.",
+          "Análisis predictivo de datos complejos|Uso de modelos estadísticos y de ML para anticipar tendencias y comportamientos",
+          "Diplomacia cibernética y riesgos de tecnologías emergentes|Análisis de riesgos geopolíticos derivados de la IA, IoT, Blockchain y computación cuántica",
+          "Interpretación de sistemas autónomos y predictivos|Capacidad de analizar y validar resultados de sistemas que operan con mínima intervención humana"
+        ],
+        "horizonte": [
+          "Integración de sistemas cuánticos y computación de alto rendimiento (HPC)|Interconectividad y flujos de trabajo entre computación cuántica y sistemas de supercomputación tradicionales",
+          "IA en ciencias físicas y meta-óptica|Uso de regresión simbólica e inteligencia artificial para el descubrimiento de materiales y optimización óptica"
+        ]
+      },
+      "modulos": [
+        {
+          "id": "upd1",
+          "t": "🆕 tecnologia.etica_y_gobernanza",
+          "nivel": 3,
+          "pre": [
+            "tecnologia.evaluacion"
+          ],
+          "temas": [
+            "Gestión de la ética digital y gobernanza de datos|Marcos regulatorios y principios éticos en el manejo de información (N3).",
+            "Gobernanza global de la IA y ética de sistemas autónomos|Debates sobre responsabilidad legal y moral de agentes inteligentes (N5).",
+            "Gestión de riesgos tecnológicos y cumplimiento normativo (GRC)|Integración de la ciberseguridad como gestión de riesgos corporativos (N4).",
+            "Gobernanza de modelos de IA generativa|Gestión técnica y ética de ciclos de vida de modelos de lenguaje y sistemas generativos"
+          ]
+        },
+        {
+          "id": "upd2",
+          "t": "🆕 tecnologia.gestion_activos",
+          "nivel": 2,
+          "pre": [
+            "tecnologia.historia"
+          ],
+          "temas": [
+            "Gestión de activos digitales|Administración de licencias, software as a service (SaaS) y propiedad de activos intangibles.",
+            "Ciclo de vida del software y hardware|Adquisición, despliegue, mantenimiento y retiro de activos tecnológicos.",
+            "Optimización de costos tecnológicos|Relación entre inversión en infraestructura y retorno operativo (vinculación con finanzas)."
+          ]
+        },
+        {
+          "id": "upd3",
+          "t": "🆕 tecnologia.ciberseguridad_base",
+          "nivel": 1,
+          "pre": [
+            "tecnologia.historia"
+          ],
+          "temas": [
+            "Alfabetización en ciberseguridad de endpoint|Protección de dispositivos finales y gestión de vulnerabilidades básicas.",
+            "Fundamentos de redes y protocolos de comunicación|Entendimiento de la capa física y de enlace para la seguridad de dispositivos.",
+            "Gestión de identidad y acceso (IAM) básico|Principios de autenticación y autorización en entornos digitales.",
+            "Arquitectura Zero Trust|Principios de nunca confiar, siempre verificar en redes modernas",
+            "Detección de amenazas basada en IA|Uso de modelos para identificar patrones de ataque en tiempo real"
+          ]
+        },
+        {
+          "id": "upd4",
+          "t": "🆕 tecnologia.seguridad_operativa",
+          "nivel": 2,
+          "pre": [
+            "tecnologia.upd3"
+          ],
+          "temas": [
+            "Implementación de medidas de ciberseguridad operativa|Ejecución de controles técnicos en entornos de producción",
+            "Configuración de protocolos IoT seguros|Aseguramiento de la comunicación en dispositivos conectados",
+            "Gestión de vulnerabilidades en redes|Identificación y mitigación de debilidades en la infraestructura"
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -252,15 +252,27 @@ MAX_PARALELOS = 4
 
 
 def paralelos():
-    """Cuántas tareas manda la Academia a la vez al servidor de IA (configuración `trabajos_paralelos`).
-    Debe coincidir con los «slots» del servidor (llama-server --parallel N); si no, solo se encolan allá."""
+    """Cuántas tareas manda la Academia a la vez al servidor de IA (`trabajos_paralelos`, 0 = carril local en pausa).
+    Con >0 debe coincidir con los «slots» del servidor (llama-server --parallel N); si no, solo se encolan allá."""
     try:
-        return max(1, min(MAX_PARALELOS, int(config.C.get("trabajos_paralelos") or 1)))
+        v = config.C.get("trabajos_paralelos")
+        return 1 if v is None or v == "" else max(0, min(MAX_PARALELOS, int(v)))
     except (TypeError, ValueError):
         return 1
 
 
-MAX_NUBE = 6
+MAX_NUBE = 10
+
+
+def fondo_a_la_vez():
+    """Cuántas tareas de fondo (prioridad > 0) se hacen a la vez en el equipo (`fondo_a_la_vez`, 1 por defecto;
+    0 = sin límite, como antes del 2026-11-18). Con 2 slots y 2 lecciones a la vez cada una iba a media velocidad y
+    lo que pedía la persona esperaba detrás; con 1, las lecciones salen una por una y el otro slot queda libre."""
+    try:
+        v = config.C.get("fondo_a_la_vez")
+        return 1 if v is None else max(0, int(v))
+    except (TypeError, ValueError):
+        return 1
 
 
 def en_nube():
@@ -399,6 +411,33 @@ class Cola:
             self._cv.notify()
         return True
 
+    def reordenar(self, ids):
+        """Reordena los trabajos que ESPERAN según `ids` (el orden deseado), sin cruzar los grupos «te espera» y «de fondo»:
+        dentro de cada grupo, los trabajos de la lista se reparten los mismos puestos que ya ocupaban (los que no están
+        en la lista, p. ej. los de otra persona, no se mueven). Devuelve True si cambió algo."""
+        with self._cv:
+            pos = {tid: i for i, tid in enumerate(ids)}
+            por_grupo = {}
+            for x in self._h:
+                if x[2].id in pos:
+                    por_grupo.setdefault(x[0], []).append(x)
+            cambio, nuevas = False, []
+            for prioridad, entradas in por_grupo.items():
+                puestos = sorted(x[1] for x in entradas)
+                deseado = sorted(entradas, key=lambda x: pos[x[2].id])
+                for puesto, x in zip(puestos, deseado):
+                    cambio |= puesto != x[1]
+                    nuevas.append((prioridad, puesto, x[2]))
+                    x[2].no_antes = 0
+                for x in entradas:
+                    self._h.remove(x)
+            if not cambio and not nuevas:
+                return False
+            self._h.extend(nuevas)
+            heapq.heapify(self._h)
+            self._cv.notify()
+        return cambio
+
     def vaciar(self, quitar, fallidos=False):
         """Quita de la cola los trabajos que ESPERAN (en la cola o en conflicto) para los que `quitar(t)` es verdadero.
         Nunca toca los que corren ahora (no se pueden cortar sin perder lo hecho). Con `fallidos`, también olvida los
@@ -409,11 +448,12 @@ class Cola:
             ids |= {t.id for t in self.trabajos.values() if t.estado == "conflicto" and quitar(t)}
             self._h = ajenos
             heapq.heapify(self._h)
-            for tid in ids:
-                self.trabajos.pop(tid, None)
+            quitados = [self.trabajos.pop(tid) for tid in ids if tid in self.trabajos]
             malos = [k for k, t in self.trabajos.items() if fallidos and t.estado == "error" and quitar(t)]
             for k in malos:
                 del self.trabajos[k]
+        for t in quitados:      # también sale del diario de la cola (si no, al reiniciar contaba como «no reconstruible»)
+            _gancho("fin", t)
         return len(ids), len(malos)
 
     def subir(self, t):
@@ -429,7 +469,14 @@ class Cola:
         """Qué tarea toma un hilo. Sin carril de nube (`trabajos_nube` = 0) se conserva el comportamiento de siempre.
         Con él: el carril de la nube toma solo lo que la API puede hacer (y solo si responde); el local toma primero
         lo que SOLO puede hacer en el equipo y, de lo elegible para la nube, únicamente cuando el carril de la nube
-        está lleno o la API no está disponible (así lo que falte pasa a lo local)."""
+        está lleno o la API no está disponible (así lo que falte pasa a lo local).
+        En el equipo, como mucho `fondo_a_la_vez()` tareas de fondo a la vez: los demás slots quedan para lo que una
+        persona espera en pantalla (prioridad 0). Así cada lección termina antes y la Academia sigue respondiendo."""
+        if carril != "nube" and fondo_a_la_vez():
+            fondo = sum(1 for t in self.actuales
+                        if getattr(t, "prioridad", 1) > 0 and getattr(t, "carril", "") != "nube")
+            if fondo >= fondo_a_la_vez():
+                listos = [x for x in listos if x[0] == 0]
         if not en_nube():
             return min(listos) if listos else None
         nube_llena = sum(1 for t in self.actuales if getattr(t, "carril", "") == "nube") >= en_nube()
@@ -468,9 +515,7 @@ class Cola:
                 if item is None:
                     self._cv.wait(5)
                     continue
-                self._h.remove(item)
-                heapq.heapify(self._h)
-                t = item[2]
+                t = self._sacar(item)
                 t.carril = carril if en_nube() else ""
                 self.actuales.append(t)
             try:
@@ -479,6 +524,17 @@ class Cola:
                 with self._cv:
                     self.actuales.remove(t)
                     self._limpiar()
+
+    def _sacar(self, item):
+        """Quita de la cola la tarea elegida y recuerda su puesto: si tiene que esperar a la GPU vuelve a ESE puesto, no
+        al final (antes las lecciones rotaban 1 2 3 → 2 3 1 → 3 1 2 cada vez que Hermes usaba la tarjeta)."""
+        self._h.remove(item)
+        heapq.heapify(self._h)
+        item[2]._seq = item[1]
+        return item[2]
+
+    def _puesto(self, t):
+        return t._seq if getattr(t, "_seq", None) is not None else next(self._n)
 
     def _reintentar_conflictos(self):
         # Una tarea en «conflicto» = esperando en la cola a que otra app suelte la IA; vuelve sola en cuanto quede libre
@@ -490,7 +546,7 @@ class Cola:
         for t in esperando:
             if libre or (cede and t.prioridad == 0):
                 t.estado = "cola"
-                heapq.heappush(self._h, (t.prioridad, next(self._n), t))
+                heapq.heappush(self._h, (t.prioridad, self._puesto(t), t))
 
     def _correr(self, t):
         # Una tarea que irá a la API (nube.py) no usa la tarjeta gráfica: no espera a que Hermes u otro modelo se descargue
@@ -503,7 +559,7 @@ class Cola:
             # para que la Academia retome apenas Hermes suelte la tarjeta
             t.no_antes = time.time() + (600 if ocupado else 60)
             with self._cv:
-                heapq.heappush(self._h, (t.prioridad, next(self._n), t))
+                heapq.heappush(self._h, (t.prioridad, self._puesto(t), t))
             return
         t.estado = "corriendo"
         t.inicio = time.time()
@@ -529,6 +585,78 @@ class Cola:
             del self.trabajos[k]
 
 
+# Duración típica por tipo de tarea cuando aún no hay historial (segundos). La lección a fondo es lo más largo.
+DUR_DEFECTO = {"leccion": 45 * 60, "noticias": 20 * 60, "sintesis": 8 * 60, "ruta": 8 * 60, "mercado": 8 * 60,
+               "frontera": 15 * 60, "pronostico": 3 * 60, "relaciones": 3 * 60, "prueba": 4 * 60, "tutor": 60,
+               "corregir": 60, "verificar": 6 * 60, "chequeo": 5 * 60, "rapida": 6 * 60, "a_fondo": 6 * 60}
+_dur_cache = {"t": 0, "v": {}}
+
+
+def duraciones():
+    """Mediana de lo que tardaron de verdad las tareas de cada tipo en los últimos 7 días (`trabajo_hecho.inicio`);
+    los tipos sin historial usan DUR_DEFECTO. Se recalcula cada 5 minutos."""
+    if time.time() - _dur_cache["t"] < 300:
+        return _dur_cache["v"]
+    from base import filas
+    v, por_tipo = dict(DUR_DEFECTO), {}
+    try:
+        for r in filas("""SELECT tipo, terminado - inicio d FROM trabajo_hecho WHERE estado='listo' AND inicio IS NOT NULL
+                          AND terminado - inicio > 3 AND terminado > ?""", (time.time() - 7 * 86400,)):
+            por_tipo.setdefault(r["tipo"], []).append(r["d"])
+    except Exception:
+        traceback.print_exc()
+    for tipo, ds in por_tipo.items():
+        if len(ds) >= 2:
+            ds.sort()
+            v[tipo] = ds[len(ds) // 2]
+    _dur_cache.update(t=time.time(), v=v)
+    return v
+
+
+_RE_PARTE = re.compile(r"parte (\d+)\s*/\s*(\d+)", re.I)
+
+
+def _restante(t, d, ahora):
+    """Lo que le falta a una tarea que ya corre. En una lección, por la parte en que va y SU ritmo real."""
+    trans = max(0.0, ahora - (t.inicio or ahora))
+    m = _RE_PARTE.search(t.fase or "")
+    if m and int(m.group(2)) > 0:
+        frac = min(0.95, (int(m.group(1)) - 0.5) / int(m.group(2)))
+        if trans > 60:
+            return max(30.0, trans * (1 - frac) / frac)
+        return max(30.0, d * (1 - frac))
+    return max(d - trans, 0.1 * d, 30.0)
+
+
+def estimar(lista, dur=None, ahora=None):
+    """{id: (empieza_en, termina_en)} en segundos desde ahora, simulando los carriles del equipo: `paralelos()` slots,
+    de los que como mucho `fondo_a_la_vez()` hacen trabajo de fondo; lo que una persona espera usa los demás (o todos
+    si el fondo no tiene límite). Con `paralelos()` en 0 devuelve `{}` (cola local en pausa)."""
+    dur, ahora = dur or duraciones(), ahora or time.time()
+    n = paralelos()
+    if n <= 0:
+        return {}
+    cap = min(n, fondo_a_la_vez() or n)
+    carriles = [0.0] * n
+    fondo = list(range(cap))
+    frente = list(range(cap, n)) or list(range(n))
+    out = {}
+
+    def poner(t, inicio_min, d):
+        grupo = fondo if t.prioridad > 0 else frente
+        k = min(grupo, key=lambda i: carriles[i])
+        empieza = max(carriles[k], inicio_min)
+        carriles[k] = empieza + d
+        out[t.id] = (round(empieza), round(empieza + d))
+    for t in lista:
+        if t.estado == "corriendo":
+            poner(t, 0.0, _restante(t, dur.get(t.tipo, 300), ahora))
+    for t in lista:
+        if t.estado in ("cola", "conflicto"):
+            poner(t, max(0.0, (t.no_antes or 0) - ahora), dur.get(t.tipo, 300))
+    return out
+
+
 def guardar_resultado(t):
     """El resultado de cada tarea queda en la base 7 días: si cierras la ventana, cambias de equipo o el servidor se
     reinicia, `GET /api/trabajo?id=` lo sigue devolviendo (no hay que volver a esperar)."""
@@ -537,8 +665,9 @@ def guardar_resultado(t):
         dato = json.dumps(t.resultado, ensure_ascii=False, default=str)
         if len(dato) > 3_000_000:
             dato = "null"
-        ejecutar("""INSERT OR REPLACE INTO trabajo_hecho(id,usuario,tipo,etiqueta,estado,resultado,error,terminado)
-                    VALUES(?,?,?,?,?,?,?,?)""", (t.id, t.usuario, t.tipo, t.etiqueta, t.estado, dato, t.error, t.terminado))
+        ejecutar("""INSERT OR REPLACE INTO trabajo_hecho(id,usuario,tipo,etiqueta,estado,resultado,error,terminado,inicio)
+                    VALUES(?,?,?,?,?,?,?,?,?)""", (t.id, t.usuario, t.tipo, t.etiqueta, t.estado, dato, t.error, t.terminado,
+                                                  t.inicio))
         ejecutar("DELETE FROM trabajo_hecho WHERE terminado<?", (time.time() - 7 * 86400,))
     except Exception:
         traceback.print_exc()
@@ -588,15 +717,16 @@ class Contexto:
         la salida queda forzada a ese formato y se devuelve ya parseada; si el
         modelo se enreda (JSON cortado), se reintenta una vez con más margen."""
         try:
-            return self._chat(mensajes, max_tokens, temperatura, esquema, mostrar, semilla)
-        except ValueError:
+            return _validada(self._chat(mensajes, max_tokens, temperatura, esquema, mostrar, semilla), esquema)
+        except ValueError as e:
             if not esquema:
                 raise
             self.fase((self.t.fase or "") + " (reintento)")
             extra = [{"role": "user", "content": "Responde de nuevo SOLO con el JSON, compacto en una sola línea, "
-                                                 "con textos breves."}]
-            return self._chat(mensajes + extra, int(max_tokens * 1.5), min(1.0, temperatura + 0.2), esquema, mostrar,
-                              semilla + 1 if semilla else None)
+                                                 "con textos breves, usando EXACTAMENTE los nombres de campo del esquema."
+                                                 + (f" Error anterior: {e}" if str(e) else "")}]
+            return _validada(self._chat(mensajes + extra, int(max_tokens * 1.5), min(1.0, temperatura + 0.2), esquema,
+                                        mostrar, semilla + 1 if semilla else None), esquema)
 
     def _chat(self, mensajes, max_tokens, temperatura, esquema, mostrar, semilla=None):
         # API de IA opcional (nube.py): solo si la persona la activó para este tipo de tarea y hay tope; si no
@@ -687,15 +817,66 @@ def proteger_latex(texto):
     return _RE_LATEX.sub(lambda m: "\\\\" + m.group(1) if m.group(1) in LATEX else m.group(0), texto)
 
 
+_TIPOS = {"object": dict, "array": list, "string": str, "boolean": bool, "number": (int, float), "integer": int}
+
+
+def errores_esquema(dato, esquema, ruta="$"):
+    """Comprueba lo que usan los esquemas de la Academia (type, required, properties, items, enum, minItems,
+    minimum, maximum). Hace falta porque no todos los carriles imponen el esquema: algunos solo lo
+    reciben como texto y el modelo puede escribir mal una clave («opplicaciones»). Devuelve la lista de errores."""
+    err, t = [], esquema.get("type")
+    tipo = _TIPOS.get(t) if isinstance(t, str) else None
+    if tipo and (not isinstance(dato, tipo) or (t in ("integer", "number") and isinstance(dato, bool))):
+        return [f"{ruta}: se esperaba {t}"]
+    if "enum" in esquema and dato not in esquema["enum"]:
+        err.append(f"{ruta}: valor fuera de la lista permitida")
+    if isinstance(dato, (int, float)) and not isinstance(dato, bool):
+        if "minimum" in esquema and dato < esquema["minimum"] or "maximum" in esquema and dato > esquema["maximum"]:
+            err.append(f"{ruta}: {dato} fuera de rango")
+    if isinstance(dato, dict):
+        err += [f"{ruta}.{k}: falta" for k in esquema.get("required", []) if k not in dato]
+        for k, sub in (esquema.get("properties") or {}).items():
+            if k in dato:
+                err += errores_esquema(dato[k], sub, f"{ruta}.{k}")
+    if isinstance(dato, list):
+        if len(dato) < esquema.get("minItems", 0):      # de más no se rechaza: no rompe nada y evita reintentos
+            err.append(f"{ruta}: {len(dato)} elementos (mínimo {esquema['minItems']})")
+        if isinstance(esquema.get("items"), dict):
+            for i, x in enumerate(dato):
+                err += errores_esquema(x, esquema["items"], f"{ruta}[{i}]")
+    return err
+
+
+def _validada(dato, esquema):
+    if esquema:
+        err = errores_esquema(dato, esquema)
+        if err:
+            raise ValueError("la salida de la IA no cumple el formato: " + "; ".join(err[:5]))
+    return dato
+
+
+_RE_ESCAPE = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})|\\')
+
+
+def _escapes_validos(texto):
+    """Duplica toda barra que no inicie un escape JSON válido (\\_, \\{, \\%, \\hbar, \\uparrow…): LaTeX fuera de la
+    lista de `proteger_latex` hacía fallar lecciones enteras con «Invalid \\escape» (2026-11-12)."""
+    return _RE_ESCAPE.sub(lambda m: m.group(0) if m.group(1) else "\\\\", texto)
+
+
 def parsear_json(texto):
-    try:
-        return json.loads(proteger_latex(texto))
-    except ValueError:
-        texto = proteger_latex(texto)
-        a, b = texto.find("{"), texto.rfind("}")
-        if a >= 0 and b > a:
-            return json.loads(texto[a:b + 1])
-        raise
+    texto = proteger_latex(texto)
+    for intento in (texto, _escapes_validos(texto)):
+        try:
+            return json.loads(intento)
+        except ValueError:
+            a, b = intento.find("{"), intento.rfind("}")
+            if a >= 0 and b > a:
+                try:
+                    return json.loads(intento[a:b + 1])
+                except ValueError:
+                    pass
+    raise ValueError("la IA no devolvió un JSON válido")
 
 
 cola = Cola()

@@ -56,12 +56,15 @@ Primero, tres comprobaciones que resuelven la mayoría:
 | La comparación de fuentes dice «solo una fuente» | Nadie más cubrió la historia (ni en la búsqueda) | Normal en noticias pequeñas. |
 | El nivel de mercado no aparece | Aún no se armó el referente del área | 📈 → «📊 Medir contra lo que pide hoy el mercado» (necesita búsqueda web), o espera la actualización diaria (2 áreas por día, por prioridad). |
 | La lección tarda más de 30 min | Lección a fondo en CPU | Normal (ver MANTENIMIENTO). Puedes leer desde que termina la parte 1. |
+| Tarea con «la salida de la IA no cumple el formato: …» | El modelo escribió mal una clave o un tipo (pasa con el motor Hermes o la nube sin `json_schema`, donde el esquema solo va como texto) | Se reintenta sola una vez con el error; si se repite, «Reintentar» en la cola. El mensaje dice qué campo falló. |
+| Las lecciones de «preparar toda la ruta» no siguen la prioridad | Antes se encolaban por orden alfabético | Desde 2026-11-18 van por la prioridad de Ajustes (metas justo después de las áreas en 3) y en el orden del temario. |
+| No se prepara nada de fondo durante días | Nadie usó la Academia en 48 h (`activo()`): a propósito, para no gastar horas de IA | Abrir la Academia lo reactiva en la siguiente actualización o al reiniciar el servicio. |
 
 ## Contenido y aprendizaje
 
 | Síntoma | Solución |
 |---|---|
-| Un dato de una lección parece incorrecto | Revisa las fuentes citadas; usa «🔄 Reescribir la lección»; pregunta al tutor con 🌐. |
+| Un dato de una lección parece incorrecto | Revisa las fuentes citadas; usa «🔄 Actualizar» (compara con fuentes nuevas y cambia solo esas partes) o «⚡ Forzar: reescribir toda la lección»; pregunta al tutor con 🌐. |
 | Me sale un tema que ya sé | ⚡ Prueba de nivel del módulo (Ruta) o «Ya lo domino». |
 | Mi nivel profesional no sube | Hace falta el 70 % de **cada** nivel anterior. Haz pruebas de nivel de lo que ya sabes. |
 | La voz 🔊 no suena | Android: Ajustes → Texto a voz (Google) → instala el idioma. Windows: Configuración → Hora e idioma → Voz. |

@@ -1,6 +1,6 @@
 # 🎓 Academia — your personal school with local AI
 
-**Academia** is a self-hosted study app: learning paths for 20 fields (~940 topics, plus your own) written in depth
+**Academia** is a self-hosted study app: learning paths for 33 fields (1,535 topics, plus your own) written in depth
 by an AI that runs **on your own PC**, with web sources and real scientific papers (OpenAlex), quizzes, the Feynman
 technique, exercises submitted by photo or handwriting, **spaced repetition (FSRS)**, a pen notebook, a tutor,
 goal-based roadmaps, news compared across outlets, weekly check-ups and professional level per field.
@@ -21,6 +21,8 @@ goal-based roadmaps, news compared across outlets, weekly check-ups and professi
 
 ## Highlights
 
+- 🧠 A score, not a streak: an IQ-style Index (100, steps of 15) measured against the curriculum levels, not other
+  people, moved by a 10-question timed ⚡ Challenge (~5 min) from your own lessons; misses become flashcards.
 - 🔒 Local-first and closed by default: only this PC can connect; phones via Tailscale or a LAN access key.
   CSRF, DNS-rebinding and header-spoofing protections; non-root read-only Docker image.
 - 💹 Stock watchlist: alerts, direct and indirect news (competitors, suppliers, macro factors), scenario forecasts
@@ -30,6 +32,7 @@ goal-based roadmaps, news compared across outlets, weekly check-ups and professi
 - 🎨 Light/dark, 6 palettes (incl. high contrast), custom accent, font scaling; PWA on Android/iOS.
 - 🧩 Zero dependencies: Python standard library + vanilla HTML/JS — easy to read and learn from.
 - 🏷️ One version everywhere (`VERSION` → git tag → Docker image `ghcr.io/anexolocuz/academia-comunidad` → release zip).
+- 📚 Optional pre-generated content pack in [`contenidos/`](contenidos/README.md) (6 extra fields, enriched roadmaps and hundreds of ready lessons, imported on demand via `python3 contenidos/importar.py`).
 
 Docs are in Spanish under [`docs/`](docs/) (easy versions in [`docs/facil/`](docs/facil/)).
 License: [AGPL-3.0-or-later](LICENSE).

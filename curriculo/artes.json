@@ -1,0 +1,75 @@
+{
+  "id": "artes",
+  "nombre": "Educación artística",
+  "icono": "🎨",
+  "grupo": "Artes",
+  "color": "#e17055",
+  "descripcion": "Ver, escuchar y crear: lenguaje visual, música, historia del arte, diseño y arte con tecnología.",
+  "recursos": [
+    {"t": "musictheory.net — teoría musical interactiva", "u": "https://www.musictheory.net/"},
+    {"t": "Khan Academy — Historia del arte", "u": "https://www.khanacademy.org/humanities/art-history"},
+    {"t": "Banco de la República — Red Cultural", "u": "https://www.banrepcultural.org/"}
+  ],
+  "modulos": [
+    {"id": "visual", "t": "Lenguaje visual", "nivel": 1, "pre": [], "temas": [
+      "Elementos del lenguaje visual|punto, línea, forma, textura",
+      "Teoría del color|círculo cromático y armonías",
+      "Composición y perspectiva",
+      "Dibujo de observación|proporción y sombreado",
+      "Lectura de imágenes|qué comunica una imagen"]},
+    {"id": "musica", "t": "Música: fundamentos", "nivel": 1, "pre": [], "temas": [
+      "Sonido, ritmo y pulso",
+      "Notación musical|pentagrama, figuras y compases",
+      "Escalas, intervalos y acordes",
+      "Melodía y armonía básica",
+      "Géneros musicales de Colombia y del mundo"]},
+    {"id": "historia_arte", "t": "Historia del arte", "nivel": 2, "pre": ["visual"], "temas": [
+      "Arte antiguo y clásico",
+      "Arte medieval y renacentista",
+      "Barroco, neoclasicismo y romanticismo",
+      "Vanguardias del siglo XX",
+      "Arte latinoamericano y colombiano|de lo precolombino a hoy"]},
+    {"id": "diseno", "t": "Diseño", "nivel": 2, "pre": ["visual"], "temas": [
+      "Principios del diseño gráfico|jerarquía, contraste, alineación",
+      "Tipografía",
+      "Diseño de información e infografía",
+      "Diseño de producto y ergonomía",
+      "Diseño centrado en las personas|prototipos y pruebas"]},
+    {"id": "musica_avanzada", "t": "Música: análisis y creación", "nivel": 3, "pre": ["musica"], "temas": [
+      "Armonía funcional y progresiones",
+      "Forma musical|binaria, ternaria, sonata, canción",
+      "Orquestación y timbre",
+      "Producción musical digital|DAW, MIDI, mezcla",
+      "Acústica musical|física del sonido y los instrumentos"]},
+    {"id": "estetica", "t": "Estética y crítica de arte", "nivel": 4, "pre": ["historia_arte", "filosofia.intro"], "temas": [
+      "Qué es el arte|teorías estéticas",
+      "Belleza, gusto y juicio estético",
+      "Crítica de arte|cómo argumentar sobre una obra",
+      "Arte, mercado e instituciones",
+      "Arte contemporáneo y conceptual"]},
+    {"id": "horizonte", "t": "Horizonte: arte y tecnología", "nivel": 5, "pre": ["diseno", "musica_avanzada", "estetica"], "temas": [
+      "Arte generativo y algorítmico",
+      "IA generativa en las artes|autoría y derechos",
+      "Realidad virtual y aumentada en la creación",
+      "Música computacional",
+      "Patrimonio digital y museos"]},
+    {"id": "manualidades_caligrafia", "t": "Artes manuales, caligrafía y oficios", "nivel": 1, "pre": ["visual"], "temas": [
+      "Caligrafía occidental y tradicional|trazo, proporción, ritmo y herramientas",
+      "Modelado, escultura y cerámica|volumen, materiales y procesos",
+      "Grabado y estampación|xilografía, linograbado y serigrafía",
+      "Artes textiles y encuadernación|tejido, costura creativa y libro artesanal",
+      "Artes aplicadas e industriales|oficio, función y diseño material"]},
+    {"id": "escenicas", "t": "Artes escénicas: teatro y danza", "nivel": 2, "pre": ["visual"], "temas": [
+      "Expresión corporal, voz y presencia escénica",
+      "Dramaturgia y estructura teatral|conflicto, escenas y diálogo",
+      "Actuación e interpretación|objetivo, acción y escucha",
+      "Puesta en escena y dirección|espacio, luz y ritmo",
+      "Danza y movimiento|espacio, tiempo, energía y coreografía"]},
+    {"id": "audiovisual", "t": "Fotografía, cine y lenguaje audiovisual", "nivel": 3, "pre": ["visual", "diseno"], "temas": [
+      "Fotografía|exposición, óptica, luz y encuadre",
+      "Lenguaje cinematográfico|planos, angulación y continuidad",
+      "Guion audiovisual y narrativa visual",
+      "Montaje, edición y sonido audiovisual",
+      "Cine documental, animación y nuevos medios"]}
+  ]
+}

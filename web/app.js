@@ -64,7 +64,7 @@ function pintarMd(el, texto, idioma) {
 const NO_LATINO = /[Ѐ-ӿ぀-ヿ㐀-鿿가-힯]/;
 function ponerVoz(el, idioma) {
   // botón 🔊 en celdas y líneas con texto del idioma estudiado
-  const prueba = idioma.startsWith("de") || idioma.startsWith("en") ? null : NO_LATINO;
+  const prueba = /^(zh|ja|ko|ru)/.test(idioma) ? NO_LATINO : null;
   $$("td:first-child, li, p, h3", el).forEach((n) => {
     const t = n.innerText.trim();
     if (!t || t.length > 300 || (prueba && !prueba.test(t))) return;
@@ -130,6 +130,17 @@ function preguntarReintento(error) {
 async function moverTrabajo(id, accion) {
   try { const r = await api("cola/mover", { id, accion }); if (!r.ok) aviso(r.error || "Ya está en ese lugar"); }
   catch (e) { aviso("No se pudo mover: " + e.message); }
+  E.colaHtml = null; if (location.hash.includes("cola")) refrescar();
+}
+// «a las 15:40», «mañana 09:10» o «el 24/11»: cuándo termina una tarea de la cola (estimado)
+const cuando = (t) => { const f = new Date(t * 1000), hoy = new Date(), dias = Math.round((new Date(f).setHours(0, 0, 0, 0) - new Date(hoy).setHours(0, 0, 0, 0)) / 864e5);
+  return dias <= 0 ? "a las " + hhmm(t) : dias === 1 ? "mañana " + hhmm(t) : "el " + f.toLocaleDateString(LOC, { day: "2-digit", month: "2-digit" }) + " " + hhmm(t); };
+const durEspera = (s) => s < 90 ? Math.max(0, Math.round(s)) + " s" : s < 5400 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
+async function ordenarCola(criterio) {
+  try {
+    const r = await api("cola/ordenar", { criterio });
+    aviso(r.ordenadas ? (r.cambio ? `↕️ ${r.ordenadas} tarea(s) reorganizada(s)` : "Ya estaban en ese orden") : "No hay tareas tuyas esperando");
+  } catch (e) { aviso("No se pudo ordenar: " + e.message); }
   E.colaHtml = null; if (location.hash.includes("cola")) refrescar();
 }
 async function limpiarCola(todos, fallidos) {
@@ -284,25 +295,50 @@ const LECT = {
 /* ---------- enrutado ---------- */
 const VISTAS = {};
 function ir(r) { location.hash = "#/" + r; }
-$$("[data-ir]").forEach((b) => b.addEventListener("click", () => ir(b.dataset.ir)));
-// En el celular la barra muestra solo lo más usado; «⋯» abre el resto con su nombre
-$("#masAtajos").addEventListener("click", () => modal(`<h2>Más</h2><div class="fila" style="flex-direction:column;align-items:stretch">
-  ${$$(".atajos .extra").map((b) => `<button class="btn" data-mas="${b.dataset.ir}" style="justify-content:flex-start">${b.textContent} ${esc(b.title.split(/[:(]/)[0])}</button>`).join("")}</div>`,
-  (c) => $$("[data-mas]", c).forEach((b) => (b.onclick = () => { cerrarModal(); ir(b.dataset.mas); }))));
+function cerrarMenus() {
+  $$(".menu-panel").forEach((p) => (p.hidden = true));
+  $$(".menu-btn").forEach((b) => b.setAttribute("aria-expanded", "false"));
+}
+$$("[data-ir]").forEach((b) => b.addEventListener("click", () => { cerrarMenus(); ir(b.dataset.ir); }));
+$$(".menu-btn").forEach((b) => b.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const p = $(`.menu-panel[data-panel="${b.dataset.menu}"]`);
+  const abrir = p.hidden;
+  cerrarMenus();
+  if (abrir) { p.hidden = false; b.setAttribute("aria-expanded", "true"); }
+}));
+document.addEventListener("click", (e) => { if (!e.target.closest(".menu-desp")) cerrarMenus(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarMenus(); });
+function activarSubnav(raiz, key, inicial, alCambiar) {
+  const btns = $$(".subnav [data-tab]", raiz), panels = $$("[data-tab-panel]", raiz);
+  const poner = (t) => {
+    E[key] = t;
+    btns.forEach((b) => b.classList.toggle("activo", b.dataset.tab === t));
+    panels.forEach((p) => (p.hidden = p.dataset.tabPanel !== t));
+    if (alCambiar) alCambiar(t);
+  };
+  btns.forEach((b) => (b.onclick = () => poner(b.dataset.tab)));
+  poner(E[key] && btns.some((b) => b.dataset.tab === E[key]) ? E[key] : inicial);
+}
 window.addEventListener("hashchange", () => enrutar());
 // Refresco automático (algo terminó de prepararse): redibuja la vista SIN el ícono de carga y SIN subir al inicio,
 // para que no parezca que la página entera se recargó (se notaba mucho en iPhone).
 const refrescar = () => enrutar({ suave: true });
 
 async function enrutar(op = {}) {
+  cerrarMenus();
   const h = decodeURIComponent(location.hash.replace(/^#\/?/, "")) || "hoy";
   const [ruta, qs] = h.split("?");
   const partes = ruta.split("/");
   const q = Object.fromEntries(new URLSearchParams(qs || ""));
   $$("[data-ir]").forEach((b) => b.classList.toggle("activo", b.dataset.ir === partes[0]));
-  E.estudiando = ["tema", "repasar", "cuaderno", "tutor", "noticias", "noticia", "chequeo", "tarea", "paper", "verificar"].includes(partes[0]);
-  E.metodo = { tema: "leccion", repasar: "repaso", cuaderno: "cuaderno", tutor: "tutor", noticias: "noticias", noticia: "noticias", chequeo: "chequeo", tarea: "practica", paper: "investigacion", verificar: "investigacion" }[partes[0]] || null;
-  enviarTiempo(); LECT.terminar();
+  $$(".menu-desp").forEach((m) => {
+    const activo = !!$(".menu-panel [data-ir].activo", m);
+    $(".menu-btn", m)?.classList.toggle("activo", activo);
+  });
+  enviarTiempo(); LECT.terminar();   // primero: el tiempo acumulado es de la vista que se deja (su método, área y tema)
+  E.estudiando = ["tema", "reto", "repasar", "cuaderno", "tutor", "noticias", "noticia", "chequeo", "tarea", "paper", "verificar"].includes(partes[0]);
+  E.metodo = { tema: "leccion", reto: "reto", repasar: "repaso", cuaderno: "cuaderno", tutor: "tutor", noticias: "noticias", noticia: "noticias", chequeo: "chequeo", tarea: "practica", paper: "investigacion", verificar: "investigacion" }[partes[0]] || null;
   E.idiomaActual = null; E.areaActual = null; E.temaActual = null;
   vista.classList.toggle("ancho", ["cuaderno", "noticias", "noticia", "acciones", "accion"].includes(partes[0]));
   if (E.salir) { try { E.salir(); } catch (e) {} E.salir = null; }
@@ -325,6 +361,7 @@ async function refrescarIA() {
     E.permitirInterrumpir = s.permitir_interrumpir;
     const el = $("#estadoIA");
     if (s.actual) el.innerHTML = `<span class="cargando"></span> IA: ${esc(s.actual.fase || s.actual.tipo)}${s.en_cola ? ` (+${s.en_cola})` : ""}`;
+    else if ((s.paralelos ?? 1) === 0 && !(s.paralelos_nube || 0)) el.textContent = "⏸ Cola en pausa";
     else if (s.ocupado_pc) el.textContent = "🎮 PC ocupado: la IA de fondo espera";
     else if (s.cargados.length) el.textContent = "IA cargada: " + s.cargados.join(", ");
     else el.textContent = "";
@@ -368,58 +405,149 @@ function recursosHtml(r, d, pct, uso) {
 }
 
 VISTAS.cola = async () => {
+  const st = E.cola || (E.cola = { tab: "cola", q: "", origen: "todas", tipo: "", modo: "lista", limite: 30 });
+  const pct = (cpu, nuc) => cpu == null ? null : Math.min(100, Math.round(cpu / (nuc || 1)));
+  const uso = (x, nombre, nuc) => x ? `<div class="tarjeta" style="margin:0"><div class="suave peq">${nombre}</div>
+    <b style="font-size:1.3rem">${x.cpu == null ? "…" : pct(x.cpu, nuc) + " %"}</b> <span class="suave peq">del procesador</span>
+    <div class="barra-prog" style="margin:.3rem 0"><i style="width:${pct(x.cpu, nuc) || 0}%"></i></div>
+    <span class="peq">${x.ram_mb >= 1024 ? (x.ram_mb / 1024).toFixed(1) + " GB" : x.ram_mb + " MB"} de RAM</span></div>` : "";
+  const fila = (t, d) => `<li class="lista-fila ${t.mio ? "mia" : ""}">
+    <span class="etq ${t.estado === "corriendo" ? "bien" : t.estado === "conflicto" ? "medio" : ""}">${t.estado === "corriendo" ? "▶ ahora" : t.estado === "conflicto" ? "⏸ espera" : "#" + t.pos}</span>
+    <div class="lista-cuerpo">
+      <div class="lista-tit">${esc(t.detalle || t.tipo)} <span class="etq">${esc(t.tipo)}</span>${t.mio ? ` <span class="etq">tuya</span>` : ""}</div>
+      ${(t.fase && t.estado === "corriendo") || t.espera_hasta ? `<div class="lista-sub">${t.fase && t.estado === "corriendo" ? esc(t.fase) : ""}${t.espera_hasta ? `reintenta a las ${hhmm(t.espera_hasta)} (IA ocupada)` : ""}</div>` : ""}
+    </div>
+    <div class="lista-meta">${t.estado === "cola" ? `espera ${durEspera(d.hora - t.creado)} · ` : ""}${t.fondo ? "de fondo" : "te espera"}${t.eta_fin != null ? `<br>${t.estado === "corriendo" ? "" : `en ~${durEspera(t.eta_inicio)} · `}lista ~${cuando(d.hora + t.eta_fin)}` : ""}</div>
+    ${t.mid ? `<div class="lista-acc">
+      <button class="btn peq" title="Al principio de su grupo" ${t.primero ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","primero")'>⏫</button>
+      <button class="btn peq" title="Subir un puesto" ${t.primero ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","subir")'>▲</button>
+      <button class="btn peq" title="Bajar un puesto" ${t.ultimo ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","bajar")'>▼</button>
+      <button class="btn peq" title="Al final de su grupo" ${t.ultimo ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","ultimo")'>⏬</button>
+      ${t.fondo ? `<button class="btn peq pri" title="Urgente: pasa a «te espera»" onclick='moverTrabajo("${t.mid}","urgente")'>⚡</button>` : ""}
+      <button class="btn peq" title="Quitar de la cola" onclick='moverTrabajo("${t.mid}","quitar")'>✖</button></div>` : ""}</li>`;
+
+  const pintarLista = (d) => {
+    const c = $("#colaCuerpo"); if (!c) return;
+    if (st.tab === "recursos") {
+      c.innerHTML = recursosHtml(d.recursos || {}, d, (cpu) => pct(cpu, d.nucleos), (x, n) => uso(x, n, d.nucleos)) || `<p class="vacio">Sin datos de recursos en este entorno.</p>`;
+      return;
+    }
+    if (st.tab === "fallidos") {
+      const xs = (d.fallidos || []).filter((t) => !st.q || `${t.tipo} ${t.detalle || ""} ${t.error || ""}`.toLowerCase().includes(st.q.toLowerCase()));
+      c.innerHTML = `${d.fallidos?.length > 1 ? `<p class="fila"><button class="btn peq pri" onclick='reintentarTrabajos(${JSON.stringify(d.fallidos.map((t) => t.id))})'>🔄 Reintentar todas (${d.fallidos.length})</button></p>` : ""}
+        ${xs.length ? `<ul class="lista-compacta">${xs.map((t) => `<li class="lista-fila">
+          <span class="etq mal">error</span>
+          <div class="lista-cuerpo"><div class="lista-tit">${esc(t.detalle || t.tipo)} <span class="etq">${esc(t.tipo)}</span></div>
+            <div class="lista-sub">${esc((t.error || "").slice(0, 160))} · ${hhmm(t.terminado)}${t.reintentos ? ` · ${t.reintentos} reintento(s)` : ""}</div></div>
+          <div class="lista-acc"><button class="btn peq" onclick='reintentarTrabajos(["${t.id}"])'>🔄 Reintentar</button></div></li>`).join("")}</ul>`
+        : `<p class="vacio">No hay tareas fallidas que coincidan.</p>`}`;
+      return;
+    }
+    if (st.tab === "recientes") {
+      const xs = (d.recientes || []).filter((t) => !st.q || `${t.tipo} ${t.detalle || ""}`.toLowerCase().includes(st.q.toLowerCase()));
+      c.innerHTML = xs.length ? `<ul class="lista-compacta">${xs.map((t) => `<li class="lista-fila">
+        <span class="etq ${t.error ? "mal" : "bien"}">${t.error ? "error" : "listo"}</span>
+        <div class="lista-cuerpo"><div class="lista-tit">${esc(t.detalle || t.tipo)} <span class="etq">${esc(t.tipo)}</span></div></div>
+        <div class="lista-meta">${hhmm(t.terminado)}</div></li>`).join("")}</ul>` : `<p class="vacio">Aún no hay tareas recientes.</p>`;
+      return;
+    }
+    const q = st.q.trim().toLowerCase();
+    let xs = d.trabajos.filter((t) => {
+      if (st.origen === "mias" && !t.mio) return false;
+      if (st.origen === "espera" && t.fondo) return false;
+      if (st.origen === "fondo" && !t.fondo) return false;
+      if (st.tipo && t.tipo !== st.tipo) return false;
+      if (q && !`${t.tipo} ${t.detalle || ""} ${t.fase || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    if (!xs.length) { c.innerHTML = `<p class="vacio">${d.trabajos.length ? "Ninguna tarea coincide con los filtros." : "Nada en cola: la IA está libre."}</p>`; return; }
+    if (st.modo === "agrupada") {
+      const gr = {};
+      xs.forEach((t) => {
+        const k = t.estado === "corriendo" ? "▶ En ejecución ahora" : `${t.tipo} · ${(t.detalle || "general").split(".")[0]}`;
+        (gr[k] = gr[k] || []).push(t);
+      });
+      c.innerHTML = Object.entries(gr).map(([k, ts], idx) => `<details class="cola-grupo" ${idx < 3 ? "open" : ""}>
+        <summary><span>${esc(k)}</span><span class="etq">${ts.length}</span></summary>
+        <ul class="lista-compacta">${ts.map((t) => fila(t, d)).join("")}</ul></details>`).join("");
+      return;
+    }
+    const vis = xs.slice(0, st.limite);
+    c.innerHTML = `<ul class="lista-compacta">${vis.map((t) => fila(t, d)).join("")}</ul>
+      ${xs.length > vis.length ? `<div class="fila" style="margin-top:.6rem;justify-content:center">
+        <span class="suave peq">Mostrando ${vis.length} de ${xs.length}</span>
+        <button class="btn peq" id="colaMas">Ver 30 más</button>
+        <button class="btn peq fantasma" id="colaTodas">Ver todas</button></div>` : ""}`;
+    if ($("#colaMas")) $("#colaMas").onclick = () => { st.limite += 30; pintarLista(d); };
+    if ($("#colaTodas")) $("#colaTodas").onclick = () => { st.limite = xs.length; pintarLista(d); };
+  };
+
   const pintar = async () => {
     const d = await api("cola");
     if (location.hash.replace(/^#\/?/, "").split("/")[0] !== "cola") return;
-    const ia = d.ia, r = d.recursos || {};
-    const estado = ia.actual ? ["bien", "▶ Trabajando"] : ia.ocupado_pc ? ["medio", "🎮 PC ocupado: lo de fondo espera"]
-      : ia.otros?.length ? ["medio", `⏸ Otra app usa la IA (${ia.otros.join(", ")}): la cola espera sin interrumpirla`]
-      : d.trabajos.length ? ["medio", "⏳ Esperando para empezar"] : ["", "💤 Libre"];
-    const pct = (cpu) => cpu == null ? null : Math.min(100, Math.round(cpu / (d.nucleos || 1)));   // % de TODO el PC (máx. 100)
-    const uso = (x, nombre) => x ? `<div class="tarjeta" style="margin:0"><div class="suave peq">${nombre}</div>
-      <b style="font-size:1.3rem">${x.cpu == null ? "…" : pct(x.cpu) + " %"}</b> <span class="suave peq">del procesador</span>
-      <div class="barra-prog" style="margin:.3rem 0"><i style="width:${pct(x.cpu) || 0}%"></i></div>
-      <span class="peq">${x.ram_mb >= 1024 ? (x.ram_mb / 1024).toFixed(1) + " GB" : x.ram_mb + " MB"} de RAM</span></div>` : "";
-    const fila = (t) => `<li style="cursor:default;${t.mio ? "border-left:3px solid var(--acento);padding-left:.5rem" : ""}">
-      <span class="etq ${t.estado === "corriendo" ? "bien" : t.estado === "conflicto" ? "medio" : ""}">${t.estado === "corriendo" ? "▶ ahora" : t.estado === "conflicto" ? "⏸ espera" : "#" + t.pos}</span>
-      <span style="flex:1;min-width:0"><b>${esc(t.tipo)}</b>${t.detalle ? ` · ${esc(t.detalle)}` : ""}${t.mio ? ` <span class="etq">tuya</span>` : ""}
-      ${t.fase && t.estado === "corriendo" ? `<br><span class="suave peq">${esc(t.fase)}</span>` : ""}
-      ${t.espera_hasta ? `<br><span class="suave peq">reintenta a las ${hhmm(t.espera_hasta)} (la IA estaba ocupada)</span>` : ""}</span>
-      <span class="suave peq">${t.fondo ? "de fondo" : "te espera"}</span>
-      ${t.mid ? `<span class="fila" style="gap:.15rem;flex-wrap:nowrap">
-        <button class="btn peq" title="Pasar al principio de su grupo" ${t.primero ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","primero")'>⏫</button>
-        <button class="btn peq" title="Subir un puesto" ${t.primero ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","subir")'>▲</button>
-        <button class="btn peq" title="Bajar un puesto" ${t.ultimo ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","bajar")'>▼</button>
-        <button class="btn peq" title="Mandar al final de su grupo" ${t.ultimo ? "disabled" : ""} onclick='moverTrabajo("${t.mid}","ultimo")'>⏬</button>
-        ${t.fondo ? `<button class="btn peq pri" title="Urgente: pasa a «te espera» y va primero" onclick='moverTrabajo("${t.mid}","urgente")'>⚡</button>` : ""}
-        <button class="btn peq" title="Quitar de la cola" onclick='moverTrabajo("${t.mid}","quitar")'>✖</button></span>` : ""}</li>`;
-    const html = `<h1>⏳ Cola de la IA</h1>
-      <p class="suave peq">Lo que la IA está haciendo para la Academia y lo que sigue: ${ia.paralelos > 1 ? `hasta ${ia.paralelos} tareas a la vez` : "una tarea a la vez"}; lo que pides tú va antes que lo de fondo.
-        Si otra app (Hermes, Open WebUI…) usa la IA, todo espera sin interrumpirla. Se actualiza cada 10 s · última: ${hhmm(d.hora)}</p>
-      <div class="tarjeta"><div class="fila entre"><b>🤖 ${esc(ia.modelo)}</b><span class="etq ${estado[0]}">${esc(estado[1])}</span></div>
-        <div class="suave peq">${ia.modo === "remoto" ? "IA en otro PC del tailnet" : "IA en este PC"} · cargado ahora: ${esc(ia.cargados.join(", ") || "ninguno")}</div></div>
-      ${recursosHtml(r, d, pct, uso)}
-      <h2>📋 Ahora y en cola (${d.trabajos.length})</h2>
-      ${(() => {
-        const mias = d.trabajos.filter((t) => t.mio && t.estado !== "corriendo").length;
-        const todas = d.trabajos.filter((t) => t.estado !== "corriendo").length;
-        const f = d.fallidos?.length ? true : false;
-        return mias || todas && d.admin || f ? `<p class="fila">
-          ${mias || f ? `<button class="btn peq" onclick='limpiarCola(false, ${f})'>🧹 Limpiar lo mío${mias ? ` (${mias})` : ""}${f ? " + fallidas" : ""}</button>` : ""}
-          ${d.admin && todas ? `<button class="btn peq" onclick='limpiarCola(true, ${f})'>🧹 Limpiar la cola de todos (${todas})</button>` : ""}</p>` : "";
-      })()}
-      ${d.trabajos.length ? `<ul class="temas">${d.trabajos.map(fila).join("")}</ul>` : `<p class="vacio">Nada en cola: la IA está libre.</p>`}
-      ${d.fallidos?.length ? `<h2>❌ Fallaron (${d.fallidos.length})</h2>
-        <p class="suave peq">Se guardan 24 h. Al reintentar vuelven a la cola y la IA las hace de nuevo desde el principio.
-          ${d.fallidos.length > 1 ? `<button class="btn peq pri" onclick='reintentarTrabajos(${JSON.stringify(d.fallidos.map((t) => t.id))})'>🔄 Reintentar todas</button>` : ""}</p>
-        <ul class="temas">${d.fallidos.map((t) => `<li style="cursor:default">
-        <span class="etq mal">error</span><span style="flex:1;min-width:0"><b>${esc(t.tipo)}</b>${t.detalle ? ` · ${esc(t.detalle)}` : ""}
-          <br><span class="suave peq">${esc((t.error || "").slice(0, 160))} · ${hhmm(t.terminado)}${t.reintentos ? ` · ${t.reintentos} reintento(s)` : ""}</span></span>
-        <button class="btn peq" onclick='reintentarTrabajos(["${t.id}"])'>🔄 Reintentar</button></li>`).join("")}</ul>` : ""}
-      ${d.recientes.length ? `<h2>✅ Lo tuyo terminado hace poco</h2><ul class="temas">${d.recientes.map((t) => `<li style="cursor:default">
-        <span class="etq ${t.error ? "mal" : "bien"}">${t.error ? "error" : "listo"}</span><span style="flex:1"><b>${esc(t.tipo)}</b>${t.detalle ? ` · ${esc(t.detalle)}` : ""}</span>
-        <span class="suave peq">${hhmm(t.terminado)}</span></li>`).join("")}</ul>` : ""}`;
-    if (html !== E.colaHtml) { E.colaHtml = html; const y = window.scrollY; vista.innerHTML = html; window.scrollTo(0, y); }
+    E._colaDatos = d;
+    const ia = d.ia;
+    const pausada = !ia.actual && (ia.paralelos ?? 1) === 0 && !(ia.paralelos_nube || 0);
+    const estado = ia.actual ? ["bien", "▶ Trabajando"] : pausada ? ["medio", "⏸ En pausa (0 tareas)"]
+      : ia.ocupado_pc ? ["medio", "🎮 PC ocupado"]
+      : ia.otros?.length ? ["medio", `⏸ Otra app usa IA (${ia.otros.join(", ")})`]
+      : d.trabajos.length ? ["medio", "⏳ Esperando"] : ["", "💤 Libre"];
+    const mias = d.trabajos.filter((t) => t.mio && t.estado !== "corriendo").length;
+    const todas = d.trabajos.filter((t) => t.estado !== "corriendo").length;
+    const f = !!d.fallidos?.length;
+    const tipos = [...new Set(d.trabajos.map((t) => t.tipo))];
+    const firma = JSON.stringify([d.trabajos.length, d.fallidos?.length || 0, d.recientes.length, estado, ia.cargados, tipos, st.tab]);
+    if (firma !== E.colaHtml || !$("#colaCuerpo")) {
+      E.colaHtml = firma;
+      const y = window.scrollY;
+      vista.innerHTML = `<div class="fila entre"><h1 style="margin:0">⏳ Cola de la IA</h1><span class="suave peq">Actualizado ${hhmm(d.hora)}</span></div>
+        <div class="tarjeta" style="padding:.75rem 1rem">
+          <div class="fila entre"><b>🤖 ${esc(ia.modelo)} <span class="suave peq" style="font-weight:400">· ${ia.modo === "remoto" ? "remoto" : "local"} · cargados: ${esc(ia.cargados.join(", ") || "ninguno")}</span></b>
+            <span class="etq ${estado[0]}">${esc(estado[1])}</span></div>
+          ${d.trabajos.length && d.eta_todo ? `<div class="suave peq" style="margin-top:.3rem">⏱ Estimado libre: lo tuyo listo ~${cuando(d.hora + d.eta_mias)} · toda la cola ~${cuando(d.hora + d.eta_todo)}</div>` : ""}
+        </div>
+        <div class="subnav" id="colaTabs">
+          <button class="${st.tab === "cola" ? "activo" : ""}" data-ctab="cola">⏳ En cola (${d.trabajos.length})</button>
+          <button class="${st.tab === "fallidos" ? "activo" : ""}" data-ctab="fallidos">❌ Fallaron (${d.fallidos?.length || 0})</button>
+          <button class="${st.tab === "recientes" ? "activo" : ""}" data-ctab="recientes">✅ Recientes (${d.recientes.length})</button>
+          <button class="${st.tab === "recursos" ? "activo" : ""}" data-ctab="recursos">🖥️ Recursos del PC</button>
+        </div>
+        ${st.tab !== "recursos" ? `<div class="barra-filtros">
+          <input type="search" id="colaQ" placeholder="🔍 Buscar tema, área o detalle…" value="${esc(st.q)}">
+          ${st.tab === "cola" ? `<select id="colaOrigen" aria-label="Filtrar por origen">
+              <option value="todas" ${st.origen === "todas" ? "selected" : ""}>Todas</option>
+              <option value="mias" ${st.origen === "mias" ? "selected" : ""}>Solo lo mío</option>
+              <option value="espera" ${st.origen === "espera" ? "selected" : ""}>Te esperan</option>
+              <option value="fondo" ${st.origen === "fondo" ? "selected" : ""}>De fondo</option>
+            </select>
+            <select id="colaTipo" aria-label="Filtrar por tipo">
+              <option value="">Todos los tipos</option>
+              ${tipos.map((tp) => `<option value="${esc(tp)}" ${st.tipo === tp ? "selected" : ""}>${esc(tp)}</option>`).join("")}
+            </select>
+            <select id="colaModo" aria-label="Formato de lista">
+              <option value="lista" ${st.modo === "lista" ? "selected" : ""}>☰ Lista</option>
+              <option value="agrupada" ${st.modo === "agrupada" ? "selected" : ""}>🗂️ Agrupada</option>
+            </select>
+            ${d.trabajos.some((t) => t.mid) ? `<select id="colaOrden" aria-label="Reordenar cola">
+              <option value="">↕️ Reordenar cola…</option>
+              <option value="alfa">A → Z</option>
+              <option value="alfa_desc">Z → A</option>
+              <option value="espera_menor">Espera: menor → mayor</option>
+              <option value="espera_mayor">Espera: mayor → menor</option>
+            </select>` : ""}
+            ${mias || f ? `<button class="btn peq" onclick='limpiarCola(false, ${f})'>🧹 Limpiar mío${mias ? ` (${mias})` : ""}</button>` : ""}
+            ${d.admin && todas ? `<button class="btn peq" onclick='limpiarCola(true, ${f})'>🧹 Limpiar todo (${todas})</button>` : ""}` : ""}
+        </div>` : ""}
+        <div id="colaCuerpo"></div>`;
+      $$("[data-ctab]", vista).forEach((b) => (b.onclick = () => { st.tab = b.dataset.ctab; st.limite = 30; E.colaHtml = null; pintar(); }));
+      if ($("#colaQ")) $("#colaQ").oninput = (e) => { st.q = e.target.value; st.limite = 30; pintarLista(E._colaDatos); };
+      if ($("#colaOrigen")) $("#colaOrigen").onchange = (e) => { st.origen = e.target.value; st.limite = 30; pintarLista(E._colaDatos); };
+      if ($("#colaTipo")) $("#colaTipo").onchange = (e) => { st.tipo = e.target.value; st.limite = 30; pintarLista(E._colaDatos); };
+      if ($("#colaModo")) $("#colaModo").onchange = (e) => { st.modo = e.target.value; pintarLista(E._colaDatos); };
+      if ($("#colaOrden")) $("#colaOrden").onchange = (e) => { if (e.target.value) { const v = e.target.value; e.target.value = ""; ordenarCola(v); } };
+      window.scrollTo(0, y);
+    }
+    pintarLista(d);
   };
   E.colaHtml = null;
   await pintar();
@@ -440,11 +568,11 @@ VISTAS.hoy = async () => {
       <div class="fila" style="margin-top:.6rem"><button class="btn pri" onclick="ir('ajustes')">Mi perfil</button><button class="btn" onclick="ir('objetivos')">🎯 Crear una meta</button></div></div>` : ""}
     <div class="saludo"><div><h1>${saludo}${nombre} 👋</h1>
       <div class="suave peq">${new Date().toLocaleDateString(LOC, { weekday: "long", day: "numeric", month: "long" })}</div></div></div>
+    <div id="hoyIndice"></div>
     ${d.siguiente ? `<div class="tarjeta" id="sigPaso" style="border-color:var(--acento);${d.siguiente.ir ? "cursor:pointer" : ""}"><div class="suave peq">👉 Tu siguiente paso</div>
       <h2 style="margin:.2rem 0">${esc(d.siguiente.titulo)}</h2><div class="suave peq">${esc(d.siguiente.por_que)}</div></div>` : ""}
     ${typeof sesionCortaHtml === "function" ? sesionCortaHtml(d) : ""}
     <div class="stats">
-      <div class="stat"><b>🔥 ${d.racha}</b><span>días seguidos</span></div>
       <div class="stat"><b>${d.minutos_hoy}<small class="suave">/${d.meta_minutos}</small></b><span>minutos hoy</span>
         <div class="barra-prog" style="margin-top:.3rem"><i style="width:${pctMin}%"></i></div></div>
       <div class="stat"><b>${d.repaso.vencidas + d.repaso.nuevas}</b><span>tarjetas por repasar</span></div>
@@ -471,14 +599,14 @@ VISTAS.hoy = async () => {
     ${d.objetivos.length ? `<h2>🎯 Objetivos</h2>${d.objetivos.map((o) => `
       <div class="tarjeta" style="cursor:pointer" onclick="ir('objetivos/${o.id}')"><div class="fila entre"><b>${esc(o.titulo)}</b><span>${Math.round(o.progreso * 100)}%</span></div>
       <div class="barra-prog" style="margin-top:.4rem"><i style="width:${o.progreso * 100}%"></i></div></div>`).join("")}` : ""}
-    <h2>⏱️ Bloque de concentración</h2>
-    <div class="tarjeta"><div class="reloj" id="reloj">25:00</div>
+    <details class="tarjeta"><summary><b>⏱️ Bloque de concentración</b></summary><div class="reloj" id="reloj">25:00</div>
       <div class="fila" style="justify-content:center"><button class="btn" id="pomo25">Enfoque 25</button><button class="btn" id="pomo50">Profundo 50</button><button class="btn fantasma" id="pomoParar">Parar</button></div>
-      <p class="suave peq" style="text-align:center;margin:.5rem 0 0">Teléfono boca abajo, una sola tarea. Al terminar: 5 min de descanso real (sin pantalla).</p></div>
+      <p class="suave peq" style="text-align:center;margin:.5rem 0 0">Teléfono boca abajo, una sola tarea. Al terminar: 5 min de descanso real (sin pantalla).</p></details>
     <div id="hoyAcciones"></div>
     ${d.noticias.length ? `<h2>🌍 Lo más importante hoy</h2>${d.noticias.map(tarjetaNoticia).join("")}
       <button class="btn fantasma" onclick="ir('noticias')">Ver todas las noticias →</button>` : ""}`;
   $$("[data-tema]", vista).forEach((c) => (c.onclick = () => ir("tema/" + c.dataset.tema)));
+  if (typeof indiceHoy === "function") indiceHoy($("#hoyIndice"));   // web/indice.js
   if (typeof acHoy === "function") acHoy($("#hoyAcciones"));   // web/acciones.js (lo guardado, sin esperar a internet)
   pomodoro(d.adaptacion.bloque);
   if ($("#sigPaso") && d.siguiente.ir) $("#sigPaso").onclick = () => {
@@ -547,50 +675,158 @@ function pomodoro(bloque) {
 }
 
 /* =============================== RUTA =============================== */
-// Áreas de ESTE perfil (las calcula el servidor: Ajustes, áreas propias, metas y lo ya estudiado).
-// No hay catálogo: las áreas aparecen a medida que crea metas o áreas en 🎯 Objetivos.
+// En Tu ruta solo aparecen las áreas ACTIVAS (prioridad > 0 en Ajustes, o metas activas).
 const esMia = (a, yo) => (yo.areas || []).includes(a.id);
-const SIN_AREAS = `Aún no tienes áreas. Crea una meta de aprendizaje o un área completa en <a href="#/objetivos">🎯 Objetivos</a>: la IA arma lo que necesitas y aparecerá aquí.`;
+const esActiva = (a, yo) => esMia(a, yo) && (yo.prioridad?.[a.id] ?? 0) > 0;
+const SIN_AREAS = `No tienes áreas activas en Tu ruta. Activa áreas en <a href="#/ajustes">⚙️ Ajustes</a> o crea una meta en <a href="#/objetivos">🎯 Objetivos</a>.`;
 const porGrupo = (as) => { const g = {}; as.forEach((a) => (g[a.grupo] = g[a.grupo] || []).push(a)); return g; };
 
 VISTAS.ruta = async ([areaId]) => {
   const [d, yo] = await Promise.all([api("mapa"), api("yo")]);
-  E.mapa = d.areas; d.areas.forEach((a) => (AREA_ES[a.id] = a));
+  E.yo = yo; E.mapa = d.areas; d.areas.forEach((a) => (AREA_ES[a.id] = a));
   if (!areaId) {
-    const mias = d.areas.filter((a) => esMia(a, yo));
-    const tarjetas = (grupos) => Object.entries(grupos).map(([g, as]) => `<h2>${esc(g)}</h2><div class="rejilla">${as.map((a) => `
-        <div class="tarjeta" style="cursor:pointer" onclick="ir('ruta/${a.id}')">
-          <div class="area-cab"><div class="ico" style="background:${a.color}">${esc(a.icono)}</div>
-          <div style="min-width:0"><b>${esc(a.nombre)}</b><div class="suave peq">${a.modulos.length} módulos · ${a.modulos.reduce((s, m) => s + m.temas.length, 0)} temas</div></div></div>
-          <div class="barra-prog" style="margin-top:.7rem"><i style="width:${a.dominio * 100}%;background:${a.color}"></i></div>
-          <div class="suave peq" style="margin-top:.2rem">${Math.round(a.dominio * 100)}% dominado</div></div>`).join("")}</div>`).join("");
-    vista.innerHTML = `<h1>🗺️ Tu ruta</h1>
-      <p class="suave">De lo más básico a la frontera del conocimiento (horizonte). Cada módulo se desbloquea al dominar sus prerrequisitos al 60 %; si ya sabes algo, haz la <b>prueba de nivel</b> y sáltalo.</p>
+    const activas = d.areas.filter((a) => esActiva(a, yo));
+    const gruposDisp = [...new Set(activas.map((a) => a.grupo))];
+    const rf = E.rutaFiltro || (E.rutaFiltro = { q: "", grupo: "", orden: "prioridad", vista: leerLS("ruta_vista") || "tarjetas" });
+    const prio = (a) => yo.prioridad?.[a.id] ?? 0;
+    const temasDe = (a) => a.modulos.reduce((s, m) => s + m.temas.length, 0);
+
+    vista.innerHTML = `<div class="fila entre"><h1 style="margin:0">🗺️ Tu ruta</h1>
+        <button class="btn peq" onclick="ir('ajustes')">⚙️ Activar o pausar áreas (${activas.length})</button></div>
+      <p class="suave peq" style="margin:.35rem 0 .7rem">De lo más básico a la frontera. Solo se muestran tus áreas activas; las pausadas se gestionan en Ajustes.</p>
       <div class="fila" style="margin-bottom:.6rem"><button class="btn peq" onclick="ir('pruebas')">📝 Mis pruebas de nivel</button>
         <button class="btn peq" id="btnProfundizar" title="Reescribe a fondo, en segundo plano, las lecciones de versiones antiguas">📚 Profundizar lecciones antiguas</button><span id="profEstado" class="suave peq"></span></div>
-      <details class="tarjeta" id="extCaja"><summary><b>📥 Ya estudié cosas fuera de la Academia</b> <span class="suave peq">(Coursera, Platzi, DataCamp, universidad, trabajo…)</span></summary>
-        <p class="suave peq">Pega la lista de cursos, certificados o materias que terminaste (con el nivel o la nota si la tienes). La IA los relaciona con tu ruta y te propone una prueba de nivel corta por módulo: lo que ya sabes no lo vuelves a estudiar, pero se verifica.</p>
-        <textarea id="extTexto" placeholder="Ej.: Coursera — Machine Learning Specialization (Stanford), terminada&#10;Platzi — Curso de Python intermedio&#10;Universidad — Cálculo diferencial (4,2/5)"></textarea>
+      <details class="tarjeta" id="extCaja" style="padding:.7rem 1rem"><summary style="cursor:pointer"><b>📥 Ya estudié cosas fuera de la Academia</b> <span class="suave peq">(Coursera, Platzi, universidad…)</span></summary>
+        <p class="suave peq">Pega la lista de cursos o materias que terminaste: la IA los relaciona con tu ruta y te propone pruebas de nivel.</p>
+        <textarea id="extTexto" placeholder="Ej.: Coursera — Machine Learning Specialization (Stanford), terminada"></textarea>
         <div class="fila" style="margin-top:.4rem"><button class="btn pri" id="extBtn">Relacionar con mi ruta</button></div><div id="extRes"></div></details>
-      ${mias.length ? tarjetas(porGrupo(mias)) : `<div class="tarjeta">${SIN_AREAS}</div>`}`;
+      ${activas.length ? `<div class="barra-filtros">
+        <input type="search" id="rBuscar" placeholder="🔍 Buscar área, módulo o tema…" value="${esc(rf.q)}">
+        <select id="rGrupo" aria-label="Filtrar por grupo"><option value="">Todos los grupos (${activas.length})</option>
+          ${gruposDisp.map((g) => `<option value="${esc(g)}" ${rf.grupo === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+        <select id="rOrden" aria-label="Ordenar áreas">
+          <option value="prioridad" ${rf.orden === "prioridad" ? "selected" : ""}>Orden: Prioridad</option>
+          <option value="dom_desc" ${rf.orden === "dom_desc" ? "selected" : ""}>Mayor dominio</option>
+          <option value="dom_asc" ${rf.orden === "dom_asc" ? "selected" : ""}>Menor dominio</option>
+          <option value="temas" ${rf.orden === "temas" ? "selected" : ""}>Más temas</option>
+          <option value="nombre" ${rf.orden === "nombre" ? "selected" : ""}>Nombre A → Z</option>
+        </select>
+        <div class="chips" style="padding:0">
+          <button class="chip ${rf.vista === "tarjetas" ? "activo" : ""}" data-rv="tarjetas">▦ Tarjetas</button>
+          <button class="chip ${rf.vista === "lista" ? "activo" : ""}" data-rv="lista">☰ Lista</button>
+        </div></div>` : ""}
+      <div id="rutaLista"></div>`;
+
+    const pintar = () => {
+      const box = $("#rutaLista");
+      if (!activas.length) { box.innerHTML = `<div class="tarjeta">${SIN_AREAS}</div>`; return; }
+      const q = rf.q.trim().toLowerCase();
+      let xs = activas.filter((a) => {
+        if (rf.grupo && a.grupo !== rf.grupo) return false;
+        if (!q) return true;
+        if (`${a.nombre} ${a.grupo}`.toLowerCase().includes(q)) return true;
+        return a.modulos.some((m) => m.t.toLowerCase().includes(q) || m.temas.some((t) => `${t.t} ${t.d}`.toLowerCase().includes(q)));
+      });
+      const cmp = {
+        prioridad: (a, b) => prio(b) - prio(a) || b.dominio - a.dominio || a.nombre.localeCompare(b.nombre),
+        dom_desc: (a, b) => b.dominio - a.dominio || a.nombre.localeCompare(b.nombre),
+        dom_asc: (a, b) => a.dominio - b.dominio || prio(b) - prio(a),
+        temas: (a, b) => temasDe(b) - temasDe(a),
+        nombre: (a, b) => a.nombre.localeCompare(b.nombre),
+      }[rf.orden] || (() => 0);
+      xs.sort(cmp);
+      if (!xs.length) { box.innerHTML = `<p class="vacio">Ninguna área activa coincide con el filtro.</p>`; return; }
+      if (rf.vista === "lista") {
+        box.innerHTML = `<ul class="lista-compacta">${xs.map((a) => `<li class="area-fila" onclick="ir('ruta/${a.id}')">
+          <div class="ico-mini" style="background:${a.color}">${esc(a.icono)}</div>
+          <div class="lista-cuerpo"><div class="lista-tit">${esc(a.nombre)} <span class="etq">${esc(a.grupo)}</span> <span class="etq">P${prio(a)}</span></div>
+            <div class="lista-sub">${a.modulos.length} módulos · ${temasDe(a)} temas</div></div>
+          <div class="prog-mini"><div class="barra-prog"><i style="width:${a.dominio * 100}%;background:${a.color}"></i></div>
+            <div class="suave peq" style="text-align:right">${Math.round(a.dominio * 100)}%</div></div></li>`).join("")}</ul>`;
+        return;
+      }
+      const grupos = rf.orden === "prioridad" && !rf.grupo ? porGrupo(xs) : { [rf.grupo || `Áreas activas (${xs.length})`]: xs };
+      box.innerHTML = Object.entries(grupos).map(([g, as]) => `<h2>${esc(g)} <span class="suave peq">(${as.length})</span></h2><div class="rejilla">${as.map((a) => `
+        <div class="tarjeta" style="cursor:pointer" onclick="ir('ruta/${a.id}')">
+          <div class="area-cab"><div class="ico" style="background:${a.color}">${esc(a.icono)}</div>
+          <div style="min-width:0"><b>${esc(a.nombre)}</b><div class="suave peq">${a.modulos.length} módulos · ${temasDe(a)} temas · P${prio(a)}</div></div></div>
+          <div class="barra-prog" style="margin-top:.7rem"><i style="width:${a.dominio * 100}%;background:${a.color}"></i></div>
+          <div class="suave peq" style="margin-top:.2rem">${Math.round(a.dominio * 100)}% dominado</div></div>`).join("")}</div>`).join("");
+    };
+    if ($("#rBuscar")) $("#rBuscar").oninput = (e) => { rf.q = e.target.value; pintar(); };
+    if ($("#rGrupo")) $("#rGrupo").onchange = (e) => { rf.grupo = e.target.value; pintar(); };
+    if ($("#rOrden")) $("#rOrden").onchange = (e) => { rf.orden = e.target.value; pintar(); };
+    $$("[data-rv]").forEach((b) => (b.onclick = () => { rf.vista = b.dataset.rv; escribirLS("ruta_vista", rf.vista); $$("[data-rv]").forEach((x) => x.classList.toggle("activo", x === b)); pintar(); }));
+    pintar();
     montarExterno();
     return;
   }
   const a = d.areas.find((x) => x.id === areaId);
   if (!a) return ir("ruta");
-  const porNivel = {};
-  a.modulos.forEach((m) => (porNivel[m.nivel] = porNivel[m.nivel] || []).push(m));
+  const mf = E.modFiltro || (E.modFiltro = { q: "", nivel: "", estado: "" });
   vista.innerHTML = `<button class="btn fantasma peq" onclick="ir('ruta')">← Todas las áreas</button>
     <div class="area-cab" style="margin:.6rem 0"><div class="ico" style="background:${a.color}">${esc(a.icono)}</div>
-      <div><h1 style="margin:0">${esc(a.nombre)}</h1><div class="suave peq">${Math.round(a.dominio * 100)}% dominado</div></div></div>
-    <p>${esc(a.descripcion || "")}</p>
+      <div><h1 style="margin:0">${esc(a.nombre)}</h1><div class="suave peq">${Math.round(a.dominio * 100)}% dominado · ${a.modulos.length} módulos</div></div></div>
+    <p class="suave">${esc(a.descripcion || "")}</p>
     ${a.objetivo ? `<p class="peq">Ruta propia de tu objetivo · <a href="#/objetivos/${a.objetivo}">ver el objetivo y sus requisitos</a></p>` : ""}
-    <div id="rutaViva"></div>
-    ${a.modulos.some((m) => m.dominio < 0.8) ? `<div class="tarjeta"><div class="fila entre"><div><b>🎯 Ubícame en esta área</b><div class="suave peq">3-4 pruebas de nivel en búsqueda binaria: lo que ya sabes se salta, empiezas donde de verdad estás.</div></div><button class="btn pri peq" id="ubicarme">Empezar</button></div></div>` : ""}
-    ${a.personal && a.id.startsWith("p_") ? `<div class="fila" style="margin-bottom:.6rem"><span class="etq">área creada por ti</span><button class="btn peq fantasma" id="quitarArea">🗑 Quitar esta área</button></div>` : ""}
-    ${a.recursos.length ? `<details class="tarjeta"><summary><b>📚 Recursos verificados y gratuitos</b></summary><ul>${a.recursos.map((r) => `<li><a href="${escUrl(r.u)}" target="_blank" rel="noopener">${esc(r.t)}</a></li>`).join("")}</ul></details>` : ""}
-    ${Object.entries(porNivel).map(([n, ms]) => `<div class="nivel-tit">Nivel ${n} · ${NIVELES[n]}</div>${ms.map((m) => `
-      <details class="tarjeta modulo ${m.abierto ? "" : "cerrado"}" ${m.abierto && m.dominio < 0.8 && m.dominio > 0 ? "open" : ""}>
+    ${a.personal && a.id.startsWith("p_") ? (() => {
+      const gs = [...new Set([...(d.grupos || ["Ingenierías", "Ciencias básicas", "Humanidades", "Ciencias sociales", "Negocios", "Idiomas", "Artes", "Salud", "Otros"]), a.grupo].filter(Boolean))];
+      return `<div class="fila" style="margin-bottom:.6rem"><span class="etq">área creada por ti</span>
+        <select id="grupoArea" aria-label="Grupo del área" style="width:auto;min-height:34px;padding:.25rem .5rem;font-size:.86rem">${gs.map((g) => `<option value="${esc(g)}" ${g === a.grupo ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+        <button class="btn peq fantasma" id="quitarArea">🗑 Quitar esta área</button></div>`;
+    })() : ""}
+    <div class="subnav">
+      <button data-tab="modulos">🗺️ Módulos (${a.modulos.length})</button>
+      <button data-tab="viva">🔭 Ruta viva</button>
+      <button data-tab="recursos">📚 Recursos y lecturas</button>
+    </div>
+    <section data-tab-panel="modulos">
+      ${a.modulos.some((m) => m.dominio < 0.8) ? `<div class="tarjeta"><div class="fila entre"><div><b>🎯 Ubícame en esta área</b><div class="suave peq">3-4 pruebas de nivel en búsqueda binaria para empezar donde de verdad estás.</div></div><button class="btn pri peq" id="ubicarme">Empezar</button></div></div>` : ""}
+      <div class="barra-filtros">
+        <input type="search" id="mBuscar" placeholder="🔍 Buscar módulo o tema…" value="${esc(mf.q)}">
+        <select id="mNivel" aria-label="Filtrar por nivel"><option value="">Todos los niveles</option>
+          ${[1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${mf.nivel === String(n) ? "selected" : ""}>Nivel ${n} · ${NIVELES[n]}</option>`).join("")}</select>
+        <select id="mEstado" aria-label="Filtrar por estado">
+          <option value="" ${!mf.estado ? "selected" : ""}>Todos</option>
+          <option value="abiertos" ${mf.estado === "abiertos" ? "selected" : ""}>Abiertos</option>
+          <option value="curso" ${mf.estado === "curso" ? "selected" : ""}>En curso</option>
+          <option value="dominados" ${mf.estado === "dominados" ? "selected" : ""}>Dominados</option>
+          <option value="bloqueados" ${mf.estado === "bloqueados" ? "selected" : ""}>Bloqueados</option>
+        </select>
+        <button class="btn peq" id="mExpandir">Expandir</button>
+        <button class="btn peq" id="mContraer">Contraer</button>
+      </div>
+      <div id="modLista"></div>
+    </section>
+    <section data-tab-panel="viva" hidden><div id="rutaViva"></div></section>
+    <section data-tab-panel="recursos" hidden>
+      ${a.recursos.length ? `<div class="tarjeta"><b>📚 Recursos verificados y gratuitos</b><ul>${a.recursos.map((r) => `<li><a href="${escUrl(r.u)}" target="_blank" rel="noopener">${esc(r.t)}</a></li>`).join("")}</ul></div>` : ""}
+      ${a.objetivo ? "" : `<div id="recoRuta"></div>`}
+    </section>`;
+
+  let emCache = null;
+  const aplicarEstadosMods = () => {
+    if (!emCache || !emCache.modulos) return;
+    Object.entries(emCache.modulos).forEach(([ref, x]) => {
+      const el = $(`[data-estado-mod="${ref}"]`, vista); if (!el) return;
+      el.textContent = `Lecciones: ${x.listas}/${x.temas} listas` + (x.maximas ? ` · ${x.maximas} a máxima` : "") + (x.en_cola ? ` · ⏳ ${x.en_cola} en cola` : "");
+    });
+  };
+  const pintarMods = () => {
+    const q = mf.q.trim().toLowerCase();
+    const filtrados = a.modulos.filter((m) => {
+      if (mf.nivel && String(m.nivel) !== mf.nivel) return false;
+      if (mf.estado === "abiertos" && !m.abierto) return false;
+      if (mf.estado === "curso" && !(m.abierto && m.dominio < 0.8 && m.dominio > 0)) return false;
+      if (mf.estado === "dominados" && m.dominio < 0.8) return false;
+      if (mf.estado === "bloqueados" && m.abierto) return false;
+      if (q && !m.t.toLowerCase().includes(q) && !m.temas.some((t) => `${t.t} ${t.d}`.toLowerCase().includes(q))) return false;
+      return true;
+    });
+    const porNivel = {};
+    filtrados.forEach((m) => (porNivel[m.nivel] = porNivel[m.nivel] || []).push(m));
+    $("#modLista").innerHTML = filtrados.length ? Object.entries(porNivel).map(([n, ms]) => `<div class="nivel-tit">Nivel ${n} · ${NIVELES[n]}</div>${ms.map((m) => `
+      <details class="tarjeta modulo ${m.abierto ? "" : "cerrado"}" ${(m.abierto && m.dominio < 0.8 && m.dominio > 0) || q ? "open" : ""}>
         <summary><div class="fila entre"><b>${m.abierto ? "" : "🔒 "}${esc(m.t)}</b><span class="suave peq">${Math.round(m.dominio * 100)}%</span></div>
           <div class="barra-prog" style="margin-top:.4rem"><i style="width:${m.dominio * 100}%;background:${a.color}"></i></div>
           ${m.pre.length ? `<div class="suave peq" style="margin-top:.3rem">Requiere: ${m.pre.map(nombreModulo).join(", ")}</div>` : ""}</summary>
@@ -602,34 +838,43 @@ VISTAS.ruta = async ([areaId]) => {
           <button class="btn peq" data-preparar-mod="${m.ref}">📥 Preparar todo el módulo</button>
           ${a.idioma ? "" : `<button class="btn peq" data-maxima-mod="${m.ref}">🔬 Todo a máxima profundidad</button>`}
           <span class="suave peq" data-estado-mod="${m.ref}"></span></div>
-      </details>`).join("")}`).join("")}`;
-  const pintarEstadoMods = async () => {
-    const em = await api("modulo/estado?area=" + encodeURIComponent(a.id)).catch(() => null);
-    if (!em || !em.modulos) return;
-    Object.entries(em.modulos).forEach(([ref, x]) => {
-      const el = $(`[data-estado-mod="${ref}"]`, vista); if (!el) return;
-      el.textContent = `Lecciones: ${x.listas}/${x.temas} listas` + (x.maximas ? ` · ${x.maximas} a máxima profundidad` : "") + (x.en_cola ? ` · ⏳ ${x.en_cola} en cola` : "");
-    });
+      </details>`).join("")}`).join("") : `<p class="vacio">Ningún módulo coincide con el filtro.</p>`;
+    $$("[data-preparar-mod]", vista).forEach((b) => (b.onclick = async (e) => {
+      e.preventDefault();
+      const r = await api("modulo/preparar", { ref: b.dataset.prepararMod });
+      aviso(r.encoladas ? `📥 ${r.encoladas} lecciones en cola` : "Todas las lecciones ya están listas o en cola");
+      api("modulo/estado?area=" + encodeURIComponent(a.id)).then((em) => { emCache = em; aplicarEstadosMods(); }).catch(() => {});
+    }));
+    $$("[data-maxima-mod]", vista).forEach((b) => (b.onclick = async (e) => {
+      e.preventDefault();
+      if (!confirm("¿Reescribir todas las lecciones de este módulo a máxima profundidad?")) return;
+      const r = await api("modulo/preparar", { ref: b.dataset.maximaMod, maxima: true });
+      aviso(r.encoladas ? `🔬 ${r.encoladas} lecciones en cola a máxima profundidad` : "Todas ya están a máxima profundidad o en cola");
+      api("modulo/estado?area=" + encodeURIComponent(a.id)).then((em) => { emCache = em; aplicarEstadosMods(); }).catch(() => {});
+    }));
+    $$("[data-tema]", vista).forEach((li) => (li.onclick = () => ir("tema/" + li.dataset.tema)));
+    $$("[data-prueba]", vista).forEach((b) => (b.onclick = (e) => { e.preventDefault(); pruebaNivel(b.dataset.prueba); }));
+    $$("[data-ciencia]", vista).forEach((b) => (b.onclick = (e) => { e.preventDefault(); verCiencia(b.dataset.ciencia, b.dataset.titulo); }));
+    aplicarEstadosMods();
   };
-  pintarEstadoMods();
-  $$("[data-preparar-mod]", vista).forEach((b) => (b.onclick = async (e) => {
-    e.preventDefault();
-    const r = await api("modulo/preparar", { ref: b.dataset.prepararMod });
-    aviso(r.encoladas ? `📥 ${r.encoladas} lecciones en cola (de fondo; ~30 min cada una, 2 a la vez)` : "Todas las lecciones de este módulo ya están listas o en cola");
-    pintarEstadoMods();
-  }));
-  $$("[data-maxima-mod]", vista).forEach((b) => (b.onclick = async (e) => {
-    e.preventDefault();
-    if (!confirm("¿Reescribir todas las lecciones de este módulo a máxima profundidad? Cada una tarda 1-1.5 h de fondo; las actuales quedan como versión anterior.")) return;
-    const r = await api("modulo/preparar", { ref: b.dataset.maximaMod, maxima: true });
-    aviso(r.encoladas ? `🔬 ${r.encoladas} lecciones en cola a máxima profundidad (mira el avance en ⏳)` : "Todas ya están a máxima profundidad o en cola");
-    pintarEstadoMods();
-  }));
-  $$("[data-tema]", vista).forEach((li) => (li.onclick = () => ir("tema/" + li.dataset.tema)));
-  $$("[data-prueba]", vista).forEach((b) => (b.onclick = (e) => { e.preventDefault(); pruebaNivel(b.dataset.prueba); }));
-  $$("[data-ciencia]", vista).forEach((b) => (b.onclick = (e) => { e.preventDefault(); verCiencia(b.dataset.ciencia, b.dataset.titulo); }));
+  pintarMods();
+  api("modulo/estado?area=" + encodeURIComponent(a.id)).then((em) => { emCache = em; aplicarEstadosMods(); }).catch(() => {});
+  $("#mBuscar").oninput = (e) => { mf.q = e.target.value; pintarMods(); };
+  $("#mNivel").onchange = (e) => { mf.nivel = e.target.value; pintarMods(); };
+  $("#mEstado").onchange = (e) => { mf.estado = e.target.value; pintarMods(); };
+  $("#mExpandir").onclick = () => $$("#modLista details.modulo").forEach((d_) => (d_.open = true));
+  $("#mContraer").onclick = () => $$("#modLista details.modulo").forEach((d_) => (d_.open = false));
+  activarSubnav(vista, "areaTab", "modulos");
   if ($("#ubicarme")) $("#ubicarme").onclick = () => ubicarme(a);
   montarRutaViva($("#rutaViva"), a.objetivo ? { objetivo: a.objetivo } : { area: a.id });
+  if (!a.objetivo) montarRecomendaciones($("#recoRuta"), "area=" + encodeURIComponent(a.id), "de esta ruta");
+  if ($("#grupoArea")) $("#grupoArea").onchange = async (e) => {
+    const r = await api("area/grupo", { id: a.id, grupo: e.target.value }).catch((err) => ({ error: err.message }));
+    if (r.error) return aviso(r.error);
+    E.mapa = null; E.yo = null;
+    aviso(`✅ Movida a «${r.grupo}»`);
+    refrescar();
+  };
   if ($("#quitarArea")) $("#quitarArea").onclick = async () => {
     if (!confirm("¿Quitar esta área de tu ruta? Tu avance en sus temas se conserva por si la vuelves a crear con el mismo nombre.")) return;
     await api("area/borrar", { id: a.id }); E.mapa = null; ir("ruta");
@@ -660,26 +905,42 @@ async function pruebaNivel(ref, alTerminar, titulo, nueva) {
     const r = x.datos, resp = {}; Object.entries(x.respuestas).forEach(([i, v]) => (resp[i] = v));
     const total = r.preguntas.length, minimo = Math.ceil(total * (r.aprobar || 0.95));
     const hechas = () => Object.keys(resp).length;
-    $("#pnEstado").innerHTML = `${r.intento > 1 ? `<span class="etq">Intento ${r.intento} · preguntas nuevas</span> ` : ""}${r.ya_sabidos && r.ya_sabidos.length ? `<span class="etq bien">Ya superados, no se repiten: ${r.ya_sabidos.map(esc).join(", ")}</span><br>` : ""}Responde sin consultar nada. <b>${minimo} de ${total}</b> (${Math.round((r.aprobar || 0.95) * 100)} %) = módulo superado.
-      Si no llegas, igual quedan marcados como sabidos los temas en los que aciertes <b>todas</b> sus preguntas. <span class="suave">Cada respuesta se guarda: puedes cerrar y seguir luego, aquí o en otro equipo.</span> <span id="pnCuenta" class="etq">0/${total}</span>`;
+    $("#pnEstado").innerHTML = `${r.intento > 1 ? `<span class="etq">Intento ${r.intento} · preguntas nuevas</span> ` : ""}${r.ya_sabidos && r.ya_sabidos.length ? `<span class="etq bien">Ya superados, no se repiten: ${r.ya_sabidos.map(esc).join(", ")}</span><br>` : ""}Responde sin consultar nada y di antes qué tan seguro estás. <b>${Math.round((r.aprobar || 0.95) * 100)} %</b> de aciertos firmes = módulo superado (acertar adivinando o con la respuesta delatada por su largo no cuenta).
+      Si no llegas, igual quedan marcados como sabidos los temas con 2 aciertos firmes y ningún error. <span class="suave">Cada respuesta se guarda: puedes cerrar y seguir luego, aquí o en otro equipo.</span> <span id="pnCuenta" class="etq">0/${total}</span>`;
     const c = $("#pnCuerpo");
     let html = "", ultimo = null;
     r.preguntas.forEach((p, i) => {
       if (p.tema !== ultimo) { ultimo = p.tema; const t = (r.temas || []).find((y) => y.i === p.tema); html += `<div class="nivel-tit">${esc(t ? t.t : "Tema " + (p.tema + 1))}</div>`; }
-      html += `<div class="pregunta" data-i="${i}"><div class="pq"></div>${p.opciones.map(() => `<button class="opcion"></button>`).join("")}<div class="exp suave peq"></div></div>`;
+      // opciones barajadas al mostrarlas y seguridad antes de responder: un acierto adivinando no es evidencia
+      const orden = p.opciones.map((_, k) => k).sort(() => Math.random() - 0.5);
+      html += `<div class="pregunta" data-i="${i}"><div class="pq"></div>
+        <div class="conf peq" role="group" aria-label="Qué tan seguro estás"><span class="suave">Primero: ¿qué tan seguro estás?</span>
+        ${[["seguro", "💪 Seguro"], ["dudo", "🤔 Dudo"], ["adivino", "🎲 Adivino"]].map(([k, t]) => `<button class="chip" data-conf="${k}" aria-pressed="false">${t}</button>`).join("")}</div>
+        ${orden.map((j) => `<button class="opcion bloq" data-j="${j}"></button>`).join("")}<div class="exp suave peq"></div></div>`;
     });
     c.innerHTML = html + `<div class="fila" style="margin-top:1rem"><button class="btn pri" id="pnFin" disabled>Ver resultado</button><button class="btn fantasma" onclick="cerrarModal()">Seguir luego</button></div>`;
     const cuenta = () => { $("#pnCuenta").textContent = `${hechas()}/${total} · ${Object.values(resp).filter((v) => v.ok).length} bien`; $("#pnFin").disabled = hechas() < total; };
-    const marcar = (caja, p, j) => { $$(".opcion", caja)[p.correcta].classList.add("ok"); if (j !== p.correcta) $$(".opcion", caja)[j]?.classList.add("no"); pintarMd($(".exp", caja), p.explicacion); };
+    const marcar = (caja, p, j, conf) => {
+      $(`.opcion[data-j="${p.correcta}"]`, caja)?.classList.add("ok"); if (j !== p.correcta) $(`.opcion[data-j="${j}"]`, caja)?.classList.add("no");
+      $$(".opcion", caja).forEach((x) => x.classList.remove("bloq")); $$("[data-conf]", caja).forEach((x) => { x.disabled = true; x.classList.toggle("activo", x.dataset.conf === conf); });
+      pintarMd($(".exp", caja), (j === p.correcta && conf === "adivino" ? "🎲 **Acertada adivinando: no cuenta como evidencia.**\n\n" : "") + p.explicacion);
+    };
     r.preguntas.forEach((p, i) => {
       const caja = $(`[data-i="${i}"]`, c);
       pintarMd($(".pq", caja), `**${i + 1}.** ${p.pregunta}`);
-      $$(".opcion", caja).forEach((b, j) => { pintarMd(b, p.opciones[j]); b.onclick = async () => {
+      let conf = null;
+      $$("[data-conf]", caja).forEach((b) => (b.onclick = () => {
         if (resp[i] !== undefined) return;
-        resp[i] = { j, ok: j === p.correcta, tema: p.tema }; marcar(caja, p, j); cuenta();
-        api("prueba/respuesta", { id: pid, i, j }).catch(() => aviso("No se pudo guardar la respuesta; revisa la conexión"));
+        conf = b.dataset.conf; $$("[data-conf]", caja).forEach((x) => { x.classList.toggle("activo", x === b); x.setAttribute("aria-pressed", x === b); });
+        $$(".opcion", caja).forEach((x) => x.classList.remove("bloq"));
+      }));
+      $$(".opcion", caja).forEach((b) => { const j = +b.dataset.j; pintarMd(b, p.opciones[j]); b.onclick = async () => {
+        if (resp[i] !== undefined) return;
+        if (!conf) { aviso("Primero di qué tan seguro estás (💪 🤔 🎲)"); return; }
+        resp[i] = { j, ok: j === p.correcta, tema: p.tema, conf }; marcar(caja, p, j, conf); cuenta();
+        api("prueba/respuesta", { id: pid, i, j, conf }).catch(() => aviso("No se pudo guardar la respuesta; revisa la conexión"));
       }; });
-      if (resp[i] !== undefined) marcar(caja, p, resp[i].j);
+      if (resp[i] !== undefined) marcar(caja, p, resp[i].j, resp[i].conf);
     });
     cuenta();
     $("#pnFin").onclick = async () => mostrarResultadoPrueba(await api("prueba/resultado", { id: pid, ref }), alTerminar, ref);
@@ -687,7 +948,8 @@ async function pruebaNivel(ref, alTerminar, titulo, nueva) {
 }
 function mostrarResultadoPrueba(res, alTerminar, ref) {
   modal(`<h2>${res.aprobado ? "🎉 ¡Módulo superado!" : "Resultado de la prueba"}</h2>
-    <p><b>${res.bien}/${res.total}</b> correctas (${Math.round(res.porcentaje * 100)} %; se necesita ${Math.round(res.minimo * 100)} %).
+    <p><b>${res.bien}/${res.total}</b> correctas (${Math.round(res.porcentaje * 100)} %; se necesita ${Math.round(res.minimo * 100)} % de aciertos firmes).
+    ${res.firmes != null ? `<br><span class="suave peq">Aciertos firmes: <b>${res.firmes}</b>${res.con_pista ? ` · ${res.con_pista} acertadas con pista (la correcta era mucho más larga): no cuentan` : ""}${res.adivinadas ? ` · ${res.adivinadas} acertadas adivinando: no cuentan` : ""}. Un tema queda como sabido con 2 aciertos firmes y ningún error.</span>` : ""}
     ${res.aprobado ? "Todo el módulo queda como dominado y se abren los siguientes." : ""}</p>
     ${res.pasados.length ? `<p>✅ <b>Marcados como sabidos (${res.pasados.length}):</b></p><ul class="temas">${res.pasados.map((t) => `<li style="cursor:default"><span class="punto probado"></span>${esc(t.t)}</li>`).join("")}</ul>` : ""}
     ${res.pendientes.length ? `<p>⬜ <b>Te faltan (${res.pendientes.length})</b> — quedan pendientes en tu ruta:</p><ul class="temas">${res.pendientes.map((t) => `<li data-tema="${t.id}"><span class="punto"></span><span style="flex:1">${esc(t.t)}</span><span class="etq">${t.bien}/${t.total}</span></li>`).join("")}</ul>` : ""}
@@ -701,13 +963,36 @@ function mostrarResultadoPrueba(res, alTerminar, ref) {
 VISTAS.pruebas = async () => {
   if (!E.mapa) { const m = await api("mapa"); E.mapa = m.areas; }
   const d = await api("pruebas");
+  const pf = E.pruebasFiltro || (E.pruebasFiltro = { tab: "todas", q: "" });
   vista.innerHTML = `<h1>📝 Mis pruebas de nivel</h1><p class="suave">Las pruebas viven en el servidor: si cierras la ventana o cambias de equipo, las retomas aquí donde ibas.</p>
     ${d.preparando.map((x) => `<div class="tarjeta"><span class="cargando"></span> <b>${esc(x.modulo)}</b> · ${esc(textoEstado(x.trabajo))}</div>`).join("")}
-    ${d.listas.length ? `<h2>Para responder</h2>${d.listas.map((x) => `<div class="tarjeta"><div class="fila entre"><div><b>${esc(x.modulo)}</b><div class="suave peq">${esc(x.area)} · ${x.respondidas}/${x.total} respondidas · ${new Date(x.creada * 1000).toLocaleDateString(LOC)}</div></div><button class="btn pri peq" data-seguir="${esc(x.ref)}">${x.respondidas ? "Continuar" : "Empezar"}</button></div></div>`).join("")}` : ""}
-    ${d.terminadas.length ? `<h2>Terminadas</h2>${d.terminadas.map((x) => `<div class="tarjeta"><div class="fila entre"><div><b>${esc(x.modulo)}</b> ${x.aprobado ? `<span class="etq bien">superado</span>` : `<span class="etq">${Math.round((x.porcentaje || 0) * 100)} %</span>`}<div class="suave peq">${esc(x.area)} · ${x.pasados} temas sabidos · ${x.pendientes} pendientes · ${new Date(x.terminada * 1000).toLocaleDateString(LOC)}</div></div><button class="btn peq fantasma" data-ver="${x.id}">Ver resultado</button></div></div>`).join("")}` : ""}
-    ${!d.preparando.length && !d.listas.length && !d.terminadas.length ? `<p class="vacio">Aún no has hecho pruebas de nivel. Están en cada módulo de 🗺️ Ruta (⚡) y en 🎯 Ubícame.</p>` : ""}`;
-  $$("[data-seguir]").forEach((b) => (b.onclick = () => pruebaNivel(b.dataset.seguir)));
-  $$("[data-ver]").forEach((b) => (b.onclick = async () => { const x = await api("prueba?id=" + b.dataset.ver); mostrarResultadoPrueba(x.resultado, null, x.ref); }));
+    ${d.listas.length || d.terminadas.length ? `<div class="barra-filtros">
+      <input type="search" id="prQ" placeholder="🔍 Buscar módulo o área…" value="${esc(pf.q)}">
+      <div class="chips" style="padding:0">
+        <button class="chip ${pf.tab === "todas" ? "activo" : ""}" data-ptab="todas">Todas (${d.listas.length + d.terminadas.length})</button>
+        <button class="chip ${pf.tab === "listas" ? "activo" : ""}" data-ptab="listas">Pendientes (${d.listas.length})</button>
+        <button class="chip ${pf.tab === "terminadas" ? "activo" : ""}" data-ptab="terminadas">Terminadas (${d.terminadas.length})</button>
+      </div></div>` : ""}
+    <div id="prCuerpo"></div>`;
+  const pintar = () => {
+    const q = pf.q.trim().toLowerCase();
+    const fil = (xs) => xs.filter((x) => !q || `${x.modulo} ${x.area}`.toLowerCase().includes(q));
+    const listas = pf.tab === "terminadas" ? [] : fil(d.listas);
+    const term = pf.tab === "listas" ? [] : fil(d.terminadas);
+    $("#prCuerpo").innerHTML = `${listas.length ? `<h2>Para responder</h2><ul class="lista-compacta">${listas.map((x) => `<li class="lista-fila">
+        <div class="lista-cuerpo"><div class="lista-tit">${esc(x.modulo)}</div><div class="lista-sub">${esc(x.area)} · ${x.respondidas}/${x.total} respondidas · ${new Date(x.creada * 1000).toLocaleDateString(LOC)}</div></div>
+        <button class="btn pri peq" data-seguir="${esc(x.ref)}">${x.respondidas ? "Continuar" : "Empezar"}</button></li>`).join("")}</ul>` : ""}
+      ${term.length ? `<h2>Terminadas</h2><ul class="lista-compacta">${term.map((x) => `<li class="lista-fila">
+        <div class="lista-cuerpo"><div class="lista-tit">${esc(x.modulo)} ${x.aprobado ? `<span class="etq bien">superado</span>` : `<span class="etq">${Math.round((x.porcentaje || 0) * 100)} %</span>`}</div>
+          <div class="lista-sub">${esc(x.area)} · ${x.pasados} temas sabidos · ${x.pendientes} pendientes · ${new Date(x.terminada * 1000).toLocaleDateString(LOC)}</div></div>
+        <button class="btn peq fantasma" data-ver="${x.id}">Ver resultado</button></li>`).join("")}</ul>` : ""}
+      ${!d.preparando.length && !listas.length && !term.length ? `<p class="vacio">${d.listas.length || d.terminadas.length ? "Ninguna prueba coincide." : "Aún no has hecho pruebas de nivel. Están en cada módulo de 🗺️ Ruta (⚡) y en 🎯 Ubícame."}</p>` : ""}`;
+    $$("[data-seguir]").forEach((b) => (b.onclick = () => pruebaNivel(b.dataset.seguir)));
+    $$("[data-ver]").forEach((b) => (b.onclick = async () => { const x = await api("prueba?id=" + b.dataset.ver); mostrarResultadoPrueba(x.resultado, null, x.ref); }));
+  };
+  if ($("#prQ")) $("#prQ").oninput = (e) => { pf.q = e.target.value; pintar(); };
+  $$("[data-ptab]").forEach((b) => (b.onclick = () => { pf.tab = b.dataset.ptab; $$("[data-ptab]").forEach((x) => x.classList.toggle("activo", x === b)); pintar(); }));
+  pintar();
   if (d.preparando.length) setTimeout(() => location.hash === "#/pruebas" && refrescar(), 15000);
 };
 
@@ -745,6 +1030,34 @@ VISTAS.tema = async ([tid]) => {
   } catch (e) { const g = $("#genEstado"); if (g) g.innerHTML = `❌ ${esc(e.message)} <button class="btn peq" onclick="enrutar()">Reintentar</button>`; }
 };
 
+// Quién escribió la lección (las importadas por el taller de lecciones externas guardan su modelo).
+function autorLeccion(modelo) {
+  const m = String(modelo || "");
+  if (/^claude/i.test(m)) return "por Claude (fuera de la cola, con fuentes verificadas)";
+  if (/^gemini/i.test(m)) return "por Gemini (fuera de la cola, con fuentes verificadas)";
+  if (!m || m === "externo") return m ? "fuera de la cola" : "por la IA local";
+  return "por la IA local";
+}
+
+// 📚 Lecturas y 📰 noticias recomendadas (sin IA: lo calcula el servidor con lo que ya hay en la base).
+const TIPO_LECTURA = { paper: "🔬", libro: "📘", curso: "🎓", informe: "📄", norma: "📏", web: "🔗" };
+async function montarRecomendaciones(caja, consulta, deQue) {
+  if (!caja) return;
+  caja.innerHTML = `<details class="tarjeta" style="margin-top:.6rem"><summary><b>📚 Lecturas y 📰 noticias recomendadas</b> <span class="suave peq">${esc(deQue)}</span></summary><div class="recoCuerpo"><span class="cargando"></span></div></details>`;
+  const cuerpo = caja.querySelector(".recoCuerpo");
+  try {
+    const r = await api("recomendaciones?" + consulta);
+    const lect = r.lecturas || [], nots = r.noticias || [];
+    cuerpo.innerHTML = `<h3 style="margin:.4rem 0">📚 Para leer</h3>
+      ${lect.length ? `<ul>${lect.map((l) => `<li>${TIPO_LECTURA[l.tipo] || "🔗"} <a href="${escUrl(l.u)}" target="_blank" rel="noopener">${esc(l.t)}</a>${l.detalle ? ` <span class="suave peq">· ${esc(l.detalle)}</span>` : ""}</li>`).join("")}</ul>`
+        : `<p class="suave peq">Aún no hay lecturas: aparecen a medida que se escriben las lecciones de este módulo.</p>`}
+      <h3 style="margin:.6rem 0 .4rem">📰 Noticias del último mes</h3>
+      ${nots.length ? `<ul>${nots.map((n) => `<li>${n.relacionada ? "⭐ " : ""}<a href="#/noticia/${encodeURIComponent(n.id)}">${esc(n.titulo)}</a> <span class="suave peq">· ${esc(n.fuente || "")} · ${new Date(n.publicada * 1000).toLocaleDateString(LOC)}</span>${n.como ? `<br><span class="suave peq">${esc(n.como)}</span>` : ""}</li>`).join("")}</ul>
+        ${nots.some((n) => n.relacionada) ? `<p class="suave peq">⭐ = comparte palabras con este tema.</p>` : ""}`
+        : `<p class="suave peq">${esc(r.aviso_noticias || "No hay noticias analizadas de esta área en el último mes.")}</p>`}`;
+  } catch (e) { cuerpo.innerHTML = `<p class="suave peq">No se pudieron cargar: ${esc(e.message)}</p>`; }
+}
+
 function pintarLeccion(d) {
   const c = $("#cuerpoLeccion");
   const L = d.leccion; const ej = L.ejercicios || { quiz: [], tarjetas: [] };
@@ -758,9 +1071,11 @@ function pintarLeccion(d) {
     ${!L.completa || d.trabajo ? `<div class="tarjeta" id="escribiendoBanner" style="border-color:var(--acento)"><span class="cargando"></span> <b>La IA sigue escribiendo esta lección.</b> <span class="suave peq" id="escribiendoFase">Las partes nuevas aparecen abajo solas mientras lees.</span></div>` : ""}
     <div id="diagCaja"></div><div id="barraLectura"></div>
     <article class="tarjeta leccion" id="textoLeccion"></article>
-    <div class="suave peq">Lección escrita por la IA local el ${fecha}${webs.length ? ` con ${webs.length} fuentes web` : ""}${papers.length ? ` y ${papers.length} documentos científicos` : ""}. Contrasta con los recursos del área si algo no cuadra.</div>
+    ${d.comparacion ? `<div class="suave peq">${textoComparacionLeccion(d.comparacion)}</div>` : ""}
+    <div class="suave peq">Lección escrita ${autorLeccion(L.modelo)} el ${fecha}${webs.length ? ` con ${webs.length} fuentes web` : ""}${papers.length ? ` y ${papers.length} documentos científicos` : ""}${d.marcador ? ` · ${d.marcador.lista ? (d.marcador.puede_actualizar ? "lista para actualizar si lo pides" : `próxima actualización sugerida: ${new Date(d.marcador.puede_actualizar_desde * 1000).toLocaleDateString(LOC)}`) : "pendiente de completar"}` : ""}. Contrasta con los recursos del área si algo no cuadra.</div>
     ${papers.length ? `<details class="tarjeta" style="margin-top:.6rem" open><summary><b>🔬 Documentos científicos usados (OpenAlex)</b></summary><ol>${papers.map((f) => `<li><b>[${esc(f.n || "")}]</b> ${esc(f.autores || "")} (${esc(f.anio || "")}). <a href="${escUrl(f.url)}" target="_blank" rel="noopener">${esc(f.titulo)}</a>. <i>${esc(f.revista || "")}</i> · ${f.citas} citas${f.abierto ? ` · <a href="${escUrl(f.abierto)}" target="_blank" rel="noopener">texto libre</a>` : ""}</li>`).join("")}</ol></details>` : ""}
     ${webs.length ? `<details class="tarjeta" style="margin-top:.6rem"><summary><b>🔎 Fuentes web consultadas</b></summary><ol>${webs.map((f) => `<li>${fiab(f)} <a href="${escUrl(f.url)}" target="_blank" rel="noopener">${esc(f.titulo || f.url)}</a></li>`).join("")}</ol></details>` : ""}
+    <div id="recoLeccion"></div>
     <div id="verifLeccion"></div>
     <div class="tarjeta"><h2 style="margin-top:0">1️⃣ ¿Lo leíste con calma?</h2>
       <p class="suave peq">${preparando ? "La IA está creando las tarjetas y el quiz (1-3 min); mientras tanto, lee." : `Al marcarlo se agregan ${ej.tarjetas.length} tarjetas a tu repaso espaciado (FSRS): te las pregunta justo antes de que las olvides.`}</p>
@@ -795,7 +1110,8 @@ function pintarLeccion(d) {
       ${d.siguiente ? `<button class="btn pri" onclick="ir('tema/${d.siguiente}')">Siguiente →</button>` : ""}</div>
     <details class="tarjeta"><summary class="suave">Más opciones</summary><div class="fila" style="margin-top:.6rem">
       <button class="btn peq" id="btnDomino">Ya lo domino (marcar)</button>
-      <button class="btn peq" id="btnRegenerar">🔄 Reescribir la lección (con fuentes nuevas)</button>
+      ${L.completa && L.version >= 2 && !d.area.idioma ? `<button class="btn peq" id="btnComparar" title="Busca fuentes nuevas, las compara con lo que ya dice la lección y reescribe solo las partes que cambian">🔄 Actualizar (comparar y cambiar solo lo nuevo)</button>` : ""}
+      <button class="btn peq" id="btnRegenerar" title="Rehace la lección entera aunque no haya nada nuevo">⚡ Forzar: reescribir toda la lección</button>
       ${L.anteriores ? `<button class="btn peq fantasma" id="btnAnterior">📜 Ver la versión anterior</button>` : ""}</div></details>`;
   E.lecActual = d;
   repintarLeccion(d, L.contenido);
@@ -823,6 +1139,16 @@ function pintarLeccion(d) {
     enrutar();
   };
   $("#btnRegenerar").onclick = () => reescribir(true);
+  if ($("#btnComparar")) $("#btnComparar").onclick = async () => {
+    $("#btnComparar").disabled = true;
+    const j = await api("leccion", { tema: d.tema.id, comparar: true });
+    aviso("🔄 Comparando la lección con fuentes nuevas; puedes seguir leyendo");
+    esperarTrabajo(j.trabajo, () => {}).then((res) => {
+      aviso(res && res.sin_cambios ? "✅ Comparada: no había nada nuevo que cambiar"
+        : `✅ Actualizada: ${(res && res.comparacion ? res.comparacion.partes.length : 0)} parte(s) con fuentes nuevas`);
+      if (location.hash.includes(d.tema.id)) enrutar();
+    }).catch((er) => aviso("Error: " + er.message));
+  };
   if ($("#btnMaxima")) $("#btnMaxima").onclick = async () => {
     await api("leccion", { tema: d.tema.id, maxima: true });
     aviso("🔬 En cola a máxima profundidad. Puedes seguir leyendo esta; mira el avance en ⏳"); refrescar();
@@ -867,6 +1193,7 @@ function pintarLeccion(d) {
     f.focus(); f.setSelectionRange(26, 26);
   };
   montarPractica(d);
+  if (!d.area.idioma) montarRecomendaciones($("#recoLeccion"), "tema=" + encodeURIComponent(d.tema.id), "de este tema");
   if (location.hash.includes("#practica") || E.irPractica) { E.irPractica = false; setTimeout(() => $("#practica").scrollIntoView({ behavior: "smooth" }), 300); }
 }
 function objetivosLeccion(md_) {
@@ -1145,24 +1472,50 @@ function plazo(dias) {
 VISTAS.horizonte = async () => {
   const h = await api("horizonte");
   const foco = new Set(h.enfoque);
+  const hf = E.horFiltro || (E.horFiltro = { q: "", soloAct: false, orden: "prioridad" });
   vista.innerHTML = `<h1>🔭 Tu horizonte</h1>
-    <p class="suave">No hay vida para aprenderlo todo, así que la Academia mide cuánto te cuesta de verdad cada meta y te muestra dónde rinde más tu tiempo. Los plazos son según tu ruta en la Academia y se recalculan solos con cada tema que haces.</p>
+    <p class="suave">No hay vida para aprenderlo todo, así que la Academia mide cuánto te cuesta de verdad cada meta y te muestra dónde rinde más tu tiempo.</p>
     <div class="stats">
       <div class="stat"><b>${h.ritmo.min_por_tema}<small class="suave"> min</small></b><span>por tema ${h.ritmo.medido ? "(medido)" : "(estimado)"}</span></div>
       <div class="stat"><b>${Math.round(h.minutos_meta)}</b><span>min/día de meta</span></div>
       <div class="stat"><b>${h.minutos_real ?? "—"}</b><span>min/día reales</span></div>
       <div class="stat"><b>${h.anios_junior_todo}<small class="suave"> años</small></b><span>todo a «profesional junior» a tu meta</span></div></div>
     ${h.consejo.length ? `<div class="tarjeta" style="border-color:var(--medio)"><b>🧭 Lo que dicen tus números</b><ul class="consejos">${h.consejo.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}
-    <div class="tarjeta"><b>🎯 Enfocarte</b><p class="suave peq">Marca las áreas en las que quieres avanzar rápido (sugeridas: las de más prioridad). Quedan en prioridad 3; las demás, en mantenimiento (sin temas nuevos; sus tarjetas se siguen repasando para que no se olviden) o de fondo (avanzan poco). Lo puedes deshacer en Ajustes.</p>
+    <details class="tarjeta"><summary style="cursor:pointer"><b>🎯 Enfocarte</b> <span class="suave peq">(elegir prioridades rápidas)</span></summary>
+      <p class="suave peq" style="margin-top:.5rem">Marca las áreas en las que quieres avanzar rápido. Quedan en prioridad 3; las demás, en mantenimiento (0: solo repaso) o de fondo (1).</p>
       <div class="chips" style="flex-wrap:wrap">${h.areas.map((a) => `<button class="chip ${foco.has(a.id) ? "activo" : ""}" data-foco="${a.id}">${esc(a.icono || "")} ${esc(a.nombre)}</button>`).join("")}</div>
       <div class="fila" style="margin-top:.5rem"><select id="focoResto" style="width:auto"><option value="0">Las demás: mantenimiento (prioridad 0, solo repaso)</option><option value="1">Las demás: de fondo (prioridad 1)</option></select>
-      <button class="btn pri" id="focoAplicar">Aplicar enfoque</button></div></div>
-    <h2>Cuánto falta, área por área</h2>
-    <p class="suave peq">Horas = temas que faltan × tus minutos por tema. «Repartido» = con tu prioridad actual y tu meta diaria; «enfocado» = si te dedicas solo a las ${h.enfoque_n} marcadas; «a tu ritmo real» = con los minutos que de verdad estudias. El ${Math.round(h.fraccion_nuevo * 100)} % del tiempo va a temas nuevos; el resto, a repasar.</p>
-    ${h.areas.sort((a, b) => b.peso - a.peso).map((a) => `<div class="tarjeta"><div class="fila entre"><b>${esc(a.icono || "")} ${esc(a.nombre)}</b><span class="suave peq">prioridad ${a.peso}${a.meta ? " · de tus metas" : ""} · hoy: ${esc(a.nivel_nombre)}</span></div>
+      <button class="btn pri" id="focoAplicar">Aplicar enfoque</button></div></details>
+    <div class="sep-sec"><h2>Cuánto falta, área por área</h2></div>
+    <div class="barra-filtros">
+      <input type="search" id="hQ" placeholder="🔍 Buscar área…" value="${esc(hf.q)}">
+      <select id="hOrden" aria-label="Ordenar horizonte">
+        <option value="prioridad" ${hf.orden === "prioridad" ? "selected" : ""}>Orden: Prioridad</option>
+        <option value="horas_asc" ${hf.orden === "horas_asc" ? "selected" : ""}>Menor tiempo faltante</option>
+        <option value="nombre" ${hf.orden === "nombre" ? "selected" : ""}>Nombre A → Z</option>
+      </select>
+      <button class="chip ${hf.soloAct ? "activo" : ""}" id="hAct">Solo prioridad &gt; 0</button>
+    </div>
+    <p class="suave peq">Horas = temas que faltan × tus minutos por tema. El ${Math.round(h.fraccion_nuevo * 100)} % del tiempo va a temas nuevos; el resto, a repasar.</p>
+    <div id="hLista"></div>`;
+  const pintarH = () => {
+    const q = hf.q.trim().toLowerCase();
+    const hrs = (a) => (a.niveles[0]?.horas ?? 0);
+    let xs = h.areas.filter((a) => (!hf.soloAct || a.peso > 0) && (!q || a.nombre.toLowerCase().includes(q)));
+    xs.sort({
+      prioridad: (a, b) => b.peso - a.peso || a.nombre.localeCompare(b.nombre),
+      horas_asc: (a, b) => hrs(a) - hrs(b) || b.peso - a.peso,
+      nombre: (a, b) => a.nombre.localeCompare(b.nombre),
+    }[hf.orden] || (() => 0));
+    $("#hLista").innerHTML = xs.map((a) => `<div class="tarjeta"><div class="fila entre"><b>${esc(a.icono || "")} ${esc(a.nombre)}</b><span class="suave peq">prioridad ${a.peso}${a.meta ? " · de tus metas" : ""} · hoy: ${esc(a.nivel_nombre)}</span></div>
       ${a.niveles.length ? `<div class="tabla-h"><table><thead><tr><th>Nivel</th><th>Horas</th><th>Repartido</th><th>Enfocado</th><th>A tu ritmo real</th></tr></thead><tbody>
         ${a.niveles.map((n) => `<tr><td>${esc(n.etiqueta)}</td><td>${n.horas}</td><td>${plazo(n.dias_repartido)}</td><td>${n.dias_enfoque != null ? `<b>${plazo(n.dias_enfoque)}</b>` : "—"}</td><td>${plazo(n.dias_real)}</td></tr>`).join("")}</tbody></table></div>`
-        : `<p class="suave peq">🎉 Ya alcanzaste el nivel más alto de esta ruta.</p>`}</div>`).join("") || `<p class="vacio">${SIN_AREAS}</p>`}`;
+        : `<p class="suave peq">🎉 Ya alcanzaste el nivel más alto de esta ruta.</p>`}</div>`).join("") || `<p class="vacio">${h.areas.length ? "Ninguna área coincide con el filtro." : SIN_AREAS}</p>`;
+  };
+  $("#hQ").oninput = (e) => { hf.q = e.target.value; pintarH(); };
+  $("#hOrden").onchange = (e) => { hf.orden = e.target.value; pintarH(); };
+  $("#hAct").onclick = (e) => { hf.soloAct = !hf.soloAct; e.target.classList.toggle("activo", hf.soloAct); pintarH(); };
+  pintarH();
   $$("[data-foco]").forEach((b) => (b.onclick = () => b.classList.toggle("activo")));
   $("#focoAplicar").onclick = async () => {
     const areas = $$("[data-foco].activo").map((b) => b.dataset.foco);
@@ -1348,6 +1701,8 @@ function pintarQuiz(d, quiz) {
   const c = $("#quiz");
   if (!quiz.length) { c.innerHTML = `<p class="suave">Esta lección no trae quiz. Usa el tutor para que te pregunte.</p>`; return; }
   const res = [];
+  // opciones barajadas al mostrarlas: las IA suelen dejar la correcta en las primeras posiciones (casi nunca la última)
+  const ordenes = quiz.map((p) => { const o = (p.opciones || []).map((_, k) => k); for (let k = o.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [o[k], o[r]] = [o[r], o[k]]; } return o; });
   // las que se respondieron en el diagnóstico antes de leer ya se conocen: no cuentan (si quedan al menos 3 nuevas)
   const vistas = new Set(((d.partes && d.partes.diagnostico) || {}).vistas || []);
   const cuentan = quiz.map((_, i) => !vistas.has(i));
@@ -1355,8 +1710,8 @@ function pintarQuiz(d, quiz) {
   if (nuevas < 3) cuentan.fill(true);
   c.innerHTML = (vistas.size ? `<p class="suave peq">${nuevas >= 3 ? `Las ${vistas.size} preguntas que respondiste antes de leer están marcadas y <b>no cuentan</b> en la nota (ya viste su respuesta).` : `Ya viste casi todas estas preguntas en el diagnóstico: la nota sale inflada. Para medirte de verdad crea una <b>🏋️ tarea de quiz</b> con preguntas nuevas (🔁 Repasar).`}</p>` : "") +
     quiz.map((p, i) => `<div class="pregunta" data-i="${i}">${vistas.has(i) && nuevas >= 3 ? `<span class="etq">vista antes de leer · no cuenta</span>` : ""}<div class="pq"></div>
-    ${p.tipo === "opcion" && p.opciones.length ? `<div class="conf peq" role="group" aria-label="Qué tan seguro estás"><span class="suave">¿Qué tan seguro estás? (opcional)</span>
-        ${[["seguro", "💪 Seguro"], ["dudo", "🤔 Dudo"], ["adivino", "🎲 Adivino"]].map(([k, t]) => `<button class="chip" data-conf="${k}" aria-pressed="false">${t}</button>`).join("")}</div>` + p.opciones.map((o, j) => `<button class="opcion" data-j="${j}"></button>`).join("")
+    ${p.tipo === "opcion" && p.opciones.length ? `<div class="conf peq" role="group" aria-label="Qué tan seguro estás"><span class="suave">Primero: ¿qué tan seguro estás?</span>
+        ${[["seguro", "💪 Seguro"], ["dudo", "🤔 Dudo"], ["adivino", "🎲 Adivino"]].map(([k, t]) => `<button class="chip" data-conf="${k}" aria-pressed="false">${t}</button>`).join("")}</div>` + ordenes[i].map((j) => `<button class="opcion" data-j="${j}"></button>`).join("")
       : `<textarea placeholder="Tu respuesta…"></textarea><button class="btn peq" style="margin-top:.4rem" data-corregir>Corregir</button>`}
     <div class="exp"></div></div>`).join("") + `<div id="quizFin" class="nota-ia" hidden></div>`;
   const cerrar = () => {
@@ -1377,14 +1732,18 @@ function pintarQuiz(d, quiz) {
       $$("[data-conf]", caja).forEach((b) => (b.onclick = () => {
         if (res[i] != null) return;
         conf = b.dataset.conf; $$("[data-conf]", caja).forEach((x) => { x.classList.toggle("activo", x === b); x.setAttribute("aria-pressed", x === b); });
+        $$(".opcion", caja).forEach((x) => x.classList.remove("bloq"));
       }));
-      $$(".opcion", caja).forEach((b, j) => { pintarMd(b, p.opciones[j] || ""); b.onclick = () => {
+      // sin decir antes qué tan seguro estás no se responde: así un acierto adivinando no cuenta como saber
+      $$(".opcion", caja).forEach((b) => { const j = +b.dataset.j; b.classList.add("bloq"); pintarMd(b, p.opciones[j] || ""); b.onclick = () => {
         if (res[i] != null) return;
-        res[i] = j === p.correcta ? 1 : 0;
+        if (!conf) { aviso("Primero di qué tan seguro estás (💪 🤔 🎲)"); $(".conf", caja)?.classList.add("pulso"); return; }
+        const bien = j === p.correcta;
+        res[i] = bien && conf !== "adivino" ? 1 : 0;      // acertar adivinando no es saber: no cuenta y vuelve como tarjeta
         $$("[data-conf]", caja).forEach((x) => (x.disabled = true));
-        if (conf) api("confianza", { tema: d.tema.id, confianza: conf, acierto: res[i] === 1, origen: "quiz" }).catch(() => {});
-        $$(".opcion", caja)[p.correcta]?.classList.add("ok"); if (j !== p.correcta) b.classList.add("no");
-        pintarMd($(".exp", caja), "💡 " + p.explicacion); cerrar();
+        api("confianza", { tema: d.tema.id, confianza: conf, acierto: bien, origen: "quiz" }).catch(() => {});
+        $(`.opcion[data-j="${p.correcta}"]`, caja)?.classList.add("ok"); if (!bien) b.classList.add("no");
+        pintarMd($(".exp", caja), (bien && conf === "adivino" ? "🎲 **Acertaste adivinando: no cuenta para dominar el tema y queda como tarjeta.**\n\n" : "") + "💡 " + p.explicacion); cerrar();
       }; });
     } else {
       $("[data-corregir]", caja).onclick = async (ev) => {
@@ -1595,10 +1954,10 @@ function editarTarjeta(t, luego) {
 }
 function crearTarjeta() {
   modal(`<h2>➕ Nueva tarjeta</h2><label>Frente (pregunta)</label><textarea id="nf"></textarea><label>Reverso (respuesta)</label><textarea id="nr"></textarea>
-    <label>Idioma para leer en voz alta (opcional)</label><select id="ni"><option value="">—</option><option value="en-US">Inglés</option><option value="zh-CN">Chino</option><option value="ko-KR">Coreano</option><option value="ja-JP">Japonés</option><option value="ru-RU">Ruso</option><option value="de-DE">Alemán</option></select>
+    <label>Idioma para leer en voz alta (opcional)</label><select id="ni"><option value="">—</option><option value="en-US">Inglés</option><option value="fr-FR">Francés</option><option value="pt-BR">Portugués</option><option value="zh-CN">Chino</option><option value="ko-KR">Coreano</option><option value="ja-JP">Japonés</option><option value="ru-RU">Ruso</option><option value="de-DE">Alemán</option></select>
     <div class="fila" style="margin-top:.8rem"><button class="btn pri" id="ng">Agregar</button><button class="btn" onclick="cerrarModal()">Cancelar</button></div>`, (c) => {
     $("#ng", c).onclick = async () => {
-      const idi = $("#ni").value; const area = { "en-US": "ingles", "zh-CN": "chino", "ko-KR": "coreano", "ja-JP": "japones", "ru-RU": "ruso", "de-DE": "aleman" }[idi] || null;
+      const idi = $("#ni").value; const area = { "en-US": "ingles", "fr-FR": "frances", "pt-BR": "portugues", "zh-CN": "chino", "ko-KR": "coreano", "ja-JP": "japones", "ru-RU": "ruso", "de-DE": "aleman" }[idi] || null;
       await api("tarjeta", { frente: $("#nf").value, reverso: $("#nr").value, idioma: idi || null, area });
       cerrarModal(); aviso("Tarjeta agregada");
     };
@@ -1684,30 +2043,63 @@ VISTAS.noticias = async ([periodo = "dia"], q) => {
   const ult = d.ultima ? new Date(d.ultima.fecha * 1000).toLocaleString(LOC, { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : "nunca";
   const areasN = d.mis_areas || [];   // solo las áreas de este perfil: sin áreas no hay noticias que mostrar
   const lect = l.lecturas || [];
-  vista.innerHTML = `<h1>🌍 Noticias del mundo para tus áreas</h1>
-    ${!areasN.length ? `<div class="tarjeta">${SIN_AREAS.replace("Aún no tienes áreas.", "Aquí verás solo las noticias de tus áreas y metas.")}</div>` : `
-    <div class="chips" style="margin-bottom:.5rem">${Object.entries(PERIODOS).map(([k, v]) => `<button class="chip ${k === periodo ? "activo" : ""}" onclick="ir('noticias/${k}${area ? "?area=" + area : ""}')">${v}</button>`).join("")}</div>
-    <div class="chips">${["", ...areasN].map((x) => `<button class="chip ${x === area ? "activo" : ""}" onclick="ir('noticias/${periodo}${x ? "?area=" + x : ""}')">${x ? esc(AREA_ES[x].icono + " " + AREA_ES[x].nombre) : "Todas"}</button>`).join("")}</div>
-    <p class="suave peq">De ~65 medios y organismos verificados (BBC, Nature, IEEE, FT, bancos centrales, ONU…). Todo se actualiza
-      <b>una vez al día, a las ${esc(d.hora_diaria || "06:00")}</b> (la hora de la actualización diaria). Solo ves noticias ya
-      procesadas a máxima profundidad: el artículo completo analizado, comparado entre medios y explicado a fondo. Última descarga: ${ult}.
-      ${d.preparando ? `<br>⏳ ${d.preparando} noticias preparándose a fondo ahora (aparecen al terminar; mira ⏳).` : ""}</p>
-    <div class="fila no-imprimir" style="margin-top:.6rem">
-      ${d.admin ? `<button class="btn peq" id="btnNotDescargar" title="Descarga ahora los titulares de todos los medios (se hace solo cada día)">⬇️ Descargar noticias ahora</button>` : ""}
-      <button class="btn peq" id="btnNotAnalizar" title="La IA lee y analiza las noticias que aún no ha leído (de a 10; se hace sola cada día)">🧠 Analizar noticias pendientes${d.sin_analizar ? ` (${d.sin_analizar})` : ""}</button>
-      ${!d.admin ? "" : `<span class="suave peq">Solo el administrador descarga.</span>`}<span id="notEstado2" class="suave peq"></span></div>
-    <div class="tarjeta" style="margin-top:1rem"><h2 style="margin:0">🧭 Síntesis ${{ dia: "del día", semana: "de la semana", mes: "del mes", anio: "del año" }[periodo]}</h2>
-      <div id="sintTexto" class="leccion"></div>
-      ${d.sintesis ? "" : `<div class="fila no-imprimir" style="margin-top:.5rem"><button class="btn peq" id="btnSintesis">🧭 Escribir la síntesis ahora (IA)</button><span id="notEstado" class="suave peq"></span></div>`}</div>
-    <h2>🏆 Top ${PERIODOS[periodo].toLowerCase()}</h2><div id="ranking">${d.ranking.map(tarjetaNoticia).join("") || `<p class="vacio">${areasN.length ? "Sin noticias de tus áreas en este periodo." : SIN_AREAS.replace("Aún no tienes áreas.", "Aquí verás las noticias de tus áreas.")}</p>`}</div>
-    <h2>📊 Dónde pega: impacto por área</h2>
-    <p class="suave peq">Para cada área, las noticias que más la afectan (nivel de impacto × importancia). Áreas ordenadas por presión total.</p>
-    <div class="matriz">${d.impacto.filter((x) => x.top.length).map((x) => `<div class="tarjeta"><div class="fila entre"><b>${esc(x.icono)} ${esc(x.nombre)}</b><span class="suave peq">${x.total} noticias</span></div>
-      <ol>${x.top.map((t) => `<li><a href="${escUrl(t.url)}" target="_blank" rel="noopener">${esc(t.titulo)}</a> <span class="etq">${"●".repeat(t.nivel)}</span><br><span class="suave peq">${esc(t.como)}</span></li>`).join("")}</ol></div>`).join("") || `<p class="suave">Aparece cuando la IA haya analizado noticias del periodo.</p>`}</div>
-    <h2>🏛️ Organizaciones y actores clave</h2>
-    <div class="tarjeta">${d.organizaciones.length ? `<ol>${d.organizaciones.map((o) => `<li><b>${esc(o.nombre)}</b> — ${o.menciones} noticia${o.menciones > 1 ? "s" : ""} ${o.areas.some(miaN) ? ` · afecta: ${o.areas.filter(miaN).map((a) => esc(AREA_ES[a]?.nombre || a)).join(", ")}` : ""}</li>`).join("")}</ol>` : `<p class="suave">Aparece cuando la IA haya analizado noticias del periodo.</p>`}</div>`}
-    ${lect.length ? `<h2>🈶 Lectura real en tus idiomas</h2><p class="suave peq">Titulares de hoy en los idiomas que estudias. «Estudiar» arma una lectura guiada con traducción, vocabulario y tarjetas.</p>
-    <div id="lecturas"></div>` : ""}`;
+  const nf = E.notFiltro || (E.notFiltro = { q: "", orden: "relevancia" });
+  vista.innerHTML = `<div class="fila entre"><h1 style="margin:0">🌍 Noticias</h1>
+      <span class="suave peq">Actualización: ${esc(d.hora_diaria || "06:00")} · última: ${ult}</span></div>
+    ${!areasN.length ? `<div class="tarjeta" style="margin-top:.6rem">${SIN_AREAS.replace("Aún no tienes áreas.", "Aquí verás solo las noticias de tus áreas y metas.")}</div>` : `
+    <div class="barra-filtros" style="margin-top:.6rem">
+      <div class="chips" style="padding:0">${Object.entries(PERIODOS).map(([k, v]) => `<button class="chip ${k === periodo ? "activo" : ""}" onclick="ir('noticias/${k}${area ? "?area=" + area : ""}')">${v}</button>`).join("")}</div>
+      <select id="notArea" aria-label="Filtrar por área" onchange="ir('noticias/${periodo}' + (this.value ? '?area=' + this.value : ''))">
+        <option value="">Todas tus áreas (${areasN.length})</option>
+        ${areasN.map((x) => `<option value="${esc(x)}" ${x === area ? "selected" : ""}>${esc(AREA_ES[x]?.icono || "")} ${esc(AREA_ES[x]?.nombre || x)}</option>`).join("")}
+      </select>
+      <input type="search" id="notQ" placeholder="🔍 Buscar titular o medio…" value="${esc(nf.q)}">
+      <select id="notOrden" aria-label="Ordenar noticias">
+        <option value="relevancia" ${nf.orden === "relevancia" ? "selected" : ""}>Orden: Relevancia</option>
+        <option value="recientes" ${nf.orden === "recientes" ? "selected" : ""}>Más recientes</option>
+        <option value="fuentes" ${nf.orden === "fuentes" ? "selected" : ""}>Más fuentes</option>
+      </select>
+    </div>
+    <div class="fila no-imprimir" style="margin-bottom:.5rem">
+      ${d.admin ? `<button class="btn peq" id="btnNotDescargar" title="Descarga ahora los titulares de todos los medios">⬇️ Descargar ahora</button>` : ""}
+      <button class="btn peq" id="btnNotAnalizar" title="La IA lee y analiza las noticias pendientes">🧠 Analizar pendientes${d.sin_analizar ? ` (${d.sin_analizar})` : ""}</button>
+      ${d.preparando ? `<span class="suave peq">⏳ ${d.preparando} preparándose</span>` : ""}<span id="notEstado2" class="suave peq"></span></div>
+    <div class="subnav">
+      <button data-tab="top">📰 Top y síntesis (${d.ranking.length})</button>
+      <button data-tab="impacto">📊 Impacto por área</button>
+      <button data-tab="actores">🏛️ Actores (${d.organizaciones.length})</button>
+      ${lect.length ? `<button data-tab="lecturas">🈶 Lectura idiomas (${lect.length})</button>` : ""}
+    </div>
+    <section data-tab-panel="top">
+      <details class="tarjeta" open><summary style="cursor:pointer"><b>🧭 Síntesis ${{ dia: "del día", semana: "de la semana", mes: "del mes", anio: "del año" }[periodo]}</b></summary>
+        <div id="sintTexto" class="leccion" style="margin-top:.5rem"></div>
+        ${d.sintesis ? "" : `<div class="fila no-imprimir" style="margin-top:.5rem"><button class="btn peq" id="btnSintesis">🧭 Escribir la síntesis ahora (IA)</button><span id="notEstado" class="suave peq"></span></div>`}
+      </details>
+      <div id="ranking"></div>
+    </section>
+    <section data-tab-panel="impacto" hidden>
+      <p class="suave peq">Para cada área, las noticias que más la afectan (nivel de impacto × importancia).</p>
+      <div class="matriz">${d.impacto.filter((x) => x.top.length).map((x) => `<div class="tarjeta"><div class="fila entre"><b>${esc(x.icono)} ${esc(x.nombre)}</b><span class="suave peq">${x.total} noticias</span></div>
+        <ol>${x.top.map((t) => `<li><a href="${escUrl(t.url)}" target="_blank" rel="noopener">${esc(t.titulo)}</a> <span class="etq">${"●".repeat(t.nivel)}</span><br><span class="suave peq">${esc(t.como)}</span></li>`).join("")}</ol></div>`).join("") || `<p class="suave">Aparece cuando la IA haya analizado noticias del periodo.</p>`}</div>
+    </section>
+    <section data-tab-panel="actores" hidden>
+      <div class="tarjeta">${d.organizaciones.length ? `<ol>${d.organizaciones.map((o) => `<li><b>${esc(o.nombre)}</b> — ${o.menciones} noticia${o.menciones > 1 ? "s" : ""} ${o.areas.some(miaN) ? ` · afecta: ${o.areas.filter(miaN).map((a) => esc(AREA_ES[a]?.nombre || a)).join(", ")}` : ""}</li>`).join("")}</ol>` : `<p class="suave">Aparece cuando la IA haya analizado noticias del periodo.</p>`}</div>
+    </section>`}
+    ${lect.length ? `<section data-tab-panel="lecturas" ${areasN.length ? "hidden" : ""}><p class="suave peq">Titulares de hoy en los idiomas que estudias. «Estudiar» arma una lectura guiada con traducción, vocabulario y tarjetas.</p>
+    <div id="lecturas"></div></section>` : ""}`;
+  if (areasN.length) {
+    const pintarRank = () => {
+      const qTxt = nf.q.trim().toLowerCase();
+      let xs = d.ranking.filter((n) => !qTxt || `${n.titulo} ${n.titulo_es || ""} ${n.fuente || ""} ${n.resumen || ""}`.toLowerCase().includes(qTxt));
+      if (nf.orden === "recientes") xs.sort((a, b) => (b.publicada || 0) - (a.publicada || 0));
+      else if (nf.orden === "fuentes") xs.sort((a, b) => (b.fuentes || 1) - (a.fuentes || 1));
+      $("#ranking").innerHTML = xs.map(tarjetaNoticia).join("") || `<p class="vacio">${d.ranking.length ? "Ninguna noticia coincide con la búsqueda." : "Sin noticias de tus áreas en este periodo."}</p>`;
+    };
+    $("#notQ").oninput = (e) => { nf.q = e.target.value; pintarRank(); };
+    $("#notOrden").onchange = (e) => { nf.orden = e.target.value; pintarRank(); };
+    pintarRank();
+    activarSubnav(vista, "notTab", "top");
+  }
   if (lect.length) {
     const porArea = {}; lect.forEach((x) => (porArea[x.area] = porArea[x.area] || []).push(x));
     $("#lecturas").innerHTML = Object.entries(porArea).map(([a, xs]) => `<div class="tarjeta"><b>${esc(AREA_ES[a]?.icono || "")} ${esc(AREA_ES[a]?.nombre || a)}</b>
@@ -1834,9 +2226,9 @@ VISTAS.objetivos = async ([id]) => {
   if (id) {
     const o = d.objetivos.find((x) => String(x.id) === id);
     if (!o) return ir("objetivos");
-    const porNivel = {}; o.pasos.forEach((p) => (porNivel[p.nivel] = porNivel[p.nivel] || []).push(p));
     const faltantes = o.pasos.filter((p) => p.estado !== "completo");
     const sig = faltantes.find((p) => p.abierto && p.faltan.length);
+    const of = E.objDetFiltro || (E.objDetFiltro = { nivel: "", estado: "" });
     vista.innerHTML = `<button class="btn fantasma peq" onclick="ir('objetivos')">← Objetivos</button>
       <h1>🎯 ${esc(o.titulo)}</h1>${o.descripcion ? `<p class="suave">${esc(o.descripcion)}</p>` : ""}
       <div class="tarjeta"><p style="margin-top:0">${esc(o.resumen)}</p><div class="fila entre"><b>${o.temas_hechos} / ${o.temas_total} temas</b><b>${Math.round(o.progreso * 100)}%</b></div>
@@ -1845,10 +2237,25 @@ VISTAS.objetivos = async ([id]) => {
         <div class="stat"><b>${o.pasos.filter((p) => p.estado === "en curso").length}</b><span>en curso</span></div>
         <div class="stat"><b>${o.pasos.filter((p) => p.estado === "faltante").length}</b><span>faltantes</span></div></div>
         ${sig ? `<button class="btn pri" style="margin-top:.8rem" onclick="ir('tema/${sig.faltan[0].id}')">▶ Siguiente paso: ${esc(sig.faltan[0].t)}</button>` : ""}</div>
-      <div id="dominioCaja"><p class="vacio"><span class="cargando"></span></p></div><div id="rutaVivaMeta"></div>
-      <h2>🗺️ La ruta completa</h2>
-      <p class="suave peq">Incluye todos los prerrequisitos, en orden. ✓ = dominado. Los módulos marcados ⭐ los eligió la IA para este objetivo; el resto son la base que necesitan.</p>
-      ${Object.entries(porNivel).map(([n, ps]) => `<div class="nivel-tit">Nivel ${n} · ${NIVELES[n]}</div>${ps.map((p) => `
+      <div class="subnav">
+        <button data-tab="ruta">🗺️ Ruta (${o.pasos.length} módulos)</button>
+        <button data-tab="frontera">🔭 Frontera viva</button>
+        <button data-tab="dominio">🎓 Programa de dominio</button>
+      </div>
+      <section data-tab-panel="ruta">
+        <div class="barra-filtros">
+          <select id="odNivel"><option value="">Todos los niveles</option>${[1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${of.nivel === String(n) ? "selected" : ""}>Nivel ${n} · ${NIVELES[n]}</option>`).join("")}</select>
+          <select id="odEstado"><option value="">Todos los estados</option><option value="en curso" ${of.estado === "en curso" ? "selected" : ""}>En curso</option><option value="faltante" ${of.estado === "faltante" ? "selected" : ""}>Faltantes</option><option value="completo" ${of.estado === "completo" ? "selected" : ""}>Completos</option></select>
+        </div>
+        <div id="odLista"></div>
+      </section>
+      <section data-tab-panel="frontera" hidden><div id="rutaVivaMeta"></div></section>
+      <section data-tab-panel="dominio" hidden><div id="dominioCaja"><p class="vacio"><span class="cargando"></span></p></div></section>
+      <div class="fila" style="margin-top:1rem"><button class="btn" id="pausar">${o.estado === "activo" ? "⏸ Pausar" : "▶ Reactivar"}</button><button class="btn fantasma" id="borrarO">🗑 Borrar</button></div>`;
+    const pintarPasos = () => {
+      const xs = o.pasos.filter((p) => (!of.nivel || String(p.nivel) === of.nivel) && (!of.estado || p.estado === of.estado));
+      const porNivel = {}; xs.forEach((p) => (porNivel[p.nivel] = porNivel[p.nivel] || []).push(p));
+      $("#odLista").innerHTML = xs.length ? Object.entries(porNivel).map(([n, ps]) => `<div class="nivel-tit">Nivel ${n} · ${NIVELES[n]}</div>${ps.map((p) => `
         <details class="tarjeta modulo ${p.abierto ? "" : "cerrado"}" ${p.estado === "en curso" ? "open" : ""}><summary>
           <div class="fila entre"><b>${p.directo ? "⭐ " : ""}${p.abierto ? "" : "🔒 "}${esc(p.t)}</b><span class="etq ${p.estado === "completo" ? "bien" : p.estado === "en curso" ? "medio" : ""}">${p.estado}</span></div>
           <div class="suave peq">${esc(p.area)}${p.por_que ? " · " + esc(p.por_que) : ""}</div>
@@ -1856,47 +2263,72 @@ VISTAS.objetivos = async ([id]) => {
           ${p.hechos.length ? `<div class="peq" style="margin-top:.5rem">✅ <b>Completado:</b> ${p.hechos.map(esc).join(" · ")}</div>` : ""}
           ${p.faltan.length ? `<div class="peq" style="margin-top:.4rem">⬜ <b>Falta:</b></div><ul class="temas">${p.faltan.map((t) => `<li data-tema="${t.id}"><span class="punto"></span>${esc(t.t)}</li>`).join("")}</ul>` : ""}
           ${!p.abierto ? `<button class="btn peq" style="margin-top:.5rem" data-prueba="${p.ref}">⚡ Ya lo sé: prueba de nivel</button>` : ""}
-        </details>`).join("")}`).join("")}
-      <div class="fila" style="margin-top:1rem"><button class="btn" id="pausar">${o.estado === "activo" ? "⏸ Pausar" : "▶ Reactivar"}</button><button class="btn fantasma" id="borrarO">🗑 Borrar</button></div>`;
-    $$("[data-tema]").forEach((li) => (li.onclick = () => ir("tema/" + li.dataset.tema)));
-    $$("[data-prueba]").forEach((b) => (b.onclick = (e) => { e.preventDefault(); pruebaNivel(b.dataset.prueba); }));
+        </details>`).join("")}`).join("") : `<p class="vacio">Ningún módulo coincide con el filtro.</p>`;
+      $$("[data-tema]", $("#odLista")).forEach((li) => (li.onclick = () => ir("tema/" + li.dataset.tema)));
+      $$("[data-prueba]", $("#odLista")).forEach((b) => (b.onclick = (e) => { e.preventDefault(); pruebaNivel(b.dataset.prueba); }));
+    };
+    $("#odNivel").onchange = (e) => { of.nivel = e.target.value; pintarPasos(); };
+    $("#odEstado").onchange = (e) => { of.estado = e.target.value; pintarPasos(); };
+    pintarPasos();
+    activarSubnav(vista, "objDetTab", "ruta");
     montarDominio(o); montarRutaViva($("#rutaVivaMeta"), { objetivo: o.id });
     $("#pausar").onclick = async () => { await api("objetivos/estado", { id: o.id, estado: o.estado === "activo" ? "pausado" : "activo" }); enrutar(); };
     $("#borrarO").onclick = async () => { if (confirm("¿Borrar este objetivo?")) { await api("objetivos/estado", { id: o.id, estado: "borrar" }); ir("objetivos"); } };
     return;
   }
+  const ol = E.objFiltro || (E.objFiltro = { q: "", estado: "", orden: "progreso" });
   vista.innerHTML = `<h1>🎯 Objetivos y nuevas áreas</h1>
-    <div class="chips" style="margin-bottom:.6rem"><button class="chip activo" data-tipo="obj">🎯 Objetivo concreto</button><button class="chip" data-tipo="area">📚 Área o carrera completa</button></div>
-    <div class="tarjeta" id="cajaArea" hidden><b>Nueva área completa</b><p class="suave peq" style="margin:.2rem 0 0">Para una disciplina entera que quieres dominar como las demás (por ejemplo «Ingeniería eléctrica», «Diseño industrial», «Economía»).
-      La IA arma su currículo de Fundamentos a Horizonte (8-14 módulos), lo enlaza con los prerrequisitos que ya tienes y busca recursos confiables. Aparece en la Ruta y en Ajustes (prioridad) como cualquier área. Tarda unos 5-8 min.</p>
-      <label>Nombre del área</label><input type="text" id="aNom" placeholder="Ej.: Ingeniería eléctrica">
-      <label>Enfoque (opcional)</label><textarea id="aDes" placeholder="Qué te interesa de esta área, para qué la quieres…"></textarea>
-      <div class="fila" style="margin-top:.6rem"><button class="btn pri" id="aCrear">Crear área</button><span id="aEstado" class="suave peq"></span></div></div>
-    <div class="tarjeta" id="cajaObj"><b>Nuevo objetivo</b><p class="suave peq" style="margin:.2rem 0 0">Para una meta concreta (un proyecto, un examen, una habilidad). Si es una disciplina entera, usa «📚 Área o carrera completa».
-      Escribe lo que quieres lograr. La IA arma la ruta completa —de lo más básico a la frontera— usando tu currículo, agrega módulos propios para lo que falte y un proyecto final. Verás qué requisitos ya cumples y cuáles faltan.</p>
-      <label>¿Qué quieres lograr?</label><input type="text" id="oTit" placeholder="Ej.: Diseñar y programar un brazo robótico de 6 ejes con visión">
-      <label>Detalles (opcional)</label><textarea id="oDes" placeholder="Para qué, qué ya sabes, hasta dónde quieres llegar (aplicarlo, leer papers, ir a conferencias…)"></textarea>
-      <label>¿En cuánto tiempo?</label><select id="oPlazo"><option value="0">Sin plazo</option>${PLAZOS.map(([s, t]) => `<option value="${s}" ${s === 8 ? "selected" : ""}>${t}</option>`).join("")}</select>
-      <p class="suave peq" style="margin:.3rem 0 0">Con plazo, sus temas van primero y ves si vas a tiempo. Después de la ruta, la IA mapea la <b>frontera</b> (investigación actual, problemas abiertos, papers y conferencias) y la renueva cada mes.</p>
-      <div class="fila" style="margin-top:.6rem"><button class="btn pri" id="oCrear">Crear ruta</button><span id="oEstado" class="suave peq"></span></div></div>
-    <div class="chips" style="margin:.4rem 0">${["Construir un robot móvil autónomo con ROS 2", "Pasar el HSK 4", "Invertir mis ahorros con criterio", "Crear y administrar mi empresa de tecnología", "Entender y entrenar modelos de IA", "Trabajar como ingeniero en Alemania"].map((s) => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join("")}</div>
-    ${d.pendientes.map((p) => `<div class="tarjeta"><span class="cargando"></span> ${p.tipo === "area" ? "Creando el área" : "Diseñando"} «${esc(p.etiqueta)}»… ${esc(textoEstado(p))}</div>`).join("")}
-    ${d.objetivos.map((o) => `<div class="tarjeta" style="cursor:pointer" onclick="ir('objetivos/${o.id}')">
+    <div class="subnav">
+      <button data-tab="lista">📋 Mis objetivos (${d.objetivos.length})</button>
+      <button data-tab="nuevo">➕ Nuevo objetivo</button>
+      <button data-tab="area">📚 Nueva área completa</button>
+    </div>
+    <section data-tab-panel="lista">
+      ${d.pendientes.map((p) => `<div class="tarjeta"><span class="cargando"></span> ${p.tipo === "area" ? "Creando el área" : "Diseñando"} «${esc(p.etiqueta)}»… ${esc(textoEstado(p))}</div>`).join("")}
+      ${d.objetivos.length ? `<div class="barra-filtros">
+        <input type="search" id="oQ" placeholder="🔍 Buscar objetivo…" value="${esc(ol.q)}">
+        <select id="oEst"><option value="">Todos</option><option value="activo" ${ol.estado === "activo" ? "selected" : ""}>Activos</option><option value="pausado" ${ol.estado === "pausado" ? "selected" : ""}>Pausados</option></select>
+        <select id="oOrd"><option value="progreso" ${ol.orden === "progreso" ? "selected" : ""}>Mayor avance</option><option value="nombre" ${ol.orden === "nombre" ? "selected" : ""}>Nombre A → Z</option></select>
+      </div>` : ""}
+      <div id="oLista"></div>
+    </section>
+    <section data-tab-panel="nuevo" hidden>
+      <div class="tarjeta" id="cajaObj"><b>Nuevo objetivo</b><p class="suave peq" style="margin:.2rem 0 0">Para una meta concreta (un proyecto, un examen, una habilidad). La IA arma la ruta completa usando tu currículo y agrega módulos propios para lo que falte.</p>
+        <label>¿Qué quieres lograr?</label><input type="text" id="oTit" placeholder="Ej.: Diseñar y programar un brazo robótico de 6 ejes con visión">
+        <label>Detalles (opcional)</label><textarea id="oDes" placeholder="Para qué, qué ya sabes, hasta dónde quieres llegar…"></textarea>
+        <label>¿En cuánto tiempo?</label><select id="oPlazo"><option value="0">Sin plazo</option>${PLAZOS.map(([s, t]) => `<option value="${s}" ${s === 8 ? "selected" : ""}>${t}</option>`).join("")}</select>
+        <div class="fila" style="margin-top:.6rem"><button class="btn pri" id="oCrear">Crear ruta</button><span id="oEstado" class="suave peq"></span></div></div>
+      <div class="chips" style="margin:.4rem 0">${["Construir un robot móvil autónomo con ROS 2", "Pasar el HSK 4", "Invertir mis ahorros con criterio", "Crear y administrar mi empresa de tecnología", "Entender y entrenar modelos de IA", "Trabajar como ingeniero en Alemania"].map((s) => `<button class="chip" data-sug="${esc(s)}">${esc(s)}</button>`).join("")}</div>
+    </section>
+    <section data-tab-panel="area" hidden>
+      <div class="tarjeta" id="cajaArea"><b>Nueva área completa</b><p class="suave peq" style="margin:.2rem 0 0">Para una disciplina entera de Fundamentos a Horizonte (8-14 módulos) enlazada con tus prerrequisitos. Aparece en Ajustes y Tu ruta.</p>
+        <label>Nombre del área</label><input type="text" id="aNom" placeholder="Ej.: Ingeniería eléctrica">
+        <label>Enfoque (opcional)</label><textarea id="aDes" placeholder="Qué te interesa de esta área, para qué la quieres…"></textarea>
+        <div class="fila" style="margin-top:.6rem"><button class="btn pri" id="aCrear">Crear área</button><span id="aEstado" class="suave peq"></span></div></div>
+    </section>`;
+  const pintarObj = () => {
+    const q = ol.q.trim().toLowerCase();
+    let xs = d.objetivos.filter((o) => (!ol.estado || o.estado === ol.estado) && (!q || o.titulo.toLowerCase().includes(q)));
+    xs.sort(ol.orden === "nombre" ? (a, b) => a.titulo.localeCompare(b.titulo) : (a, b) => b.progreso - a.progreso);
+    $("#oLista").innerHTML = xs.map((o) => `<div class="tarjeta" style="cursor:pointer" onclick="ir('objetivos/${o.id}')">
       <div class="fila entre"><b>${o.estado !== "activo" ? "⏸ " : ""}${esc(o.titulo)}</b><span>${Math.round(o.progreso * 100)}%</span></div>
       <div class="barra-prog" style="margin:.4rem 0"><i style="width:${o.progreso * 100}%"></i></div>
-      <div class="suave peq">${o.pasos.filter((p) => p.estado === "completo").length} de ${o.pasos.length} módulos completos · ${o.temas_total - o.temas_hechos} temas por aprender</div></div>`).join("") || (d.pendientes.length ? "" : `<p class="vacio">Aún no tienes objetivos.</p>`)}`;
+      <div class="suave peq">${o.pasos.filter((p) => p.estado === "completo").length} de ${o.pasos.length} módulos completos · ${o.temas_total - o.temas_hechos} temas por aprender</div></div>`).join("")
+      || (d.pendientes.length ? "" : `<p class="vacio">${d.objetivos.length ? "Ningún objetivo coincide." : "Aún no tienes objetivos. Crea uno en la pestaña «➕ Nuevo objetivo»."}</p>`);
+  };
+  if ($("#oQ")) $("#oQ").oninput = (e) => { ol.q = e.target.value; pintarObj(); };
+  if ($("#oEst")) $("#oEst").onchange = (e) => { ol.estado = e.target.value; pintarObj(); };
+  if ($("#oOrd")) $("#oOrd").onchange = (e) => { ol.orden = e.target.value; pintarObj(); };
+  pintarObj();
+  activarSubnav(vista, "objTab", d.objetivos.length || d.pendientes.length ? "lista" : "nuevo");
   $$("[data-sug]").forEach((b) => (b.onclick = () => ($("#oTit").value = b.dataset.sug)));
-  $$("[data-tipo]").forEach((b) => (b.onclick = () => {
-    $$("[data-tipo]").forEach((x) => x.classList.toggle("activo", x === b));
-    $("#cajaArea").hidden = b.dataset.tipo !== "area"; $("#cajaObj").hidden = b.dataset.tipo === "area";
-  }));
   $("#aCrear").onclick = async () => {
     const nombre = $("#aNom").value.trim(); if (!nombre) return aviso("Escribe el nombre del área");
     $("#aCrear").disabled = true;
     try {
       const j = await api("area/nueva", { nombre, descripcion: $("#aDes").value });
       const r = await esperarTrabajo(j.trabajo, (t) => { const e = $("#aEstado"); if (e) e.innerHTML = `<span class="cargando"></span> ${esc(textoEstado(t))}`; });
-      E.mapa = null; aviso("📚 Área creada"); ir("ruta/" + r.area);
+      E.mapa = null; E.yo = null; aviso("📚 Área creada"); ir("ruta/" + r.area);
     } catch (e) { $("#aEstado").textContent = "Error: " + e.message; $("#aCrear").disabled = false; }
   };
   if (d.pendientes.length) setTimeout(() => location.hash.startsWith("#/objetivos") && !location.hash.includes("/objetivos/") && refrescar(), 5000);
@@ -2006,31 +2438,71 @@ async function montarAportadas(d) {
 }
 
 /* ---------- rutas vivas (2026-10-27): preparar toda la ruta y actualizarla ---------- */
+// Resultado de la última «🔄 Actualizar» de una lección: qué se encontró y qué partes cambiaron.
+function textoComparacionLeccion(c) {
+  const f = new Date(c.fecha * 1000).toLocaleDateString(LOC);
+  if (c.sin_cambios) return `🔄 Comparada el ${f}: ${esc(c.resumen || "sin nada nuevo que cambiar")}`;
+  return `🔄 Actualizada el ${f} comparando con ${c.nuevas_web + c.nuevos_papers} fuente(s) nueva(s): ${c.partes.map((p) => `parte ${p.parte} (${esc(p.que)})`).join("; ")}. Lo actualizado lo escribió ${esc(c.modelo)}; la versión anterior queda guardada.`;
+}
+
+// Resultado de la fase de comparación de la última actualización de la ruta (lo que se tenía frente a lo encontrado).
+function textoComparacionRuta(c) {
+  const f = new Date(c.fecha * 1000).toLocaleDateString(LOC);
+  if (c.forzada) return `Última actualización completa (forzada): ${f}.`;
+  if (c.primera) return `Primera comparación: ${f}.`;
+  if (c.sin_cambios) return `Comparada el ${f}: sin datos nuevos, no se rehízo nada.`;
+  return `Comparada el ${f}: ${c.nuevas} dato${c.nuevas === 1 ? "" : "s"} nuevo${c.nuevas === 1 ? "" : "s"}${c.ruta_cambio ? " y la ruta había cambiado" : ""}; se revisó solo eso.`;
+}
+
+// Cuántos módulos y temas de la ruta ya tienen la lección preparada y, por módulo, qué temas faltan.
+function pintarPreparacion(p) {
+  if (!p || !p.modulos) return "";
+  const faltanT = p.temas - p.temas_listos;
+  const pendientes = p.detalle.filter((m) => m.faltan.length);
+  const li = (m) => m.faltan.length
+    ? `<li>⏳ <b>${esc(m.t)}</b>${m.area ? ` <span class="suave">(${esc(m.area)})</span>` : ""} — ${m.listas}/${m.temas} temas listos
+        <ul>${m.faltan.map((t) => `<li><a href="#/tema/${esc(t.id)}">${esc(t.t)}</a>${t.en_cola ? ` <span class="suave">· en cola</span>` : ""}</li>`).join("")}</ul></li>`
+    : `<li>✓ ${esc(m.t)}${m.area ? ` <span class="suave">(${esc(m.area)})</span>` : ""} — ${m.temas}/${m.temas}</li>`;
+  return `<div class="peq" style="margin:.3rem 0">📦 <b>Módulos preparados: ${p.modulos_listos}/${p.modulos}</b> · 📄 <b>Temas preparados: ${p.temas_listos}/${p.temas}</b>${faltanT ? ` · faltan ${faltanT}` : " · nada por preparar"}</div>
+    <details${pendientes.length && pendientes.length <= 3 ? " open" : ""}><summary class="peq"><b>Qué falta por preparar</b>${pendientes.length ? ` · ${pendientes.length} módulo${pendientes.length === 1 ? "" : "s"}` : ""}</summary>
+      <ul class="peq">${pendientes.map(li).join("")}${p.detalle.filter((m) => !m.faltan.length).map(li).join("")}</ul>
+      <p class="suave peq">Solo cuentan los temas que aún no dominas; los dominados no necesitan lección nueva.</p></details>`;
+}
+
 async function montarRutaViva(cont, params) {
   if (!cont) return;
   const qs = new URLSearchParams(params).toString();
   const e = await api("ruta/estado?" + qs).catch(() => null);
   if (!e || e.error) { cont.innerHTML = ""; return; }
-  const r = e.revision;
-  cont.innerHTML = `<div class="tarjeta"><div class="fila entre"><b>🔄 Ruta viva</b><span class="suave peq">${e.listas}/${e.pendientes} lecciones listas${e.en_cola ? ` · ⏳ ${e.en_cola} en cola` : ""}</span></div>
+  const r = e.revision, mk = e.marcador || {};
+  cont.innerHTML = `<div class="tarjeta"><div class="fila entre"><b>🔄 Ruta viva</b><span class="suave peq">${e.listas}/${e.pendientes} lecciones listas${e.terminada ? " · ✓ completa" : ""}${e.en_cola ? ` · ⏳ ${e.en_cola} en cola` : ""}</span></div>
     <p class="suave peq" style="margin:.3rem 0">Cada día se renueva el nivel profesional que pide el mercado${params.objetivo ? " (en las metas, el mapa de la frontera)" : ""} y se revisa la ruta: lo que falta se agrega solo y se preparan sus lecciones.
-      ${r ? `Última revisión: ${new Date(r.fecha * 1000).toLocaleDateString(LOC)}.` : "Aún no se ha revisado."}${e.mercado_fecha ? ` Mercado: ${new Date(e.mercado_fecha * 1000).toLocaleDateString(LOC)}.` : ""}</p>
+      ${r ? `Última revisión: ${new Date(r.fecha * 1000).toLocaleDateString(LOC)}.` : "Aún no se ha revisado."}${r && r.comparacion ? ` ${textoComparacionRuta(r.comparacion)}` : ""}${e.mercado_fecha ? ` Mercado: ${new Date(e.mercado_fecha * 1000).toLocaleDateString(LOC)}.` : ""}${mk.puede_actualizar_desde ? ` ${mk.puede_actualizar ? "Lista para revisar." : `Próxima revisión automática: ${new Date(mk.puede_actualizar_desde * 1000).toLocaleDateString(LOC)}.`}` : ""}</p>
+    ${pintarPreparacion(e.preparacion)}
     ${r ? `<details${r.agregados.length ? " open" : ""}><summary class="peq"><b>Qué cambió</b>${r.agregados.length ? ` · ➕ ${r.agregados.length}` : ""}${r.en_declive.length ? ` · 📉 ${r.en_declive.length}` : ""}</summary>
       <p class="peq">${esc(r.resumen)}</p>
       ${r.agregados.length ? `<ul class="peq">${r.agregados.map((x) => `<li>${x.tipo === "modulo" ? "🆕 módulo" : "➕"} <b>${esc(x.t)}</b> en ${esc(x.modulo)}${x.ids && x.ids[0] ? ` · <a href="#/tema/${esc(x.ids[0])}">abrir</a>` : ""}<br><span class="suave">${esc(x.por_que)}</span></li>`).join("")}</ul>` : ""}
       ${r.en_declive.length ? `<p class="peq"><b>📉 Pesan menos hoy</b> (no se borran):</p><ul class="peq">${r.en_declive.map((x) => `<li>${esc(x.tema)} — <span class="suave">${esc(x.por_que)}</span></li>`).join("")}</ul>` : ""}</details>` : ""}
     <div class="fila" style="margin-top:.5rem">
-      <button class="btn peq ${e.preparar ? "" : "pri"}" data-rv="preparar">📥 ${e.preparar ? "Preparando toda la ruta (re-encolar)" : "Preparar toda la ruta"}</button>
-      ${e.trabajo ? `<span class="etq medio"><span class="cargando"></span> ${esc(textoEstado(e.trabajo))}</span>` : `<button class="btn peq" data-rv="actualizar">🔄 Actualizar ahora (mercado + revisión + lo que falte)</button>`}</div></div>`;
+      ${e.terminada && !e.en_cola ? `<span class="etq bien">✓ Ruta completa</span>` : `<button class="btn peq ${e.preparar ? "" : "pri"}" data-rv="preparar">📥 ${e.preparar ? "Preparando toda la ruta (re-encolar)" : "Preparar toda la ruta"}</button>`}
+      ${e.trabajo ? `<span class="etq medio"><span class="cargando"></span> ${esc(textoEstado(e.trabajo))}</span>` : `<button class="btn peq" data-rv="actualizar" title="Compara lo que ya tiene la ruta con lo que se encuentre hoy y solo revisa lo nuevo">🔄 Actualizar (comparar y aplicar lo nuevo)</button>
+        <button class="btn peq" data-rv="forzar" title="Rehace el mercado o la frontera y revisa la ruta completa, aunque no haya nada nuevo">⚡ Forzar actualización completa</button>`}</div></div>`;
   $$("[data-rv]", cont).forEach((b) => (b.onclick = async (ev) => {
     ev.preventDefault(); b.disabled = true;
     if (b.dataset.rv === "preparar") {
       const x = await api("ruta/preparar", params);
       aviso(x.encoladas ? `📥 ${x.encoladas} lecciones en cola (de fondo, detrás de lo diario). Queda recordado: si algo se corta, se re-encola cada día.` : "Todas las lecciones de la ruta ya están listas o en cola");
     } else {
-      const j = await api("ruta/actualizar", params);
-      aviso("🔄 Actualizando la ruta (varios minutos); puedes seguir");
-      esperarTrabajo(j.trabajo, () => {}).then(() => { aviso("✅ Ruta actualizada"); if (document.body.contains(cont)) montarRutaViva(cont, params); }).catch((er) => aviso("Error: " + er.message));
+      const forzar = b.dataset.rv === "forzar";
+      if (forzar && !confirm("¿Rehacer la actualización completa? Vuelve a consultar el mercado (o la frontera) y revisa toda la ruta aunque no haya nada nuevo.")) { b.disabled = false; return; }
+      const j = await api("ruta/actualizar", { ...params, forzar });
+      aviso(forzar ? "⚡ Actualización completa en marcha (varios minutos); puedes seguir" : "🔄 Comparando la ruta con lo nuevo; puedes seguir");
+      esperarTrabajo(j.trabajo, () => {}).then((res) => {
+        const c = res && res.comparacion;
+        aviso(res && res.sin_cambios ? "✅ Comparada: no había nada nuevo, no se rehízo nada"
+          : `✅ Ruta actualizada${c && !c.forzada && !c.primera ? ` (${c.nuevas} datos nuevos)` : ""}${res && res.agregados && res.agregados.length ? ` · ➕ ${res.agregados.length}` : ""}`);
+        if (document.body.contains(cont)) montarRutaViva(cont, params);
+      }).catch((er) => aviso("Error: " + er.message));
     }
     montarRutaViva(cont, params);
   }));
@@ -2274,7 +2746,8 @@ VISTAS.progreso = async () => {
     ["olvidando", "Olvidándose (60-80 %)", "var(--medio)"], ["olvidada", "Probablemente olvidada (<60 %)", "var(--mal)"], ["nueva", "Nueva (sin repasar)", "var(--panel2)"]];
   const grupos = {}; p.areas.forEach((a) => (grupos[a.grupo] = grupos[a.grupo] || []).push(a));
   const r = d.resultados;
-  vista.innerHTML = `<h1>📈 Cómo aprendes</h1>
+  vista.innerHTML = `<div class="fila entre"><h1 style="margin:0">📈 Cómo aprendes</h1>
+      <button class="btn peq" onclick="ir('reporte')">📄 Reporte completo</button></div>
     <div class="stats">
       <div class="stat"><b>🔥 ${p.racha}</b><span>días seguidos</span></div>
       <div class="stat"><b>${d.minutos_30}</b><span>minutos en 30 días</span></div>
@@ -2283,100 +2756,111 @@ VISTAS.progreso = async () => {
       <div class="stat"><b>${p.dominados}</b><span>temas dominados</span></div>
       <div class="stat"><b>${d.seg_por_tarjeta ?? "—"}<small class="suave"> s</small></b><span>por tarjeta</span></div>
     </div>
-    <div class="tarjeta" style="border-color:var(--acento)"><div class="fila entre"><b>🧪 Chequeo semanal</b>
-      <button class="btn peq ${ch.abierto ? "pri" : ""}" onclick="ir('chequeo')">${ch.abierto ? "Hacer el chequeo pendiente" : "Ver chequeos"}</button></div>
-      <p class="suave peq" style="margin:.3rem 0 0">Cada ${DIAS[ch.dia]} te examina de lo que estudiaste y detecta qué olvidaste.
-      ${ch.historial.filter((x) => x.puntaje != null).slice(0, 1).map((x) => `Último: <b>${pct(x.puntaje)}</b> recordado (${x.retenidos} ✓ · ${x.olvidados} ✗).`).join("")}</p></div>
-    <h2>💡 Lo que dicen tus datos</h2>
-    <div class="tarjeta"><ul class="consejos">${d.consejos.map((c) => `<li>${md(c).replace(/^<p>|<\/p>\s*$/g, "")}</li>`).join("")}</ul></div>
-    <div class="fila"><button class="btn" onclick="ir('reporte')">📄 Reporte completo y descarga de datos</button></div>
-    <h2>🎓 Tu nivel profesional</h2>
-    <div class="tarjeta"><p class="suave peq" style="margin-top:0">Un nivel se alcanza cuando dominas en promedio el 70 % de sus temas <b>y de todos los anteriores</b>. Escala: ${nv.escala.map((e) => `<b>${e.nivel}</b> ${esc(e.etiqueta)}`).join(" · ")}. Si ya sabes algo, haz la ⚡ prueba de nivel de sus módulos en la Ruta para que aparezca tu nivel real. Se recalcula en cada actualización diaria y tras cada chequeo.</p>
-      ${activas.map((a) => filaNivel(a)).join("") || `<p class="suave">Activa áreas en Ajustes.</p>`}
-      ${inactivas.length ? `<details><summary class="suave peq">Áreas sin prioridad (${inactivas.length})</summary>${inactivas.map((a) => filaNivel(a)).join("")}</details>` : ""}</div>
-    ${nv.metas.length ? `<div class="tarjeta"><b>Tus metas</b>${nv.metas.map((m) => filaNivel(m, true)).join("")}</div>` : ""}
-    ${nv.historial.length ? `<details class="tarjeta"><summary><b>📜 Historial de niveles</b></summary><ul class="consejos">${nv.historial.map((h) => `<li>${new Date(h.fecha * 1000).toLocaleDateString(LOC)} · ${esc(h.nombre)}: ${h.a > h.de ? "⬆️ subiste a" : "⬇️ bajaste a"} <b>${esc(h.examen || h.etiqueta)}</b></li>`).join("")}</ul></details>` : ""}
-    ${lp.plan.ajustes.length ? `<h2>🧭 Cómo se adapta tu estudio</h2><div class="tarjeta"><ul class="consejos">${lp.plan.ajustes.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
-      <p class="suave peq" style="margin-bottom:0">Las lecciones, el tutor y los chequeos también reciben esto: «${esc(lp.plan.adaptacion || "aún sin patrones")}».</p></div>` : ""}
+    <div class="subnav">
+      <button data-tab="resumen">💡 Resumen</button>
+      <button data-tab="nivel">🎓 Nivel y mercado</button>
+      <button data-tab="plazo">⏱️ Corto y largo plazo</button>
+      <button data-tab="habitos">🕐 Horarios y métodos</button>
+      <button data-tab="memoria">🧩 Memoria y áreas</button>
+    </div>
 
-    <h2>⏱️ Corto plazo</h2>
-    <div class="stats">
-      <div class="stat"><b>${pct(L.pulso_media)}</b><span>pulso diario (30 d)</span></div>
-      <div class="stat"${tip(`${L.n_1dia} repasos`)}><b>${pct(L.retencion_1dia)}</b><span>recuerdas a 1-2 días</span></div>
-      <div class="stat"><b>${L.pulso_30.length}</b><span>pulsos en 30 días</span></div></div>
-    ${L.pulso_30.length ? `<div class="tarjeta"><div class="suave peq">Pulso diario: % recordado cada día</div>${barrasV(L.pulso_30, { etiqueta: (x) => new Date(x.fecha * 1000).getDate(), valor: (x) => x.valor, max: 1, cada: Math.ceil(L.pulso_30.length / 10), tipTxt: (x) => `${new Date(x.fecha * 1000).toLocaleDateString(LOC)} · ${pct(x.valor)}` })}</div>` : `<p class="suave peq">Haz el ⚡ Pulso diario en «Hoy» (1-2 min) para medir tu memoria de corto plazo.</p>`}
+    <section data-tab-panel="resumen">
+      <div class="tarjeta" style="border-color:var(--acento)"><div class="fila entre"><b>🧪 Chequeo semanal</b>
+        <button class="btn peq ${ch.abierto ? "pri" : ""}" onclick="ir('chequeo')">${ch.abierto ? "Hacer el chequeo pendiente" : "Ver chequeos"}</button></div>
+        <p class="suave peq" style="margin:.3rem 0 0">Cada ${DIAS[ch.dia]} te examina de lo que estudiaste y detecta qué olvidaste.
+        ${ch.historial.filter((x) => x.puntaje != null).slice(0, 1).map((x) => `Último: <b>${pct(x.puntaje)}</b> recordado (${x.retenidos} ✓ · ${x.olvidados} ✗).`).join("")}</p></div>
+      <h2>💡 Lo que dicen tus datos</h2>
+      <div class="tarjeta"><ul class="consejos">${d.consejos.map((c) => `<li>${md(c).replace(/^<p>|<\/p>\s*$/g, "")}</li>`).join("")}</ul></div>
+      ${lp.plan.ajustes.length ? `<h2>🧭 Cómo se adapta tu estudio</h2><div class="tarjeta"><ul class="consejos">${lp.plan.ajustes.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+        <p class="suave peq" style="margin-bottom:0">Las lecciones, el tutor y los chequeos también reciben esto: «${esc(lp.plan.adaptacion || "aún sin patrones")}».</p></div>` : ""}
+      <h2>🔄 Cómo ha cambiado tu forma de aprender</h2>
+      <div class="tarjeta"><p class="suave peq" style="margin-top:0">Comparativa semanal frente a hace 4 y 12 semanas.</p>
+        ${C.notas.length ? `<ul class="consejos">${C.notas.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : `<p class="suave">${C.historial.length < 2 ? "Se necesitan al menos 4 semanas de datos para comparar." : "Sin cambios notables respecto a hace 4 semanas."}</p>`}
+        <table class="tabla"><tr><th>Indicador</th><th>Ahora</th><th>Hace ~4 sem</th><th>Hace ~12 sem</th></tr>${C.filas.map((f) => `<tr><td>${esc(f.nombre)}</td><td><b>${fmtC(f, f.ahora)}</b></td><td>${fmtC(f, f.hace4)}</td><td>${fmtC(f, f.hace12)}</td></tr>`).join("")}</table></div>
+      ${d.informe ? `<details class="tarjeta"><summary><b>🧑‍🏫 Informe semanal de tu coach (IA)</b> <span class="suave peq">· ${new Date(d.informe.creado * 1000).toLocaleDateString(LOC)}</span></summary><div class="leccion" id="informe"></div></details>` : ""}
+    </section>
 
-    <h2>🏛️ Largo plazo</h2>
-    <div class="tarjeta"><div class="suave peq">% que recuerdas según hace cuánto aprendiste algo (repasos con ≥1 día de separación). Esto verifica el conocimiento a lo más largo posible: con los meses aparecen las barras de 6-12 meses y +1 año.</div>
-      ${barrasV(L.curva_edad, { etiqueta: (x) => x.edad, valor: (x) => x.retencion, max: 1, alto: 130, tipTxt: (x) => `Aprendido hace ${x.edad} · ${x.retencion == null ? "sin datos aún" : pct(x.retencion) + " recordado"} · ${x.n} repasos` })}
-      <div class="fila peq suave" style="justify-content:space-around">${L.curva_edad.map((x) => `<span>${pct(x.retencion)}</span>`).join("")}</div>
-      <p class="peq" style="margin-bottom:0">${L.recuerdo_mas_antiguo ? `🏆 Recuerdo verificado más antiguo: <b>${L.recuerdo_mas_antiguo.dias} días</b> («${esc(L.recuerdo_mas_antiguo.frente)}»).` : "Aún no hay recuerdos verificados a largo plazo."}
-      ${L.n_chequeo_viejos ? ` · Temas de hace más de 1 mes en chequeos: <b>${pct(L.chequeo_temas_viejos)}</b> (${L.n_chequeo_viejos}).` : ""}</p></div>
+    <section data-tab-panel="nivel" hidden>
+      <div class="tarjeta"><p class="suave peq" style="margin-top:0">Un nivel se alcanza cuando dominas en promedio el 70 % de sus temas <b>y de todos los anteriores</b>. Escala: ${nv.escala.map((e) => `<b>${e.nivel}</b> ${esc(e.etiqueta)}`).join(" · ")}.</p>
+        ${activas.map((a) => filaNivel(a)).join("") || `<p class="suave">Activa áreas en Ajustes.</p>`}
+        ${inactivas.length ? `<details><summary class="suave peq">Áreas sin prioridad (${inactivas.length})</summary>${inactivas.map((a) => filaNivel(a)).join("")}</details>` : ""}</div>
+      ${nv.metas.length ? `<div class="tarjeta"><b>Tus metas</b>${nv.metas.map((m) => filaNivel(m, true)).join("")}</div>` : ""}
+      ${nv.historial.length ? `<details class="tarjeta"><summary><b>📜 Historial de niveles</b></summary><ul class="consejos">${nv.historial.map((h) => `<li>${new Date(h.fecha * 1000).toLocaleDateString(LOC)} · ${esc(h.nombre)}: ${h.a > h.de ? "⬆️ subiste a" : "⬇️ bajaste a"} <b>${esc(h.examen || h.etiqueta)}</b></li>`).join("")}</ul></details>` : ""}
+    </section>
 
-    <h2>🔄 Cómo ha cambiado tu forma de aprender</h2>
-    <div class="tarjeta"><p class="suave peq" style="margin-top:0">Cada semana se guarda una foto de tu forma de aprender (horarios, métodos, retención, velocidad). Tu cerebro cambia: aquí se ve cómo.</p>
-      ${C.notas.length ? `<ul class="consejos">${C.notas.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : `<p class="suave">${C.historial.length < 2 ? "Se necesitan al menos 4 semanas de datos para comparar; la primera foto se toma esta semana." : "Sin cambios notables respecto a hace 4 semanas."}</p>`}
-      <table class="tabla"><tr><th>Indicador</th><th>Ahora</th><th>Hace ~4 sem</th><th>Hace ~12 sem</th></tr>${C.filas.map((f) => `<tr><td>${esc(f.nombre)}</td><td><b>${fmtC(f, f.ahora)}</b></td><td>${fmtC(f, f.hace4)}</td><td>${fmtC(f, f.hace12)}</td></tr>`).join("")}</table></div>
-    ${d.informe ? `<details class="tarjeta"><summary><b>🧑‍🏫 Informe semanal de tu coach (IA)</b> <span class="suave peq">· ${new Date(d.informe.creado * 1000).toLocaleDateString(LOC)}</span></summary><div class="leccion" id="informe"></div></details>` : ""}
+    <section data-tab-panel="plazo" hidden>
+      <h2>⏱️ Corto plazo</h2>
+      <div class="stats">
+        <div class="stat"><b>${pct(L.pulso_media)}</b><span>pulso diario (30 d)</span></div>
+        <div class="stat"${tip(`${L.n_1dia} repasos`)}><b>${pct(L.retencion_1dia)}</b><span>recuerdas a 1-2 días</span></div>
+        <div class="stat"><b>${L.pulso_30.length}</b><span>pulsos en 30 días</span></div></div>
+      ${L.pulso_30.length ? `<div class="tarjeta"><div class="suave peq">Pulso diario: % recordado cada día</div>${barrasV(L.pulso_30, { etiqueta: (x) => new Date(x.fecha * 1000).getDate(), valor: (x) => x.valor, max: 1, cada: Math.ceil(L.pulso_30.length / 10), tipTxt: (x) => `${new Date(x.fecha * 1000).toLocaleDateString(LOC)} · ${pct(x.valor)}` })}</div>` : `<p class="suave peq">Haz el ⚡ Pulso diario en «Hoy» (1-2 min) para medir tu memoria de corto plazo.</p>`}
+      <h2>🏛️ Largo plazo</h2>
+      <div class="tarjeta"><div class="suave peq">% que recuerdas según hace cuánto aprendiste algo (repasos con ≥1 día de separación).</div>
+        ${barrasV(L.curva_edad, { etiqueta: (x) => x.edad, valor: (x) => x.retencion, max: 1, alto: 130, tipTxt: (x) => `Aprendido hace ${x.edad} · ${x.retencion == null ? "sin datos aún" : pct(x.retencion) + " recordado"} · ${x.n} repasos` })}
+        <div class="fila peq suave" style="justify-content:space-around">${L.curva_edad.map((x) => `<span>${pct(x.retencion)}</span>`).join("")}</div>
+        <p class="peq" style="margin-bottom:0">${L.recuerdo_mas_antiguo ? `🏆 Recuerdo verificado más antiguo: <b>${L.recuerdo_mas_antiguo.dias} días</b> («${esc(L.recuerdo_mas_antiguo.frente)}»).` : "Aún no hay recuerdos verificados a largo plazo."}
+        ${L.n_chequeo_viejos ? ` · Temas de hace más de 1 mes en chequeos: <b>${pct(L.chequeo_temas_viejos)}</b> (${L.n_chequeo_viejos}).` : ""}</p></div>
+      <h2>📉 Tu curva del olvido</h2>
+      <div class="tarjeta"><div class="suave peq">% que recuerdas según los días que pasan sin repasar (90 d). FSRS programa cada tarjeta en ~90 %.</div>
+        ${barrasV(d.curva, { etiqueta: (x) => x.rango, valor: (x) => x.retencion, max: 1, alto: 140, tipTxt: (x) => `${x.rango} sin repasar · ${x.retencion == null ? "sin datos" : pct(x.retencion) + " recordado"} · ${x.n} repasos` })}
+        <div class="fila peq suave" style="justify-content:space-around">${d.curva.map((x) => `<span>${pct(x.retencion)}</span>`).join("")}</div></div>
+      <h2>📅 Tu ritmo semana a semana</h2>
+      <div class="rejilla">
+        <div class="tarjeta"><div class="suave peq">Minutos de estudio por semana</div>${barrasV(d.semanas, { etiqueta: (x) => x.etiqueta, valor: (x) => x.min, tipTxt: (x) => `Semana del ${x.etiqueta} · ${x.min} min · ${x.lecciones} lecciones · ${x.repasos} repasos` })}</div>
+        <div class="tarjeta"><div class="suave peq">Retención en repasos por semana</div>${barrasV(d.semanas, { etiqueta: (x) => x.etiqueta, valor: (x) => x.retencion, max: 1, tipTxt: (x) => `Semana del ${x.etiqueta} · ${x.retencion == null ? "sin repasos" : pct(x.retencion) + " recordado de " + x.repasos}` })}</div></div>
+    </section>
 
-    <h2>🕐 Cuándo estudias</h2>
-    <div class="tarjeta"><div class="suave peq">Minutos por hora del día · últimos 30 días</div>
-      ${barrasV(d.por_hora, { etiqueta: (x) => x.h + "h", valor: (x) => x.min, cada: 3, tipTxt: (x) => `${x.h}:00-${x.h + 1}:00 · ${Math.round(x.min)} min · ${x.repasos} repasos${x.repasos ? " · " + pct(x.bien / x.repasos) + " recordado" : ""}` })}</div>
-    <div class="rejilla" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">${d.franjas.map((f) => `<div class="stat"${tip(`${f.repasos} repasos en esta franja (90 d)`)}>
-      <b>${f.retencion == null ? "—" : pct(f.retencion)}</b><span>recuerdas en la ${f.franja} (${f.desde}-${f.hasta} h) · ${f.min} min</span></div>`).join("")}</div>
-    <div class="tarjeta" style="margin-top:.8rem"><div class="suave peq">Tu semana tipo · minutos por día y hora (8 semanas)</div>
-      <div class="calor-sem">${d.calor.map((fila_, i) => `<span class="dia">${DIAS_C[i]}</span>${fila_.map((v, h) => `<i${tip(`${DIAS[i]} ${h}:00 · ${Math.round(v)} min`)} style="${v ? `background:color-mix(in srgb, var(--acento) ${Math.round(15 + (v / maxCalor) * 85)}%, var(--panel2))` : ""}"></i>`).join("")}`).join("")}
-      <span></span>${Array.from({ length: 24 }, (_, h) => `<span class="hora">${h % 6 === 0 ? h : ""}</span>`).join("")}</div>
-      <div class="leyenda-seq"><span>menos</span><i style="background:var(--panel2)"></i><i style="background:color-mix(in srgb, var(--acento) 40%, var(--panel2))"></i><i style="background:color-mix(in srgb, var(--acento) 70%, var(--panel2))"></i><i style="background:var(--acento)"></i><span>más</span></div></div>
+    <section data-tab-panel="habitos" hidden>
+      <h2>🕐 Cuándo estudias</h2>
+      <div class="tarjeta"><div class="suave peq">Minutos por hora del día · últimos 30 días</div>
+        ${barrasV(d.por_hora, { etiqueta: (x) => x.h + "h", valor: (x) => x.min, cada: 3, tipTxt: (x) => `${x.h}:00-${x.h + 1}:00 · ${Math.round(x.min)} min · ${x.repasos} repasos${x.repasos ? " · " + pct(x.bien / x.repasos) + " recordado" : ""}` })}</div>
+      <div class="rejilla" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">${d.franjas.map((f) => `<div class="stat"${tip(`${f.repasos} repasos en esta franja (90 d)`)}>
+        <b>${f.retencion == null ? "—" : pct(f.retencion)}</b><span>recuerdas en la ${f.franja} (${f.desde}-${f.hasta} h) · ${f.min} min</span></div>`).join("")}</div>
+      <div class="tarjeta" style="margin-top:.8rem"><div class="suave peq">Tu semana tipo · minutos por día y hora (8 semanas)</div>
+        <div class="calor-sem">${d.calor.map((fila_, i) => `<span class="dia">${DIAS_C[i]}</span>${fila_.map((v, h) => `<i${tip(`${DIAS[i]} ${h}:00 · ${Math.round(v)} min`)} style="${v ? `background:color-mix(in srgb, var(--acento) ${Math.round(15 + (v / maxCalor) * 85)}%, var(--panel2))` : ""}"></i>`).join("")}`).join("")}
+        <span></span>${Array.from({ length: 24 }, (_, h) => `<span class="hora">${h % 6 === 0 ? h : ""}</span>`).join("")}</div>
+        <div class="leyenda-seq"><span>menos</span><i style="background:var(--panel2)"></i><i style="background:color-mix(in srgb, var(--acento) 40%, var(--panel2))"></i><i style="background:color-mix(in srgb, var(--acento) 70%, var(--panel2))"></i><i style="background:var(--acento)"></i><span>más</span></div></div>
+      <h2>🧠 Cómo estudias</h2>
+      <div class="tarjeta"><div class="suave peq">Minutos por método · últimos 30 días</div>
+        ${d.metodos.length ? barrasH(d.metodos, { valor: (x) => x.min, nombre: (x) => x.nombre, texto: (x) => `${x.min} min · ${x.usos} veces` }) : `<p class="suave">Aún sin datos.</p>`}</div>
+      ${htmlLectura(d.lectura)}
+      <div class="stats">
+        <div class="stat"${tip(`${r.n.quiz || 0} quizzes`)}><b>${pct(r.quiz)}</b><span>promedio en quizzes</span></div>
+        <div class="stat"${tip(`${r.n.feynman || 0} explicaciones`)}><b>${pct(r.feynman)}</b><span>explicaciones Feynman</span></div>
+        <div class="stat"${tip(`${r.n.apunte_eval || 0} apuntes evaluados`)}><b>${pct(r.apuntes)}</b><span>apuntes a mano</span></div>
+        <div class="stat"${tip(`${r.n.prueba || 0} pruebas`)}><b>${pct(r.prueba)}</b><span>pruebas de nivel</span></div>
+        <div class="stat"${tip(`${r.n.practica || 0} entregas corregidas`)}><b>${pct(r.practica)}</b><span>ejercicios de práctica</span></div></div>
+      <div class="tarjeta"><b>¿Qué método te hace recordar más?</b><p class="suave peq">Retención de las tarjetas de temas trabajados con cada método (≥20 repasos por grupo para concluir).</p>
+        <table class="tabla"><tr><th>Método</th><th>Con</th><th>Sin</th><th>Diferencia</th></tr>${d.eficacia.map((e) => {
+          const ok = e.n_con >= 20 && e.n_sin >= 20; const dif = ok ? e.con - e.sin : null;
+          return `<tr><td>${esc(e.metodo)}</td><td>${pct(e.con)} <span class="suave peq">(${e.n_con})</span></td><td>${pct(e.sin)} <span class="suave peq">(${e.n_sin})</span></td>
+            <td>${dif == null ? `<span class="suave">faltan datos</span>` : `<span class="etq ${dif > 0 ? "bien" : "mal"}">${dif > 0 ? "▲" : "▼"} ${Math.abs(Math.round(dif * 100))} pts</span>`}</td></tr>`; }).join("")}</table></div>
+      <div class="stats">
+        <div class="stat"><b>${d.sesiones.n}</b><span>sesiones (30 d)</span></div>
+        <div class="stat"><b>${d.sesiones.mediana}<small class="suave"> min</small></b><span>duración típica</span></div>
+        <div class="stat"><b>${d.sesiones.por_semana}</b><span>sesiones por semana</span></div>
+        <div class="stat"><b>${d.sesiones.hora_tipica == null ? "—" : d.sesiones.hora_tipica + ":00"}</b><span>hora en que sueles empezar</span></div></div>
+    </section>
 
-    <h2>🧠 Cómo estudias</h2>
-    <div class="tarjeta"><div class="suave peq">Minutos por método · últimos 30 días</div>
-      ${d.metodos.length ? barrasH(d.metodos, { valor: (x) => x.min, nombre: (x) => x.nombre, texto: (x) => `${x.min} min · ${x.usos} veces` }) : `<p class="suave">Aún sin datos.</p>`}</div>
-    ${htmlLectura(d.lectura)}
-    <div class="stats">
-      <div class="stat"${tip(`${r.n.quiz || 0} quizzes`)}><b>${pct(r.quiz)}</b><span>promedio en quizzes</span></div>
-      <div class="stat"${tip(`${r.n.feynman || 0} explicaciones`)}><b>${pct(r.feynman)}</b><span>explicaciones Feynman</span></div>
-      <div class="stat"${tip(`${r.n.apunte_eval || 0} apuntes evaluados`)}><b>${pct(r.apuntes)}</b><span>apuntes a mano</span></div>
-      <div class="stat"${tip(`${r.n.prueba || 0} pruebas`)}><b>${pct(r.prueba)}</b><span>pruebas de nivel</span></div>
-      <div class="stat"${tip(`${r.n.practica || 0} entregas corregidas`)}><b>${pct(r.practica)}</b><span>ejercicios de práctica</span></div></div>
-    <div class="tarjeta"><b>¿Qué método te hace recordar más?</b><p class="suave peq">Retención de las tarjetas de temas trabajados con cada método, frente a las de temas sin él (repasos con ≥1 día de separación). Se necesita ≥20 repasos por grupo para concluir.</p>
-      <table class="tabla"><tr><th>Método</th><th>Con</th><th>Sin</th><th>Diferencia</th></tr>${d.eficacia.map((e) => {
-        const ok = e.n_con >= 20 && e.n_sin >= 20; const dif = ok ? e.con - e.sin : null;
-        return `<tr><td>${esc(e.metodo)}</td><td>${pct(e.con)} <span class="suave peq">(${e.n_con})</span></td><td>${pct(e.sin)} <span class="suave peq">(${e.n_sin})</span></td>
-          <td>${dif == null ? `<span class="suave">faltan datos</span>` : `<span class="etq ${dif > 0 ? "bien" : "mal"}">${dif > 0 ? "▲" : "▼"} ${Math.abs(Math.round(dif * 100))} pts</span>`}</td></tr>`; }).join("")}</table></div>
-    <div class="stats">
-      <div class="stat"><b>${d.sesiones.n}</b><span>sesiones (30 d)</span></div>
-      <div class="stat"><b>${d.sesiones.mediana}<small class="suave"> min</small></b><span>duración típica</span></div>
-      <div class="stat"><b>${d.sesiones.por_semana}</b><span>sesiones por semana</span></div>
-      <div class="stat"><b>${d.sesiones.hora_tipica == null ? "—" : d.sesiones.hora_tipica + ":00"}</b><span>hora en que sueles empezar</span></div></div>
-
-    <h2>📅 Tu ritmo semana a semana</h2>
-    <div class="rejilla">
-      <div class="tarjeta"><div class="suave peq">Minutos de estudio por semana</div>${barrasV(d.semanas, { etiqueta: (x) => x.etiqueta, valor: (x) => x.min, tipTxt: (x) => `Semana del ${x.etiqueta} · ${x.min} min · ${x.lecciones} lecciones · ${x.repasos} repasos` })}</div>
-      <div class="tarjeta"><div class="suave peq">Retención en repasos por semana</div>${barrasV(d.semanas, { etiqueta: (x) => x.etiqueta, valor: (x) => x.retencion, max: 1, tipTxt: (x) => `Semana del ${x.etiqueta} · ${x.retencion == null ? "sin repasos" : pct(x.retencion) + " recordado de " + x.repasos}` })}</div></div>
-
-    <h2>📉 Tu curva del olvido</h2>
-    <div class="tarjeta"><div class="suave peq">% que recuerdas según los días que pasan sin repasar (90 d). FSRS programa cada tarjeta para mantenerla en ~90 %.</div>
-      ${barrasV(d.curva, { etiqueta: (x) => x.rango, valor: (x) => x.retencion, max: 1, alto: 140, tipTxt: (x) => `${x.rango} sin repasar · ${x.retencion == null ? "sin datos" : pct(x.retencion) + " recordado"} · ${x.n} repasos` })}
-      <div class="fila peq suave" style="justify-content:space-around">${d.curva.map((x) => `<span>${pct(x.retencion)}</span>`).join("")}</div></div>
-
-    <h2>🧩 Estado de tu memoria ahora</h2>
-    <div class="tarjeta"><div class="suave peq">${totMem} tarjetas según su probabilidad de recordarlas hoy</div>
-      <div class="apilada">${MEM.filter(([k]) => d.memoria[k]).map(([k, n, c]) => `<i style="flex:${d.memoria[k]};background:${c}"${tip(`${n}: ${d.memoria[k]}`)}></i>`).join("") || `<i style="flex:1;background:var(--panel2)"></i>`}</div>
-      <div class="leyenda">${MEM.map(([k, n, c]) => `<span><i style="background:${c}"></i>${n} <b>${d.memoria[k]}</b></span>`).join("")}</div>
-      ${d.olvidando.length ? `<p style="margin-bottom:.2rem"><b>Temas que se te están olvidando</b> <span class="suave peq">(probabilidad media de recordar sus tarjetas)</span></p>
-        <ul class="temas">${d.olvidando.map((t) => `<li data-tema="${t.id}"><span class="punto" style="border-color:var(--medio)"></span><span style="flex:1">${esc(t.t)} <span class="suave peq">· ${esc(t.area)}</span></span><span class="etq ${t.r < 0.6 ? "mal" : "medio"}">${pct(t.r)}</span></li>`).join("")}</ul>
-        <button class="btn pri" style="margin-top:.6rem" onclick="ir('repasar')">🔁 Repasar ahora</button>` : ""}
-      ${d.areas_memoria.length ? `<p><b>Memoria por área</b></p>${barrasH(d.areas_memoria, { valor: (x) => x.r, max: 1, nombre: (x) => x.nombre, texto: (x) => `${pct(x.r)} · ${x.n} tarjetas` })}` : ""}</div>
-
-    <h2>⏳ Tiempo por área (30 días)</h2>
-    <div class="tarjeta">${d.minutos_area.length ? barrasH(d.minutos_area, { valor: (x) => x.min, nombre: (x) => x.nombre, texto: (x) => `${x.min} min` }) : `<p class="suave">Aún sin datos.</p>`}</div>
-
-    <h2>🗂️ Constancia (26 semanas)</h2>${calorAnual(p)}
-    ${p.debiles.length ? `<h2>⚠️ Más fallos en repasos (30 d)</h2><div class="tarjeta"><ul class="temas">${p.debiles.map((x) => `<li data-tema="${x.tema}"><span class="punto"></span><span style="flex:1">${esc(x.t)}</span><span class="etq mal">${x.fallos} fallos</span></li>`).join("")}</ul></div>` : ""}
-    <h2>🎓 Dominio por área</h2>${Object.entries(grupos).map(([g, as]) => `<div class="nivel-tit">${esc(g)}</div><div class="tarjeta">${as.map((a) => `
-      <div style="margin:.5rem 0;cursor:pointer" onclick="ir('ruta/${a.id}')"><div class="fila entre peq"><span>${esc(a.icono)} ${esc(a.nombre)}</span><span class="suave">${a.dominados}/${a.temas}</span></div>
-      <div class="barra-prog"><i style="width:${a.dominio * 100}%"></i></div></div>`).join("")}</div>`).join("")}`;
+    <section data-tab-panel="memoria" hidden>
+      <h2>🧩 Estado de tu memoria ahora</h2>
+      <div class="tarjeta"><div class="suave peq">${totMem} tarjetas según su probabilidad de recordarlas hoy</div>
+        <div class="apilada">${MEM.filter(([k]) => d.memoria[k]).map(([k, n, c]) => `<i style="flex:${d.memoria[k]};background:${c}"${tip(`${n}: ${d.memoria[k]}`)}></i>`).join("") || `<i style="flex:1;background:var(--panel2)"></i>`}</div>
+        <div class="leyenda">${MEM.map(([k, n, c]) => `<span><i style="background:${c}"></i>${n} <b>${d.memoria[k]}</b></span>`).join("")}</div>
+        ${d.olvidando.length ? `<p style="margin-bottom:.2rem"><b>Temas que se te están olvidando</b></p>
+          <ul class="temas">${d.olvidando.map((t) => `<li data-tema="${t.id}"><span class="punto" style="border-color:var(--medio)"></span><span style="flex:1">${esc(t.t)} <span class="suave peq">· ${esc(t.area)}</span></span><span class="etq ${t.r < 0.6 ? "mal" : "medio"}">${pct(t.r)}</span></li>`).join("")}</ul>
+          <button class="btn pri" style="margin-top:.6rem" onclick="ir('repasar')">🔁 Repasar ahora</button>` : ""}
+        ${d.areas_memoria.length ? `<p><b>Memoria por área</b></p>${barrasH(d.areas_memoria, { valor: (x) => x.r, max: 1, nombre: (x) => x.nombre, texto: (x) => `${pct(x.r)} · ${x.n} tarjetas` })}` : ""}</div>
+      <h2>⏳ Tiempo por área (30 días)</h2>
+      <div class="tarjeta">${d.minutos_area.length ? barrasH(d.minutos_area, { valor: (x) => x.min, nombre: (x) => x.nombre, texto: (x) => `${x.min} min` }) : `<p class="suave">Aún sin datos.</p>`}</div>
+      <h2>🗂️ Constancia (26 semanas)</h2>${calorAnual(p)}
+      ${p.debiles.length ? `<h2>⚠️ Más fallos en repasos (30 d)</h2><div class="tarjeta"><ul class="temas">${p.debiles.map((x) => `<li data-tema="${x.tema}"><span class="punto"></span><span style="flex:1">${esc(x.t)}</span><span class="etq mal">${x.fallos} fallos</span></li>`).join("")}</ul></div>` : ""}
+      <h2>🎓 Dominio por área</h2>${Object.entries(grupos).map(([g, as]) => `<div class="nivel-tit">${esc(g)}</div><div class="tarjeta">${as.map((a) => `
+        <div style="margin:.5rem 0;cursor:pointer" onclick="ir('ruta/${a.id}')"><div class="fila entre peq"><span>${esc(a.icono)} ${esc(a.nombre)}</span><span class="suave">${a.dominados}/${a.temas}</span></div>
+        <div class="barra-prog"><i style="width:${a.dominio * 100}%"></i></div></div>`).join("")}</div>`).join("")}
+    </section>`;
+  activarSubnav(vista, "progresoTab", "resumen");
   if (d.informe) pintarMd($("#informe"), d.informe.informe);
   $$("[data-tema]").forEach((li) => (li.onclick = () => ir("tema/" + li.dataset.tema)));
   $$("[data-mercado]").forEach((b) => (b.onclick = async (e) => {
@@ -2598,110 +3082,176 @@ VISTAS.reporte = async () => {
 VISTAS.ajustes = async () => {
   const [yo, mapa, ia, cfg] = await Promise.all([api("yo"), api("mapa"), api("ia"), api("config")]);
   const p = yo.perfil;
-  const mias = mapa.areas.filter((a) => esMia(a, yo));
-  const filasArea = (as) => Object.entries(porGrupo(as)).map(([g, xs]) => `<div class="nivel-tit">${esc(g)}</div>${xs.map((a) => `
-        <div class="fila entre" style="margin:.3rem 0"><span>${esc(a.icono)} ${esc(a.nombre)}</span>
-        <div class="chips">${[0, 1, 2, 3].map((n) => `<button class="chip ${(p.pesos[a.id] ?? yo.prioridad?.[a.id] ?? 0) === n ? "activo" : ""}" data-area="${a.id}" data-n="${n}">${n}</button>`).join("")}</div></div>`).join("")}`).join("");
-  vista.innerHTML = `<h1>⚙️ Ajustes y perfil</h1>
-    ${cfg.editable ? `<div class="tarjeta" id="autoCfg"><b>🪄 Configuración automática</b>
-      <p class="suave peq">Revisa qué tiene este PC (memoria, tarjeta gráfica, servidores de IA y sus modelos, buscador, Tailscale) y te
-      propone la mejor configuración con los pasos para lo que falte. No lee tus archivos y el resultado se borra solo en 24 h.</p>
-      <div id="autoCuerpo"><span class="cargando"></span></div></div>` : ""}
-    <h2>🟢 Básico</h2>
-    <div class="tarjeta"><b>Cuenta:</b> ${esc(yo.usuario)} ${yo.local ? `<span class="etq">en este PC</span>` : `<span class="etq">vía Tailscale</span>`}
-      ${yo.local && yo.perfiles.length > 1 ? `<div style="margin-top:.5rem"><label>Perfil en este navegador</label><select id="perfilSel">${yo.perfiles.map((u) => `<option ${u === yo.usuario ? "selected" : ""}>${esc(u)}</option>`).join("")}</select></div>` : ""}
-      <p class="suave peq" style="margin-bottom:0">Cada cuenta de Tailscale tiene su propio progreso. Todo se guarda en tu PC (carpeta <code>datos/</code>).</p></div>
-    <div class="tarjeta"><b>Tu perfil (la IA lo lee para adaptar todo)</b>
-      <label>Nombre</label><input type="text" id="pNombre" value="${esc(p.nombre)}">
-      <label>Situación actual</label><textarea id="pSit">${esc(p.situacion)}</textarea>
-      <label>Metas</label><textarea id="pMetas">${esc(p.metas)}</textarea>
-      <label>Cómo te gusta aprender</label><input type="text" id="pEstilo" value="${esc(p.estilo)}">
-      <div class="rejilla" style="margin-top:.4rem">
-        <div><label>Lecciones nuevas por día</label><input type="number" id="pNuevos" min="1" max="8" value="${p.nuevos_dia}"></div>
-        <div><label>Tarjetas nuevas por día</label><input type="number" id="pTarj" min="5" max="100" value="${p.tarjetas_nuevas_dia}"></div>
-        <div><label>Meta de minutos por día</label><input type="number" id="pMin" min="10" max="600" value="${p.minutos_dia}"></div></div>
-      <label class="fila" style="font-weight:500"><input type="checkbox" id="pLapiz" ${p.solo_lapiz ? "checked" : ""} style="width:auto;min-height:0"> Cuaderno: dibujar solo con el lápiz (el dedo desplaza la página)</label>
-      <label class="fila" style="font-weight:500"><input type="checkbox" id="pDiaMax" ${p.dia_maxima ? "checked" : ""} style="width:auto;min-height:0"> 🔬 Dejar TODAS las lecciones del día listas a máxima profundidad en la actualización diaria (más horas de IA)</label>
-      <div class="rejilla" style="margin-top:.4rem"><div><label>🧭 Cómo leer las lecciones</label><select id="pModoLect">
-        <option value="auto" ${!p.modo_lectura || p.modo_lectura === "auto" ? "selected" : ""}>Automático: completa (paso a paso si no las terminas)</option>
-        <option value="rapida" ${p.modo_lectura === "rapida" ? "selected" : ""}>🗺️ Empezar por la vista previa (10-15 min) y luego la completa</option>
-        <option value="esencial" ${p.modo_lectura === "esencial" ? "selected" : ""}>📗 Esencial: lo central, lo opcional plegado</option>
-        <option value="completo" ${p.modo_lectura === "completo" ? "selected" : ""}>📚 Completo: todo abierto</option></select></div></div>
-      <div class="rejilla"><div><label>👣 Paso a paso (una parte a la vez, con «¿lo entendiste?»)</label><select id="pPaso">
-        <option value="" ${p.paso_a_paso == null ? "selected" : ""}>Automático (si no terminas las lecciones)</option>
-        <option value="si" ${p.paso_a_paso === true ? "selected" : ""}>Siempre</option>
-        <option value="no" ${p.paso_a_paso === false ? "selected" : ""}>Nunca</option></select></div></div>
-      <label class="fila" style="font-weight:500"><input type="checkbox" id="pDiag" ${p.diagnostico_previo !== false ? "checked" : ""} style="width:auto;min-height:0"> ⚡ Ofrecer un diagnóstico de 4 preguntas antes de leer (si ya lo sabes, te saltas la lectura)</label></div>
-    <div class="tarjeta" style="cursor:pointer" onclick="ir('conexiones')"><b>🔔 Modo corto, avisos y ☁️ API de IA</b> <span class="etq">opcional</span>
-      <p class="suave peq" style="margin:.3rem 0 0">Estudiar 10 minutos al día, recibir un recordatorio en el celular o usar una API de IA para ir más rápido. Todo apagado por defecto. Toca para configurarlo →</p></div>
-    <div class="tarjeta"><b>Prioridad por área</b><p class="suave peq">0 = pausada · 1 = de fondo · 2 = importante · 3 = prioridad máxima. Consejo con evidencia: con idiomas, 1-2 activos en serio rinde más que 5 a la vez; los demás en 1 (mantenimiento).</p>
-      ${mias.length ? filasArea(mias) : `<p>${SIN_AREAS}</p>`}</div>
-    <div class="tarjeta"><b>🌍 Noticias por región</b><p class="suave peq">De dónde quieres tus noticias. 0 = no la quiero · 1 = poco · 2 = normal · 3 = primero.
-      La 🌍 Global trae medios internacionales y ciencia; las regiones, lo de cada lugar.</p>
-      <div id="regPrio"><span class="cargando"></span></div></div>
-    <button class="btn pri" id="guardar" style="width:100%">Guardar perfil</button>
-    <div class="tarjeta" style="margin-top:1rem"><b>🎨 Apariencia</b> <span class="suave peq">(se guarda en este navegador)</span>
-      <label>Modo</label><div class="chips">${["auto", "light", "dark"].map((t) => `<button class="chip ${(leerLS("tema") || "auto") === t ? "activo" : ""}" data-tema-visual="${t}">${{ auto: "Automático", light: "Claro", dark: "Oscuro" }[t]}</button>`).join("")}</div>
-      <label>Paleta</label><div class="chips" id="paletas"><span class="cargando"></span></div>
-      <label>Color de acento propio</label><div class="fila"><input type="color" id="acento" value="${esc(leerLS("acento") || "#4f6df5")}" style="width:4rem;min-height:2.4rem;padding:.1rem">
-        <button class="btn peq" id="acentoQuitar">Usar el de la paleta</button></div>
-      <label>Tamaño de letra</label><div class="chips">${[[0.9, "Pequeña"], [1, "Normal"], [1.15, "Grande"], [1.3, "Muy grande"]].map(([v, n]) => `<button class="chip ${(+leerLS("escala") || 1) === v ? "activo" : ""}" data-escala="${v}">${n}</button>`).join("")}</div></div>
-    <div class="tarjeta"><b>📄 Tus datos</b><p class="suave peq">Descarga todo lo que la Academia guarda de ti y un reporte de desarrollo, necesidades y recomendaciones.</p>
-      <div class="fila"><button class="btn peq" onclick="ir('reporte')">Ver reporte</button><a class="btn peq" href="api/exportar">⬇️ Descargar mis datos (ZIP)</a></div></div>
-    <details class="avanzado"><summary><h2 style="display:inline">🛠️ Avanzado</h2> <span class="suave peq">IA, ritmo de trabajo, actualización diaria y versión</span></summary>
-    ${cfg.editable ? `<div class="tarjeta" style="margin-top:1rem"><b>🤖 Dónde se procesa la IA</b>
-      <div class="modo-actual"><span class="etq ${cfg.modo === "remoto" ? "medio" : "bien"}">${cfg.modo === "remoto" ? "🌐 Remoto" : "💻 Local"}</span>
-        <span class="peq">${cfg.modo === "remoto" ? "Tus datos se guardan en este PC; la IA y el buscador son de otro PC del tailnet." : "Tus datos y la IA están en este mismo PC."}</span></div>
-      <table class="tabla peq" style="margin-top:.5rem"><tr><td>Servidor de IA</td><td><code>${esc(cfg.ia_url)}</code></td></tr>
-        <tr><td>Modelo</td><td><code>${esc(cfg.modelo)}</code>${cfg.modelo_ligero ? ` · ligero <code>${esc(cfg.modelo_ligero)}</code>` : ""}</td></tr>
-        <tr><td>Buscador web</td><td>${cfg.searx_url ? `<code>${esc(cfg.searx_url)}</code>` : "sin búsqueda web"}</td></tr>
-        <tr><td>Monitor de GPU (aigate)</td><td>${cfg.aigate_url ? `<code>${esc(cfg.aigate_url)}</code>` : "—"}</td></tr>
-        <tr><td>Tareas a la vez</td><td>${cfg.trabajos_paralelos || 1} en este equipo${cfg.trabajos_nube ? ` + ${cfg.trabajos_nube} en la API de la nube` : ""}</td></tr>
-        <tr><td>Lecciones por adelantado / persona</td><td>${cfg.lecciones_adelantadas ?? 2}</td></tr>
-        <tr><td>Noticias a fondo por persona/día</td><td>${cfg.noticias_a_fondo_por_persona || 8}</td></tr>
-        <tr><td>Se prepara solo para</td><td>quien usó la Academia en las últimas 48 h</td></tr>
-        <tr><td>Si otra app usa la IA</td><td>${cfg.permitir_interrumpir === true ? "me pregunta si interrumpir" : "espera en la cola (nunca interrumpe)"}</td></tr>
-        <tr><td>Datos</td><td><code>${esc(cfg.datos)}</code></td></tr></table>
-      <p class="peq suave">Cargados ahora en ese servidor: ${esc(ia.cargados.join(", ") || "ninguno")}.</p>
-      ${cfg.editable ? `<details id="cfgIA"><summary class="btn peq" style="display:inline-flex">⚙️ Cambiar</summary>
-        <p class="peq" style="margin-top:.8rem"><b>1. Elige un modo</b> (rellena todo; luego puedes ajustar):</p>
-        <div class="presets">${Object.entries(cfg.presets).map(([k, p]) => `<button class="preset" data-preset="${k}">${p.modo === "remoto" ? "🌐" : "💻"} ${esc(p.nombre_preset)}</button>`).join("")}</div>
-        <div class="fila" style="margin:.5rem 0"><button class="btn peq" id="cDetectar">🔍 Detectar servidores de IA</button><span id="cDet" class="suave peq"></span></div>
-        <p class="peq"><b>2. Revisa los datos</b></p>
-        <label>Servidor de IA (compatible con OpenAI)</label><input type="text" id="cIa" value="${esc(cfg.ia_url)}">
-        <label>Modelo principal</label><input type="text" id="cMod" value="${esc(cfg.modelo)}" list="cModelos"><datalist id="cModelos"></datalist>
-        <label>Modelo ligero (opcional)</label><input type="text" id="cLig" value="${esc(cfg.modelo_ligero || "")}" list="cModelos">
-        <label>Buscador SearXNG (vacío = sin búsqueda web)</label><input type="text" id="cSx" value="${esc(cfg.searx_url || "")}">
-        <label>Monitor de GPU tipo aigate (opcional: URL que responde «ocupado» cuando no se debe usar la IA, p. ej. jugando)</label><input type="text" id="cAg" value="${esc(cfg.aigate_url || "")}">
-        <label>Tareas de IA a la vez (igual a los «slots» del servidor: llama-server --parallel N)</label>
-        <input type="number" id="cPar" min="1" max="4" value="${cfg.trabajos_paralelos || 1}" style="width:6rem">
-        <label>Tareas a la vez en la API de la nube (aparte de las de arriba; 0 = sin carril propio. Si la API no responde, esas tareas pasan a las locales)</label>
-        <input type="number" id="cNube" min="0" max="6" value="${cfg.trabajos_nube || 0}" style="width:6rem">
-        <label>Lecciones preparadas por adelantado por persona (sin leer; cada una ~45 min de IA)</label>
-        <input type="number" id="cAde" min="0" max="6" value="${cfg.lecciones_adelantadas ?? 2}" style="width:6rem">
-        <label>Noticias a máxima profundidad por persona y día (cada una ~15 min de IA)</label>
-        <input type="number" id="cNot" min="1" max="60" value="${cfg.noticias_a_fondo_por_persona || 8}" style="width:6rem">
-        <label class="fila" style="font-weight:500"><input type="checkbox" id="cInt" ${cfg.permitir_interrumpir === true ? "checked" : ""} style="width:auto;min-height:0"> Preguntarme si quiero interrumpir otra app que esté usando la IA (si está apagado, mi tarea siempre espera en la cola y la otra termina completa)</label>
-        <p class="peq"><b>3. Prueba y guarda</b> (aplica al instante, sin reiniciar)</p>
-        <div class="fila"><button class="btn" id="cProbar">🔌 Probar conexión</button><button class="btn pri" id="cGuardar">💾 Guardar</button><span id="cEstado" class="suave peq"></span></div></details>`
-        : ""}</div>
-    <div class="tarjeta" id="instalacion"><b>🧩 Esta instalación</b><div id="verInfo" class="peq suave"><span class="cargando"></span></div></div>
-    <div class="tarjeta" id="regAdmin"><b>🗺️ Regiones y fuentes de noticias</b>
-      <p class="suave peq">Agrega o quita regiones y sus fuentes (RSS). Solo se descargan las regiones que alguien tiene en prioridad 1 o más.</p>
-      <div id="regLista"><span class="cargando"></span></div></div>
-    <div class="tarjeta"><b>🕕 Actualización diaria</b><p class="suave peq">Una vez al día, a esta hora, se descargan las fuentes de noticias, la IA analiza las más importantes, escribe las síntesis y prepara tus lecciones del día. Si el PC está apagado a esa hora, lo hace apenas prenda.
-      Última: ${yo.diaria_ultima ? new Date(yo.diaria_ultima * 1000).toLocaleString(LOC, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "nunca"}.</p>
-      <div class="fila"><input type="time" id="horaDiaria" value="${esc(yo.hora_diaria)}" style="width:auto">
-      <button class="chip" data-hora="06:00">6:00 a. m.</button><button class="chip" data-hora="22:00">10:00 p. m.</button>
-      <button class="btn peq" id="guardarHora">Guardar hora</button></div></div>` : `<p class="suave">La configuración avanzada solo la cambia quien administra esta Academia (desde su PC).</p>`}
-    </details>`;
   const pesos = Object.assign({}, p.pesos);
+  const todasAreas = mapa.areas.filter((a) => !a.objetivo);
+  const pesoActual = (a) => pesos[a.id] ?? (esMia(a, yo) ? (yo.prioridad?.[a.id] ?? 0) : 0);
+  const gruposArea = [...new Set(todasAreas.map((a) => a.grupo))];
+  const af = E.ajFiltro || (E.ajFiltro = { q: "", grupo: "", ver: "ambas" });
+
+  vista.innerHTML = `<div class="fila entre"><h1 style="margin:0">⚙️ Ajustes</h1>
+      <button class="btn pri peq" id="guardarTop">💾 Guardar cambios</button></div>
+    <div class="subnav">
+      <button data-tab="areas">📚 Áreas (activas / inactivas)</button>
+      <button data-tab="perfil">👤 Perfil y estudio</button>
+      <button data-tab="noticias">🌍 Noticias</button>
+      <button data-tab="apariencia">🎨 Apariencia</button>
+      <button data-tab="sistema">🛠️ Sistema</button>
+    </div>
+
+    <section data-tab-panel="areas">
+      <div class="tarjeta">
+        <b>Activas frente a Inactivas</b>
+        <p class="suave peq" style="margin:.25rem 0 .6rem"><b>1–3</b> = activa (aparece en <b>🗺️ Tu ruta</b> y en el plan diario). <b>0</b> = inactiva (queda oculta de Tu ruta). En idiomas, 1–2 activas rinde más que muchas a la vez.</p>
+        <div class="barra-filtros" style="margin-bottom:.6rem">
+          <input type="search" id="ajQ" placeholder="🔍 Buscar área…" value="${esc(af.q)}">
+          <select id="ajGrupo" aria-label="Filtrar por grupo"><option value="">Todos los grupos</option>
+            ${gruposArea.map((g) => `<option value="${esc(g)}" ${af.grupo === g ? "selected" : ""}>${esc(g)}</option>`).join("")}</select>
+          <div class="chips" style="padding:0">
+            <button class="chip ${af.ver === "ambas" ? "activo" : ""}" data-ajver="ambas">Todas</button>
+            <button class="chip ${af.ver === "activas" ? "activo" : ""}" data-ajver="activas">Solo activas</button>
+            <button class="chip ${af.ver === "inactivas" ? "activo" : ""}" data-ajver="inactivas">Solo inactivas</button>
+          </div>
+        </div>
+        <div id="areasBox"></div>
+        <div class="fila" style="margin-top:.8rem"><button class="btn pri" id="guardarAreas">💾 Guardar áreas y actualizar Tu ruta</button></div>
+      </div>
+    </section>
+
+    <section data-tab-panel="perfil" hidden>
+      <div class="tarjeta"><b>Cuenta:</b> ${esc(yo.usuario)} ${yo.local ? `<span class="etq">en este PC</span>` : `<span class="etq">vía Tailscale</span>`}
+        ${yo.local && yo.perfiles.length > 1 ? `<div style="margin-top:.5rem"><label>Perfil en este navegador</label><select id="perfilSel">${yo.perfiles.map((u) => `<option ${u === yo.usuario ? "selected" : ""}>${esc(u)}</option>`).join("")}</select></div>` : ""}
+        <p class="suave peq" style="margin-bottom:0">Cada cuenta tiene su propio progreso en <code>datos/</code>.</p></div>
+      <div class="tarjeta"><b>Tu perfil (la IA lo lee para adaptar todo)</b>
+        <label>Nombre</label><input type="text" id="pNombre" value="${esc(p.nombre)}">
+        <label>Situación actual</label><textarea id="pSit">${esc(p.situacion)}</textarea>
+        <label>Metas</label><textarea id="pMetas">${esc(p.metas)}</textarea>
+        <label>Cómo te gusta aprender</label><input type="text" id="pEstilo" value="${esc(p.estilo)}">
+        <div class="rejilla" style="margin-top:.4rem">
+          <div><label>Lecciones nuevas por día</label><input type="number" id="pNuevos" min="1" max="8" value="${p.nuevos_dia}"></div>
+          <div><label>Tarjetas nuevas por día</label><input type="number" id="pTarj" min="5" max="100" value="${p.tarjetas_nuevas_dia}"></div>
+          <div><label>Meta de minutos por día</label><input type="number" id="pMin" min="10" max="600" value="${p.minutos_dia}"></div></div>
+        <label class="fila" style="font-weight:500"><input type="checkbox" id="pLapiz" ${p.solo_lapiz ? "checked" : ""} style="width:auto;min-height:0"> Cuaderno: dibujar solo con el lápiz (el dedo desplaza la página)</label>
+        <label class="fila" style="font-weight:500"><input type="checkbox" id="pDiaMax" ${p.dia_maxima ? "checked" : ""} style="width:auto;min-height:0"> 🔬 Dejar TODAS las lecciones del día listas a máxima profundidad en la actualización diaria</label>
+        <div class="rejilla" style="margin-top:.4rem"><div><label>🧭 Cómo leer las lecciones</label><select id="pModoLect">
+          <option value="auto" ${!p.modo_lectura || p.modo_lectura === "auto" ? "selected" : ""}>Automático: completa (paso a paso si no las terminas)</option>
+          <option value="rapida" ${p.modo_lectura === "rapida" ? "selected" : ""}>🗺️ Empezar por la vista previa (10-15 min) y luego la completa</option>
+          <option value="esencial" ${p.modo_lectura === "esencial" ? "selected" : ""}>📗 Esencial: lo central, lo opcional plegado</option>
+          <option value="completo" ${p.modo_lectura === "completo" ? "selected" : ""}>📚 Completo: todo abierto</option></select></div></div>
+        <div class="rejilla"><div><label>👣 Paso a paso (una parte a la vez, con «¿lo entendiste?»)</label><select id="pPaso">
+          <option value="" ${p.paso_a_paso == null ? "selected" : ""}>Automático (si no terminas las lecciones)</option>
+          <option value="si" ${p.paso_a_paso === true ? "selected" : ""}>Siempre</option>
+          <option value="no" ${p.paso_a_paso === false ? "selected" : ""}>Nunca</option></select></div></div>
+        <label class="fila" style="font-weight:500"><input type="checkbox" id="pDiag" ${p.diagnostico_previo !== false ? "checked" : ""} style="width:auto;min-height:0"> ⚡ Ofrecer diagnóstico de 4 preguntas antes de leer</label></div>
+      <div class="tarjeta" style="cursor:pointer" onclick="ir('conexiones')"><b>🔔 Modo corto, avisos y ☁️ API de IA</b> <span class="etq">opcional</span>
+        <p class="suave peq" style="margin:.3rem 0 0">Estudiar 10 minutos al día, recordatorio en el celular o API de IA. Toca para configurarlo →</p></div>
+      <button class="btn pri" id="guardar" style="width:100%">Guardar perfil</button>
+    </section>
+
+    <section data-tab-panel="noticias" hidden>
+      <div class="tarjeta"><b>🌍 Noticias por región</b><p class="suave peq">De dónde quieres tus noticias. 0 = no la quiero · 1 = poco · 2 = normal · 3 = primero.</p>
+        <div id="regPrio"><span class="cargando"></span></div>
+        <button class="btn pri" id="guardarNot" style="margin-top:.8rem">💾 Guardar prioridades de noticias</button></div>
+    </section>
+
+    <section data-tab-panel="apariencia" hidden>
+      <div class="tarjeta"><b>🎨 Apariencia</b> <span class="suave peq">(se guarda en este navegador)</span>
+        <label>Modo</label><div class="chips">${["auto", "light", "dark"].map((t) => `<button class="chip ${(leerLS("tema") || "auto") === t ? "activo" : ""}" data-tema-visual="${t}">${{ auto: "Automático", light: "Claro", dark: "Oscuro" }[t]}</button>`).join("")}</div>
+        <label>Paleta</label><div class="chips" id="paletas"><span class="cargando"></span></div>
+        <label>Color de acento propio</label><div class="fila"><input type="color" id="acento" value="${esc(leerLS("acento") || "#4f6df5")}" style="width:4rem;min-height:2.4rem;padding:.1rem">
+          <button class="btn peq" id="acentoQuitar">Usar el de la paleta</button></div>
+        <label>Tamaño de letra</label><div class="chips">${[[0.9, "Pequeña"], [1, "Normal"], [1.15, "Grande"], [1.3, "Muy grande"]].map(([v, n]) => `<button class="chip ${(+leerLS("escala") || 1) === v ? "activo" : ""}" data-escala="${v}">${n}</button>`).join("")}</div></div>
+    </section>
+
+    <section data-tab-panel="sistema" hidden>
+      <div class="tarjeta"><b>📄 Tus datos</b><p class="suave peq">Descarga todo lo que la Academia guarda de ti y tu reporte.</p>
+        <div class="fila"><button class="btn peq" onclick="ir('reporte')">Ver reporte</button><a class="btn peq" href="api/exportar">⬇️ Descargar mis datos (ZIP)</a></div></div>
+      ${cfg.editable ? `<div class="tarjeta" id="autoCfg"><b>🪄 Configuración automática</b>
+        <p class="suave peq">Revisa qué tiene este PC y te propone la mejor configuración (se borra solo en 24 h).</p>
+        <div id="autoCuerpo"><span class="cargando"></span></div></div>
+      <div class="tarjeta"><b>🤖 Dónde se procesa la IA</b>
+        <div class="modo-actual"><span class="etq ${cfg.modo === "remoto" ? "medio" : "bien"}">${cfg.modo === "remoto" ? "🌐 Remoto" : "💻 Local"}</span>
+          <span class="peq">${cfg.modo === "remoto" ? "Tus datos se guardan en este PC; la IA y el buscador son de otro PC del tailnet." : "Tus datos y la IA están en este mismo PC."}</span></div>
+        <table class="tabla peq" style="margin-top:.5rem"><tr><td>Servidor de IA</td><td><code>${esc(cfg.ia_url)}</code></td></tr>
+          <tr><td>Modelo</td><td><code>${esc(cfg.modelo)}</code>${cfg.modelo_ligero ? ` · ligero <code>${esc(cfg.modelo_ligero)}</code>` : ""}</td></tr>
+          <tr><td>Buscador web</td><td>${cfg.searx_url ? `<code>${esc(cfg.searx_url)}</code>` : "sin búsqueda web"}</td></tr>
+          <tr><td>Monitor de GPU (aigate)</td><td>${cfg.aigate_url ? `<code>${esc(cfg.aigate_url)}</code>` : "—"}</td></tr>
+          <tr><td>Tareas a la vez</td><td>${(cfg.trabajos_paralelos ?? 1) === 0 ? "0 en este equipo (en pausa)" : `${cfg.trabajos_paralelos ?? 1} en este equipo (${(cfg.fondo_a_la_vez ?? 1) || "todas"} de fondo)`}${cfg.trabajos_nube ? ` + ${cfg.trabajos_nube} en la API de la nube` : ""}</td></tr>
+          <tr><td>Lecciones por adelantado / persona</td><td>${cfg.lecciones_adelantadas ?? 2}</td></tr>
+          <tr><td>Noticias a fondo por persona/día</td><td>${cfg.noticias_a_fondo_por_persona || 8}</td></tr>
+          <tr><td>Se prepara solo para</td><td>quien usó la Academia en las últimas 48 h</td></tr>
+          <tr><td>Si otra app usa la IA</td><td>${cfg.permitir_interrumpir === true ? "me pregunta si interrumpir" : "espera en la cola (nunca interrumpe)"}</td></tr>
+          <tr><td>Datos</td><td><code>${esc(cfg.datos)}</code></td></tr></table>
+        <p class="peq suave">Cargados ahora en ese servidor: ${esc(ia.cargados.join(", ") || "ninguno")}.</p>
+        <details id="cfgIA"><summary class="btn peq" style="display:inline-flex">⚙️ Cambiar</summary>
+          <p class="peq" style="margin-top:.8rem"><b>1. Elige un modo</b> (rellena todo; luego puedes ajustar):</p>
+          <div class="presets">${Object.entries(cfg.presets).map(([k, p]) => `<button class="preset" data-preset="${k}">${p.modo === "remoto" ? "🌐" : "💻"} ${esc(p.nombre_preset)}</button>`).join("")}</div>
+          <div class="fila" style="margin:.5rem 0"><button class="btn peq" id="cDetectar">🔍 Detectar servidores de IA</button><span id="cDet" class="suave peq"></span></div>
+          <p class="peq"><b>2. Revisa los datos</b></p>
+          <label>Servidor de IA (compatible con OpenAI)</label><input type="text" id="cIa" value="${esc(cfg.ia_url)}">
+          <label>Modelo principal</label><input type="text" id="cMod" value="${esc(cfg.modelo)}" list="cModelos"><datalist id="cModelos"></datalist>
+          <label>Modelo ligero (opcional)</label><input type="text" id="cLig" value="${esc(cfg.modelo_ligero || "")}" list="cModelos">
+          <label>Buscador SearXNG (vacío = sin búsqueda web)</label><input type="text" id="cSx" value="${esc(cfg.searx_url || "")}">
+          <label>Monitor de GPU tipo aigate (opcional)</label><input type="text" id="cAg" value="${esc(cfg.aigate_url || "")}">
+          <label>Tareas de IA a la vez en este equipo (0 = pausa la cola)</label>
+          <input type="number" id="cPar" min="0" max="4" value="${cfg.trabajos_paralelos ?? 1}" style="width:6rem">
+          <label>De esas, cuántas de fondo a la vez (0 = sin límite)</label>
+          <input type="number" id="cFondo" min="0" max="4" value="${cfg.fondo_a_la_vez ?? 1}" style="width:6rem">
+          <label>Tareas a la vez en la API de la nube</label>
+          <input type="number" id="cNube" min="0" max="6" value="${cfg.trabajos_nube || 0}" style="width:6rem">
+          <label>Lecciones preparadas por adelantado por persona</label>
+          <input type="number" id="cAde" min="0" max="6" value="${cfg.lecciones_adelantadas ?? 2}" style="width:6rem">
+          <label>Noticias a máxima profundidad por persona y día</label>
+          <input type="number" id="cNot" min="1" max="60" value="${cfg.noticias_a_fondo_por_persona || 8}" style="width:6rem">
+          <label class="fila" style="font-weight:500"><input type="checkbox" id="cInt" ${cfg.permitir_interrumpir === true ? "checked" : ""} style="width:auto;min-height:0"> Preguntarme si quiero interrumpir otra app que esté usando la IA</label>
+          <p class="peq"><b>3. Prueba y guarda</b> (aplica al instante, sin reiniciar)</p>
+          <div class="fila"><button class="btn" id="cProbar">🔌 Probar conexión</button><button class="btn pri" id="cGuardar">💾 Guardar</button><span id="cEstado" class="suave peq"></span></div></details></div>
+      <div class="tarjeta" id="instalacion"><b>🧩 Esta instalación</b><div id="verInfo" class="peq suave"><span class="cargando"></span></div></div>
+      <div class="tarjeta" id="regAdmin"><b>🗺️ Regiones y fuentes de noticias</b>
+        <p class="suave peq">Agrega o quita regiones y sus fuentes (RSS).</p>
+        <div id="regLista"><span class="cargando"></span></div></div>
+      <div class="tarjeta"><b>🕕 Actualización diaria</b><p class="suave peq">Última: ${yo.diaria_ultima ? new Date(yo.diaria_ultima * 1000).toLocaleString(LOC, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "nunca"}.</p>
+        <div class="fila"><input type="time" id="horaDiaria" value="${esc(yo.hora_diaria)}" style="width:auto">
+        <button class="chip" data-hora="06:00">6:00 a. m.</button><button class="chip" data-hora="22:00">10:00 p. m.</button>
+        <button class="btn peq" id="guardarHora">Guardar hora</button></div></div>` : `<div class="tarjeta"><p class="suave">La configuración avanzada solo la cambia quien administra esta Academia.</p></div>`}
+    </section>`;
+
+  const pintarAreas = () => {
+    const q = af.q.trim().toLowerCase();
+    const fil = todasAreas.filter((a) => (!af.grupo || a.grupo === af.grupo) && (!q || `${a.nombre} ${a.grupo}`.toLowerCase().includes(q)));
+    const activas = fil.filter((a) => pesoActual(a) > 0);
+    const inactivas = fil.filter((a) => pesoActual(a) === 0);
+    const totAct = todasAreas.filter((a) => pesoActual(a) > 0).length;
+    const totInact = todasAreas.length - totAct;
+    const filaA = (a) => {
+      const w = pesoActual(a);
+      return `<li class="lista-fila ${w > 0 ? "mia" : ""}">
+        <span style="font-size:1.15rem">${esc(a.icono)}</span>
+        <div class="lista-cuerpo"><div class="lista-tit">${esc(a.nombre)} <span class="etq">${esc(a.grupo)}</span></div>
+          <div class="lista-sub">${a.modulos.length} módulos · ${a.modulos.reduce((s, m) => s + m.temas.length, 0)} temas</div></div>
+        <div class="chips" style="padding:0">${[0, 1, 2, 3].map((n) => `<button class="chip ${w === n ? "activo" : ""}" data-area="${a.id}" data-n="${n}">${n}</button>`).join("")}</div></li>`;
+    };
+    const bloque = (titulo, lista, abierta = true) => `<details style="margin-top:.6rem" ${abierta ? "open" : ""}>
+      <summary style="cursor:pointer;font-weight:700;padding:.35rem 0">${titulo}</summary>
+      ${lista.length ? `<ul class="lista-compacta" style="margin-top:.35rem">${lista.map(filaA).join("")}</ul>` : `<p class="suave peq">Ninguna área en este bloque.</p>`}</details>`;
+    let html = "";
+    if (af.ver !== "inactivas") html += bloque(`✅ Activas — aparecen en Tu ruta (${activas.length}${q || af.grupo ? ` de ${totAct}` : ""})`, activas, true);
+    if (af.ver !== "activas") html += bloque(`⏸ Inactivas — ocultas de Tu ruta (${inactivas.length}${q || af.grupo ? ` de ${totInact}` : ""})`, inactivas, true);
+    $("#areasBox").innerHTML = html;
+    $$("[data-area]", $("#areasBox")).forEach((b) => (b.onclick = () => {
+      pesos[b.dataset.area] = +b.dataset.n;
+      pintarAreas();
+    }));
+  };
+  $("#ajQ").oninput = (e) => { af.q = e.target.value; pintarAreas(); };
+  $("#ajGrupo").onchange = (e) => { af.grupo = e.target.value; pintarAreas(); };
+  $$("[data-ajver]").forEach((b) => (b.onclick = () => { af.ver = b.dataset.ajver; $$("[data-ajver]").forEach((x) => x.classList.toggle("activo", x === b)); pintarAreas(); }));
+  pintarAreas();
+  activarSubnav(vista, "ajustesTab", "areas");
+
   const prioReg = {};
   pintarRegiones(prioReg, cfg.editable);
   pintarVersion(cfg.editable, false);
   if (cfg.editable) pintarAuto();
-  if (leerLS("ajustes_avanzado") === "1") $(".avanzado").open = true;
-  $(".avanzado").addEventListener("toggle", (e) => escribirLS("ajustes_avanzado", e.target.open ? "1" : ""));
   cargarTemas().then((ts) => {
     const act = leerLS("paleta") || "clasico";
     $("#paletas").innerHTML = ts.map((t) => `<button class="chip ${t.id === act ? "activo" : ""}" data-paleta="${esc(t.id)}" title="${esc(t.descripcion || "")}">${esc(t.nombre)}</button>`).join("");
@@ -2731,7 +3281,7 @@ VISTAS.ajustes = async () => {
       }));
     };
     const datosC = () => ({ modo: cmodo, ia_url: $("#cIa").value.trim(), modelo: $("#cMod").value.trim(), modelo_ligero: $("#cLig").value.trim(),
-      searx_url: $("#cSx").value.trim(), aigate_url: $("#cAg").value.trim(), permitir_interrumpir: $("#cInt").checked, trabajos_paralelos: +$("#cPar").value || 1, trabajos_nube: +$("#cNube").value || 0, noticias_a_fondo_por_persona: +$("#cNot").value || 8, lecciones_adelantadas: +$("#cAde").value });
+      searx_url: $("#cSx").value.trim(), aigate_url: $("#cAg").value.trim(), permitir_interrumpir: $("#cInt").checked, trabajos_paralelos: Math.max(0, $("#cPar").value === "" ? 1 : (+$("#cPar").value || 0)), fondo_a_la_vez: Math.max(0, +$("#cFondo").value || 0), trabajos_nube: +$("#cNube").value || 0, noticias_a_fondo_por_persona: +$("#cNot").value || 8, lecciones_adelantadas: +$("#cAde").value });
     $("#cProbar").onclick = async () => {
       $("#cEstado").innerHTML = `<span class="cargando"></span> Probando…`;
       const r = await api("config/probar", datosC());
@@ -2748,16 +3298,21 @@ VISTAS.ajustes = async () => {
   if ($("#guardarHora")) $("#guardarHora").onclick = async () => {
     try { const r = await api("horario", { hora: $("#horaDiaria").value }); aviso(`🕕 Actualización diaria a las ${r.hora}`); } catch (e) { aviso(e.message); }
   };
-  $$("[data-area]").forEach((b) => (b.onclick = () => { pesos[b.dataset.area] = +b.dataset.n; $$(`[data-area="${b.dataset.area}"]`).forEach((x) => x.classList.toggle("activo", x === b)); }));
   $$("[data-tema-visual]").forEach((b) => (b.onclick = () => { escribirLS("tema", b.dataset.temaVisual); aplicarTema(); enrutar(); }));
   if ($("#perfilSel")) $("#perfilSel").onchange = (e) => { document.cookie = "perfil=" + encodeURIComponent(e.target.value) + ";path=/;max-age=31536000"; location.reload(); };
-  $("#guardar").onclick = async () => {
+  const guardarTodo = async (destino) => {
     await api("perfil", { nombre: $("#pNombre").value, situacion: $("#pSit").value, metas: $("#pMetas").value, estilo: $("#pEstilo").value,
       nuevos_dia: +$("#pNuevos").value, tarjetas_nuevas_dia: +$("#pTarj").value, minutos_dia: +$("#pMin").value,
       solo_lapiz: $("#pLapiz").checked, dia_maxima: $("#pDiaMax").checked, modo_lectura: $("#pModoLect").value,
       paso_a_paso: { si: true, no: false }[$("#pPaso").value] ?? null, diagnostico_previo: $("#pDiag").checked, pesos, regiones: prioReg, configurado: true });
-    aviso("✅ Perfil guardado"); ir("hoy");
+    E.yo = null; E.mapa = null;
+    aviso("✅ Cambios guardados");
+    if (destino) ir(destino); else enrutar();
   };
+  $("#guardar").onclick = () => guardarTodo("hoy");
+  $("#guardarTop").onclick = () => guardarTodo();
+  $("#guardarAreas").onclick = () => guardarTodo("ruta");
+  $("#guardarNot").onclick = () => guardarTodo();
 };
 const FUENTE = "https://github.com/Anexolocuz/academia-comunidad";   // AGPL-3.0 §13: enlace al código fuente
 async function pintarVersion(admin, buscar) {

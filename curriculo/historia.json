@@ -1,0 +1,70 @@
+{
+  "id": "historia",
+  "nombre": "Historia",
+  "icono": "🏛",
+  "grupo": "Humanidades",
+  "color": "#8e6e53",
+  "descripcion": "Entender cómo llegamos aquí: método histórico, historia universal y de Colombia, historia de la ciencia y debates actuales.",
+  "recursos": [
+    {"t": "OpenStax — World History (libro libre)", "u": "https://openstax.org/details/books/world-history-volume-1"},
+    {"t": "Khan Academy — Historia universal", "u": "https://www.khanacademy.org/humanities/world-history"},
+    {"t": "Banco de la República — Red Cultural", "u": "https://www.banrepcultural.org/"}
+  ],
+  "modulos": [
+    {"id": "metodo", "t": "El oficio del historiador", "nivel": 1, "pre": [], "temas": [
+      "Qué es la historia|pasado, memoria e historia",
+      "Fuentes primarias y secundarias|crítica de fuentes",
+      "Cronología y periodización",
+      "Causalidad y contexto|evitar el anacronismo",
+      "Historiografía|escuelas y miradas sobre el pasado"]},
+    {"id": "antigua", "t": "Prehistoria y mundo antiguo", "nivel": 1, "pre": ["metodo"], "temas": [
+      "Prehistoria y revolución neolítica",
+      "Mesopotamia y Egipto|escritura y Estado",
+      "Grecia clásica|polis, democracia y ciencia",
+      "Roma|república, imperio y derecho",
+      "China, India y Mesoamérica antiguas"]},
+    {"id": "medieval_moderna", "t": "Edad Media y Edad Moderna", "nivel": 2, "pre": ["antigua"], "temas": [
+      "Edad Media europea|feudalismo e Iglesia",
+      "Mundo islámico y transmisión del saber",
+      "Renacimiento y Reforma",
+      "Encuentro de Europa y América|conquista y colonización",
+      "Revolución científica e Ilustración"]},
+    {"id": "contemporanea", "t": "Edad Contemporánea", "nivel": 2, "pre": ["medieval_moderna"], "temas": [
+      "Revoluciones atlánticas|Estados Unidos, Francia, Haití",
+      "Revolución industrial y sus consecuencias sociales",
+      "Imperialismo y Primera Guerra Mundial",
+      "Entreguerras, totalitarismos y Segunda Guerra Mundial",
+      "Guerra Fría, descolonización y globalización"]},
+    {"id": "colombia", "t": "Historia de Colombia", "nivel": 2, "pre": ["medieval_moderna"], "temas": [
+      "Pueblos prehispánicos del territorio colombiano",
+      "La Colonia y el Nuevo Reino de Granada",
+      "Independencia y construcción de la República|siglo XIX",
+      "Siglo XX|hegemonías, La Violencia, Frente Nacional",
+      "Conflicto armado y procesos de paz",
+      "Constitución de 1991 y Colombia contemporánea"]},
+    {"id": "latinoamerica", "t": "Historia de América Latina", "nivel": 3, "pre": ["contemporanea"], "temas": [
+      "Independencias latinoamericanas",
+      "Caudillismo y Estados nacionales",
+      "Populismos y modernización del siglo XX",
+      "Dictaduras y transiciones democráticas",
+      "América Latina en la economía global"]},
+    {"id": "ciencia_tecnica", "t": "Historia de la ciencia y la técnica", "nivel": 3, "pre": ["contemporanea"], "temas": [
+      "Ciencia antigua y medieval",
+      "Revolución científica|Copérnico, Galileo, Newton",
+      "Ciencia del siglo XIX|termodinámica, evolución, electromagnetismo",
+      "Física y biología del siglo XX",
+      "Historia de la ingeniería y la computación en contexto social"]},
+    {"id": "historiografia", "t": "Historiografía y teoría de la historia", "nivel": 4, "pre": ["metodo", "contemporanea"], "temas": [
+      "Positivismo y escuela de los Annales",
+      "Historia social, económica y cultural",
+      "Historia oral y memoria histórica",
+      "Historia global y conectada",
+      "Historia cuantitativa y humanidades digitales"]},
+    {"id": "horizonte", "t": "Horizonte: historia y presente", "nivel": 5, "pre": ["historiografia"], "temas": [
+      "Historia del tiempo presente",
+      "Big History|del Big Bang a hoy",
+      "Memoria, verdad y reparación|comisiones de la verdad",
+      "Datos, IA y archivos digitales en la investigación histórica",
+      "Debates historiográficos actuales"]}
+  ]
+}

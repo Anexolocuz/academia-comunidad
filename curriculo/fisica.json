@@ -1,5 +1,9 @@
 {
-  "id": "fisica", "nombre": "Física", "icono": "⚛", "grupo": "Ciencias básicas", "color": "#00b894",
+  "id": "fisica",
+  "nombre": "Física",
+  "icono": "⚛",
+  "grupo": "Ciencias básicas",
+  "color": "#00b894",
   "descripcion": "Cómo funciona el universo, de la mecánica clásica a la cuántica: la base de toda máquina y todo circuito.",
   "recursos": [
     {"t": "The Feynman Lectures on Physics (gratis en línea)", "u": "https://www.feynmanlectures.caltech.edu"},
@@ -69,6 +73,12 @@
       "Materia oscura y energía oscura",
       "Ondas gravitacionales y cosmología moderna",
       "Materiales 2D y topológicos",
-      "Tendencias actuales|descubrimientos recientes"]}
+      "Tendencias actuales|descubrimientos recientes"]},
+    {"id": "astronomia", "t": "Astronomía y astrofísica", "nivel": 3, "pre": ["mecanica", "moderna"], "temas": [
+      "El cielo y el sistema solar|coordenadas, fases, eclipses",
+      "Gravitación y órbitas|leyes de Kepler",
+      "Estrellas|espectros, evolución estelar, diagrama HR",
+      "Galaxias y estructura del universo",
+      "Cosmología|Big Bang, radiación de fondo, materia y energía oscuras"]}
   ]
 }

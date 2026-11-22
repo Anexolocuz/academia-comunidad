@@ -12,13 +12,15 @@ from datetime import datetime, timedelta
 
 import curriculo as cur
 import fsrs
+from indice import REGLA_OPCIONES
 import lectura
 from base import ejecutar, fila, filas, kv_get
 
 DIA = 86400
 METODOS = {
     "leccion": "📖 Leer lecciones", "repaso": "🔁 Repasar tarjetas", "cuaderno": "✍️ Escribir a mano",
-    "tutor": "💬 Tutor", "noticias": "🌍 Noticias y lectura", "practica": "🏋️ Tareas de práctica", "chequeo": "🧪 Chequeo semanal", "otro": "Otro"}
+    "tutor": "💬 Tutor", "noticias": "🌍 Noticias y lectura", "practica": "🏋️ Tareas de práctica", "chequeo": "🧪 Chequeo semanal",
+    "reto": "⚡ Reto (Índice)", "investigacion": "🔬 Papers y verificación", "otro": "Otro"}
 FRANJAS = [("madrugada", 0, 6), ("mañana", 6, 12), ("tarde", 12, 18), ("noche", 18, 24)]
 DIAS_SEMANA = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
 
@@ -52,7 +54,8 @@ def _metodo(r):
         m = json.loads(r["detalle"] or "{}").get("metodo")
     except ValueError:
         m = None
-    return m or ("leccion" if r["tema"] else "otro")
+    m = m or ("leccion" if r["tema"] else "otro")
+    return m if m in METODOS else "otro"     # una vista nueva del navegador no debe tumbar el panel
 
 
 def _ret(rows):
@@ -361,7 +364,7 @@ def crear_chequeo(ctx, usuario, perfil):
             "Chequeo semanal de retención: el estudiante ya estudió estos temas hace días. Escribe EXACTAMENTE una "
             "pregunta de opción múltiple por tema (campo 'tema' = su índice), en el mismo orden. Que evalúe comprensión "
             "y aplicación (no detalles triviales ni copiar frases de la lección): si la acierta, lo recuerda de verdad; "
-            "si no, lo olvidó. 4 opciones plausibles, distractores con errores típicos. Explicación de 1-2 frases. "
+            "si no, lo olvidó. 4 opciones plausibles, distractores con errores típicos. " + REGLA_OPCIONES + " Explicación de 1-2 frases. "
             "Fórmulas en texto simple o LaTeX corto entre $...$ (nunca \\text ni espacios en LaTeX). "
             "JSON compacto en una sola línea.\n\n"
             + "\n\n".join(bloques))}], max_tokens=3500, temperatura=0.4, esquema=esquema_chequeo(len(temas)))
@@ -382,6 +385,36 @@ def crear_chequeo(ctx, usuario, perfil):
                    (usuario, clave_semana(), json.dumps(temas), json.dumps(preguntas, ensure_ascii=False),
                     json.dumps(tarjetas, ensure_ascii=False), informe, time.time())).lastrowid
     return {"chequeo": cid}
+
+
+def anular_en_chequeo(usuario, cid, i, estado_previo="probado", motivo=""):
+    """Anula una pregunta de un chequeo ya respondido porque su clave era falsa (auditoría 2026-11-18). La opción que
+    eligió la persona no se guardaba, así que no se puede «dar por buena»: se quita del puntaje y, si por ella el tema
+    había bajado de dominado a visto, vuelve a `estado_previo`."""
+    c = fila("SELECT * FROM chequeo WHERE id=? AND usuario=? AND completado IS NOT NULL", (cid, usuario))
+    if not c:
+        return {"error": "chequeo inexistente o sin responder"}
+    res = json.loads(c["resultado"] or "{}")
+    temas = res.get("temas") or []
+    if not 0 <= i < len(temas):
+        return {"error": "pregunta inexistente"}
+    x = temas[i]
+    if x.get("anulada"):
+        return {"ok": True, "ya": True}
+    x["anulada"], x["motivo"] = True, motivo[:300]
+    validos = [t for t in temas if not t.get("anulada")] + (res.get("tarjetas") or [])
+    res["puntaje_antes"] = res.get("puntaje")
+    res["puntaje"] = sum(1 for t in validos if t.get("ok")) / len(validos) if validos else None
+    restaurado = False
+    if not x.get("ok") and x.get("id"):
+        av = fila("SELECT estado FROM avance WHERE usuario=? AND tema=?", (usuario, x["id"]))
+        if av and av["estado"] == "visto":
+            ejecutar("UPDATE avance SET estado=?, quiz=1.0, actualizado=? WHERE usuario=? AND tema=?",
+                     (estado_previo, time.time(), usuario, x["id"]))
+            restaurado = True
+    ejecutar("UPDATE chequeo SET resultado=? WHERE id=?", (json.dumps(res, ensure_ascii=False), cid))
+    return {"ok": True, "tema": x.get("id"), "puntaje_antes": res["puntaje_antes"], "puntaje": res["puntaje"],
+            "restaurado": restaurado}
 
 
 def responder_chequeo(usuario, cid, respuestas, tarjetas_resp):

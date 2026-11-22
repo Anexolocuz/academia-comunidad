@@ -737,7 +737,7 @@ def _clasificar_tanda(ctx, simbolo, i):
 ESQUEMA_PRONOSTICO = {"type": "object", "properties": {
     "resumen": {"type": "string"},
     "sesgo": {"type": "string", "enum": ["alcista", "bajista", "neutral"]},
-    "p_sube": {"type": "integer", "minimum": 1, "maximum": 99},
+    "p_sube": {"type": "number", "minimum": 1, "maximum": 99},
     "escenarios": {"type": "array", "minItems": 4, "maxItems": 6, "items": {"type": "object", "properties": {
         "titulo": {"type": "string"}, "que_pasaria": {"type": "string"},
         "direccion": {"type": "string", "enum": ["sube", "baja", "lateral"]},

@@ -1,5 +1,9 @@
 {
-  "id": "biologia", "nombre": "Biología", "icono": "🧬", "grupo": "Ciencias básicas", "color": "#55efc4",
+  "id": "biologia",
+  "nombre": "Biología",
+  "icono": "🧬",
+  "grupo": "Ciencias básicas",
+  "color": "#55efc4",
   "descripcion": "La ingeniería más antigua: células, genes, cerebro y cómo la tecnología la está transformando (biomecatrónica, bioinformática).",
   "recursos": [
     {"t": "OpenStax — Biología 2e", "u": "https://openstax.org/subjects/science"},
@@ -59,6 +63,18 @@
       "Edición genética de nueva generación|prime editing, base editing",
       "Longevidad y medicina personalizada",
       "IA en el descubrimiento de fármacos",
-      "Tendencias actuales|avances recientes"]}
+      "Tendencias actuales|avances recientes"]},
+    {"id": "microbiologia", "t": "Microbiología e inmunología", "nivel": 2, "pre": ["celula"], "temas": [
+      "Bacterias, arqueas, hongos y protistas",
+      "Virus y su ciclo de replicación",
+      "Microbiota humana y ambiental",
+      "Sistema inmune innato y adaptativo",
+      "Vacunas, antibióticos y resistencia antimicrobiana"]},
+    {"id": "vegetal", "t": "Biología vegetal", "nivel": 2, "pre": ["celula", "energia"], "temas": [
+      "Estructura de la planta|raíz, tallo, hoja, flor",
+      "Fotosíntesis y respiración en plantas",
+      "Agua, nutrientes y transporte en la planta",
+      "Hormonas vegetales y respuesta al ambiente",
+      "Suelo, riego y cultivo|bases de la agronomía"]}
   ]
 }

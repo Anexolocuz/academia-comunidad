@@ -72,6 +72,19 @@
       "Interfaces cerebro-computador y neurotecnología",
       "Modelos computacionales de la mente|redes neuronales y cognición",
       "Crisis de replicación y psicología abierta",
-      "Tendencias actuales|avances recientes en ciencia cognitiva"]}
+      "Tendencias actuales|avances recientes en ciencia cognitiva"]},
+    {"id": "dominios_aprendizaje", "t": "Áreas y ciclo del aprendizaje humano", "nivel": 1, "pre": ["fundamentos"], "temas": [
+      "Taxonomía de Bloom y las tres áreas del aprendizaje|visión integral de lo cognitivo, psicomotor y afectivo",
+      "Área cognitiva (el saber)|recordar, comprender, aplicar, analizar, evaluar y crear",
+      "Área psicomotora (el saber hacer)|coordinación cerebro-músculo, destreza física y automatización",
+      "Área afectiva (el saber ser)|emociones, curiosidad, dopamina, valores y actitud frente al estudio",
+      "Las cuatro fases del cerebro al aprender|atención, codificación, almacenamiento y recuperación"]},
+    {"id": "tecnicas_estudio", "t": "Estrategias de estudio y cuidado biológico", "nivel": 2, "pre": ["dominios_aprendizaje", "memoria"], "temas": [
+      "Ciclo completo de estudio activo|integrar atención, codificación, consolidación y recuperación",
+      "Técnica Feynman aplicada|explicar con palabras sencillas para detectar lagunas reales",
+      "Multisensorialidad y codificación dual|combinar lectura, audio, dibujo, mapas mentales y movimiento",
+      "Bloques Pomodoro y pausas estratégicas|intervalos de 25-45 min, descanso de 5 min y control de fatiga",
+      "Hidratación, sueño y límites del hipocampo|cuidar la biología cerebral durante el estudio",
+      "Plan de aprendizaje por los tres dominios|combinar saber, saber hacer y saber ser en cualquier materia"]}
   ]
 }

@@ -1,0 +1,63 @@
+{
+  "id": "ambiente",
+  "nombre": "Ciencias de la Tierra y del ambiente",
+  "icono": "🌍",
+  "grupo": "Ciencias básicas",
+  "color": "#2d98da",
+  "descripcion": "El planeta como sistema: geología, atmósfera, océanos, clima, ecología aplicada y gestión ambiental, hasta la frontera de la sostenibilidad.",
+  "recursos": [
+    {"t": "NASA — Ciencia del cambio climático", "u": "https://science.nasa.gov/climate-change/"},
+    {"t": "Our World in Data — Medio ambiente y energía", "u": "https://ourworldindata.org/"},
+    {"t": "MIT OpenCourseWare", "u": "https://ocw.mit.edu/"}
+  ],
+  "modulos": [
+    {"id": "sistema_tierra", "t": "La Tierra como sistema", "nivel": 1, "pre": [], "temas": [
+      "Geosfera, hidrosfera, atmósfera y biosfera",
+      "Ciclos biogeoquímicos|agua, carbono, nitrógeno",
+      "Escalas del tiempo geológico",
+      "Energía solar y balance energético de la Tierra",
+      "Educación ambiental|huella ecológica"]},
+    {"id": "geologia", "t": "Geología", "nivel": 1, "pre": ["sistema_tierra"], "temas": [
+      "Minerales y rocas|ciclo de las rocas",
+      "Tectónica de placas",
+      "Sismos y volcanes|riesgo en Colombia",
+      "Suelos y erosión",
+      "Recursos minerales y energéticos"]},
+    {"id": "atmosfera", "t": "Atmósfera, océanos y clima", "nivel": 2, "pre": ["sistema_tierra", "fisica.fluidos_termo"], "temas": [
+      "Composición y estructura de la atmósfera",
+      "Tiempo atmosférico y meteorología",
+      "Circulación oceánica y El Niño/La Niña",
+      "Sistema climático y efecto invernadero",
+      "Paleoclima|cómo sabemos el clima del pasado"]},
+    {"id": "ecologia_aplicada", "t": "Ecología aplicada y conservación", "nivel": 2, "pre": ["sistema_tierra", "biologia.evolucion"], "temas": [
+      "Servicios ecosistémicos",
+      "Ecosistemas de Colombia|páramos, selvas, manglares",
+      "Áreas protegidas y conservación",
+      "Restauración ecológica",
+      "Especies invasoras y pérdida de hábitat"]},
+    {"id": "contaminacion", "t": "Contaminación y gestión ambiental", "nivel": 3, "pre": ["atmosfera", "quimica.estequiometria"], "temas": [
+      "Contaminación del aire|material particulado",
+      "Calidad del agua y tratamiento",
+      "Residuos sólidos y economía circular",
+      "Evaluación de impacto ambiental",
+      "Normas y gestión ambiental en empresas|ISO 14001"]},
+    {"id": "clima_energia", "t": "Cambio climático y transición energética", "nivel": 3, "pre": ["atmosfera"], "temas": [
+      "Evidencias y atribución del cambio climático",
+      "Escenarios y modelos climáticos",
+      "Mitigación|energías renovables y eficiencia",
+      "Adaptación y gestión del riesgo",
+      "Huella de carbono|cómo se calcula"]},
+    {"id": "modelacion", "t": "Modelación y teledetección ambiental", "nivel": 4, "pre": ["clima_energia", "matematicas.edo"], "temas": [
+      "Modelos de balance de masa y energía",
+      "Teledetección y satélites",
+      "Sistemas de información geográfica (SIG)",
+      "Sensores ambientales de bajo costo",
+      "Datos abiertos ambientales y análisis"]},
+    {"id": "horizonte", "t": "Horizonte: sostenibilidad", "nivel": 5, "pre": ["modelacion", "ecologia_aplicada"], "temas": [
+      "Límites planetarios",
+      "Captura y almacenamiento de carbono",
+      "Geoingeniería|debate",
+      "IA para el clima y la biodiversidad",
+      "Justicia ambiental y transición justa"]}
+  ]
+}

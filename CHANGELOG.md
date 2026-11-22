@@ -3,7 +3,135 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) · versiones [SemVer](https://semver.org/lang/es/).
 El número de la versión actual está en [`VERSION`](VERSION) (ver [docs/VERSIONES.md](docs/VERSIONES.md)).
 
-## [Sin publicar]
+## [1.6.0] - 2026-11-22
+
+### Añadido
+- 📚 **Apartado independiente de contenidos ya preparados (`contenidos/`)**: paquete opcional separado del código base (`contenidos/README.md`, `contenidos/indice.json`, `contenidos/rutas/` y `contenidos/lecciones/*.json.gz`) con 6 áreas propias públicas, 16 rutas vivas enriquecidas y cientos de lecciones a fondo ya preparadas, junto con `contenidos/importar.py` (`--listar`, `--area`, `--usuario`, `--sobrescribir`) para cargarlas sin tocar instalaciones nuevas ni datos existentes.
+- 🧠🎓🌍 **Complemento completo al currículo mundial y a la ciencia del aprendizaje** (contraste con CINE/UNESCO por continentes y con taxonomía de Bloom + técnicas de estudio):
+  - **Psicología y ciencia del aprendizaje** (`curriculo/psicologia.json`): dos módulos nuevos al final (sin alterar identificadores existentes): `dominios_aprendizaje` (Taxonomía de Bloom: áreas cognitiva, psicomotora y afectiva + las 4 fases cerebrales del aprendizaje) y `tecnicas_estudio` (estudio activo, Técnica Feynman aplicada, multisensorialidad y codificación dual, bloques Pomodoro y cuidado biológico: sueño, hidratación y límites del hipocampo).
+  - **Áreas nuevas de Fundamentos a Horizonte**: Francés (`frances.json`, A1–C2, `fr-FR`), Portugués (`portugues.json`, A1–C2, `pt-BR`), Educación, pedagogía y sistemas educativos (`educacion.json`: CINE/UNESCO por continentes, educación inicial, pedagogía por dominios, educación dual/técnica y evaluación), Agricultura y sistemas agropecuarios (`agricultura.json`: huerta, agronomía, pecuaria, agritech), y Habilidades para la vida y economía doméstica (`vida_practica.json`: cocina e inocuidad, costura y mantenimiento del hogar, Life Orientation, consumo y hogar autónomo).
+  - **Módulos nuevos en áreas existentes**: `clasicas` en `lengua.json` (latín, griego clásico y raíces grecolatinas); `manualidades_caligrafia`, `escenicas` (teatro y danza) y `audiovisual` (fotografía y cine) en `artes.json`.
+  - **Interfaz y menús (`web/index.html`, `web/estilo.css`, `web/app.js`)**:
+    - Barra superior organizada con menús desplegables (**📊 Análisis** y **🧰 Más**) en lugar de iconos sueltos.
+    - **Ajustes (`#ajustes`)** dividido en 5 pestañas (`Áreas`, `Perfil y estudio`, `Noticias`, `Apariencia`, `Sistema`); **Áreas** separadas en **Activas** (aparecen en Tu ruta) e **Inactivas** (ocultas de Tu ruta) con movimiento en vivo, búsqueda y filtro por grupo.
+    - **Tu ruta (`#ruta`)** muestra solo áreas activas e incorpora búsqueda por área/tema, filtro por grupo, ordenación y vista en tarjetas o lista; dentro de cada área, pestañas (`Módulos`, `Ruta viva`, `Recursos`) y filtros por nivel/estado + expandir/contraer todo.
+    - **Cola de la IA (`#cola`)** en formato de listas compactas con pestañas (`En cola`, `Fallaron`, `Recientes`, `Recursos del PC`), búsqueda, filtros por origen/tipo, agrupación opcional, reordenación y paginación.
+    - Pestañas, búsqueda, filtros y ordenación en **Objetivos**, **Noticias**, **Cómo aprendes**, **Horizonte** y **Mis pruebas** para evitar desplazamientos infinitos.
+    - Soporte de voz (`🔊`) en tablas de vocabulario para idiomas de alfabeto latino y tarjetas para Francés (`fr-FR`) y Portugués (`pt-BR`).
+    - Corrección de grupos en áreas creadas por la IA (`app/lecciones.py`: `GRUPOS` alineado con el currículo e indicación explícita de disciplina) y selector de grupo en cada área propia (`POST /api/area/grupo`).
+- 🔄 **Actualizar comparando, ⚡ forzar para rehacer todo** (rutas y lecciones). En la ruta, «Actualizar» compara la
+  evidencia de hoy con la de la última revisión y solo llama a la IA si hay algo nuevo (y se centra en eso); la revisión
+  diaria hace lo mismo. En la lección, «Actualizar» busca fuentes nuevas, decide qué partes cambian y reescribe solo esas
+  (citas viejas intactas, fuentes nuevas numeradas después, versión anterior guardada, ejercicios y autor conservados).
+  «⚡ Forzar» mantiene el comportamiento anterior. La comparación de rutas usa claves estables (sin citas ni cobertura,
+  que cambian solas). Las fuentes que agrega la IA local quedan marcadas «agregada»: no salen en las recomendaciones
+  verificadas y la lección se vuelve a verificar. Pruebas en `pruebas/unidad_actualizar.py`.
+- 📦 **Preparación de la ruta por módulo**: la tarjeta «Ruta viva» (áreas y metas) muestra cuántos módulos y temas ya
+  tienen la lección preparada (p. ej. «Módulos 3/8 · Temas 41/57») y, por módulo, qué temas faltan y cuáles ya están en
+  cola. `GET /api/ruta/estado` devuelve `preparacion` {modulos, modulos_listos, temas, temas_listos, detalle}. Solo
+  cuentan los temas aún no dominados.
+- 📚📰 **Lecturas y noticias recomendadas** en cada ruta y cada lección (`app/recomendaciones.py`,
+  `GET /api/recomendaciones?area=|tema=`): lecturas del módulo, fuentes de otras lecciones verificadas del mismo módulo
+  y recursos del área; noticias del mes con más impacto en el área (solo áreas propias). Sin IA al consultarlas.
+- 🗺️ **Áreas nuevas en el currículo, de Fundamentos a Horizonte** (contraste con la CINE de la UNESCO y las áreas
+  obligatorias de la educación básica y media en Colombia): Lengua castellana y literatura, Historia, Ciencias sociales y
+  ciudadanía, Economía, Educación artística, Educación física y salud, Ciencias de la Tierra y del ambiente, y Religiones
+  del mundo (estudio comparado). Inglés completo de A1 a C2 (sonidos y alfabeto fonético, A1, A2, B1, más temas en B2, C1 y C2 y
+  exámenes internacionales); más temas y exámenes en Alemán (nuevo C1-C2), Ruso, Japonés, Chino y Coreano;
+  Microbiología e inmunología y Biología vegetal; Ácidos, bases y disoluciones; Astronomía y astrofísica; nivel 4 de
+  Ética, Filosofía y Tecnología (los temas existentes conservan su identificador: lo nuevo va al final).
+- ✅ `pruebas/validar_curriculo.py`: identificadores únicos, prerrequisitos que existen, sin ciclos, niveles 1-5 y
+  temas casi repetidos entre áreas.
+- ✍️ La lección dice quién la escribió (IA local, Claude o Gemini) en lugar de «la IA local» siempre.
+- 🤝 **Taller de lecciones externas** (`privado/lecciones_externas/`, no se publica): `taller.py` reparte la cola entre Claude Code
+  y Gemini (Antigravity) con reservas exclusivas por tema, valida con las mismas reglas del servidor (formato a fondo,
+  esquema de ejercicios, pista de largo ≤ 1,1, fuentes) e importa por `/api/leccion/importar`. Guía en `GUIA.md`.
+- 📥 **`POST /api/leccion/importar`** (solo desde el PC): guarda lecciones escritas fuera de la cola (p. ej. por Claude)
+  con el formato a fondo y ejercicios validados; quedan en versión 3 y no se reescriben.
+- 🧮 **`POST /api/recalificar`**: recalifica pruebas de nivel con las claves auditadas (mismo núcleo `_calificar_prueba`)
+  y anula preguntas de chequeo con clave falsa. El Índice ignora preguntas del Reto sin opción correcta o ambiguas.
+  Los veredictos guardan el texto de la opción correcta (el Reto baraja las opciones).
+- 🔍 **Auditoría de claves** (`app/auditoria.py`, tabla `auditoria_pregunta`). Revisión a mano de las 130 preguntas ya
+  respondidas: 15 claves falsas (Bases de datos: 12 de 14 corridas una posición), 2 sin opción correcta, 3 ambiguas,
+  1 mal planteada; la lógica de calificación estaba bien. El Reto y `/api/hermes/examen` aplican los veredictos
+  (clave corregida o pregunta fuera). Nada recalifica resultados antiguos. `GET/POST /api/hermes/auditoria`.
+- 🧑‍🏫 **`GET /api/hermes/material?tema=`**: todo para que Hermes evalúe bien un tema, sin IA y en ~10 000 caracteres
+  (lo esencial de la lección, tarjetas, preguntas auditadas, erratas, verificación e historial con las opciones
+  equivocadas que eligió la persona). Skills `tutor-examinador` y `academia` actualizadas: comprobar la clave antes de
+  calificar y registrar el veredicto.
+- ⏱ **Cola con tiempos estimados**: cuándo empieza y a qué hora termina cada tarea, lo tuyo y toda la cola
+  (`ia.estimar`, mediana real por tipo; `trabajo_hecho.inicio` nuevo).
+- 🎯 **Sin suerte en las evaluaciones** ([docs/INDICE.md § Sin suerte](docs/INDICE.md)). En el banco real la correcta
+  era la opción más larga el 71 % de las veces («elige la más larga» acertaba el 66 % sin saber nada). Ahora:
+  el Reto se arma neutral al largo (la correcta es la más larga ~1/4 y la más corta ~1/4; fuera las de pista > 1,1;
+  medido en el banco real «elige la más larga» baja a ~19 %); la pregunta aparece sola y se dice «la sé / creo / no sé»
+  antes de ver las opciones («no sé» vale lo que daría adivinar en promedio: no premia ni castiga la honestidad);
+  calibración y falsa seguridad al final del reto y en 🧠 Tu Índice. Quiz de lección: seguridad obligatoria y acertar
+  con «Adivino» no cuenta (vuelve como tarjeta). Prueba de nivel: seguridad obligatoria, opciones barajadas y solo
+  cuentan los aciertos firmes (sin pista ni «adivino»); un tema suelto exige 2 firmes y ningún error. Regla de largo
+  parejo (`REGLA_OPCIONES`) en todos los prompts de opción múltiple; la prueba diferida descarta sin IA las preguntas
+  con pista. Columnas nuevas `reto_respuesta.pista` y `.seguridad` (se agregan solas). 9 pruebas nuevas (25 en
+  `pruebas/unidad_indice.py`), entre ellas la de 200 retos neutrales y la de que decir «no sé» no protege el puntaje.
+- 🧠 **Índice y ⚡ Reto** ([docs/INDICE.md](docs/INDICE.md)): un número tipo CI (empieza en 100, escalones de 15, rango
+  55-175) medido contra los niveles del currículo (Fundamentos 85 … Horizonte 145), no contra otras personas. Se mueve
+  con cada respuesta (Elo sobre un modelo 3PL que descuenta adivinar), con ± por información de Fisher que crece con
+  la inactividad en vez de bajar el número. El Reto: 10 preguntas de opción múltiple de las lecciones propias, cerca
+  del nivel de cada área, opciones barajadas en el servidor (la correcta nunca sale antes de responder), 60 s cada una,
+  sin repetir en 30 días; al terminar, cambio del Índice, récord, hasta 3 temas para estudiar con su lección y lo
+  fallado como tarjetas FSRS (origen `reto`). Solo se guardan respuestas crudas (`reto`, `reto_respuesta`) y el Índice
+  se recalcula reproduciéndolas. Nuevo `app/indice.py`, `web/indice.js`, `GET /api/indice`, `POST /api/reto/nuevo`,
+  `GET /api/reto`, `POST /api/reto/responder`, vista `#/indice` y ⚡ Reto en el menú principal.
+- 🧪 16 pruebas nuevas (`pruebas/unidad_indice.py`: modelo, convergencia, piso, banco, que no se filtre la respuesta,
+  tiempo, doble respuesta, no repetir, perfiles independientes) y 3 chequeos en `pruebas/humo.py`.
+- ↕️ **Ordenar la cola de la IA**: en la vista ⏳ Cola, botones para reorganizar lo que espera por nombre (A → Z / Z → A) o por
+  el tiempo que lleva esperando (menor → mayor / mayor → menor). Respeta los grupos «te espera» y «de fondo», cada persona
+  ordena solo lo suyo (el administrador, todo) y no toca lo que ya corre. Nuevo `POST /api/cola/ordenar` y `Cola.reordenar`.
+  Cada tarea en espera muestra cuánto lleva esperando.
+
+### Cambiado
+- 🧵 **Fondo de a una** (`fondo_a_la_vez`, 1 por defecto, en Ajustes → IA): con 2 slots, dos lecciones a la vez iban a
+  media velocidad y lo que pedías esperaba detrás. Ahora las lecciones salen una por una y el otro slot queda libre para
+  ti. Total por hora algo menor; con 2 se recupera (por ejemplo, de noche).
+- ☀️ **Hoy**: el Índice con el botón ⚡ Reto va arriba; la racha deja de mostrarse ahí (sigue en 📈 Cómo aprendes) y el
+  bloque de concentración queda plegado.
+- El carril de la API en la nube admite hasta 10 tareas a la vez (`ia.MAX_NUBE`, antes 6).
+
+### Corregido
+- 🧾 Quitar tareas de la cola (limpiar, importar una lección) ahora también las borra del diario de la cola; antes
+  quedaban y al reiniciar contaban como «no reconstruibles». La importación rechaza preguntas con pista de largo.
+- 🔀 **La cola rotaba el orden** (1 2 3 → 2 3 1 → 3 1 2): una tarea que esperaba por la GPU (Hermes la usa) volvía al
+  final de su grupo. Ahora conserva su puesto (`Cola._sacar`/`_puesto`). «Actualizar una ruta» va justo antes de las
+  lecciones de su área, no las 22 juntas delante (~3 h de búsquedas antes de la primera lección).
+- ♻️ **Las lecciones a medias se retoman** desde la parte siguiente tras un reinicio (antes se volvían a planear y se
+  perdían las partes escritas), conservando su versión, plan, fuentes y numeración de citas.
+- `/api/hermes/examen` mandaba solo la explicación en las preguntas abiertas: ahora incluye la respuesta modelo.
+- 💥 **El panel y `/api/hermes/resumen` respondían `KeyError: 'investigacion'`** desde la primera vez que se registró
+  tiempo en las vistas de paper o verificar: el navegador envía el método `investigacion` y `analitica.METODOS` no lo
+  tenía. Ahora existe («🔬 Papers y verificación») y cualquier método desconocido cuenta como «Otro» en vez de tumbar
+  el panel (`pruebas/unidad_analitica.py`).
+- 📝 **Prueba de nivel con «Cannot read properties of undefined (reading 'map')»**: con el motor Hermes el esquema
+  JSON solo viaja como texto y el modelo escribió `opplicaciones` en lugar de `opciones`. Nueva validación
+  `ia.errores_esquema` en toda salida con esquema (claves requeridas, tipos, rangos, enum, mínimo de elementos; el
+  exceso de elementos no se rechaza): si no cumple, se reintenta una vez con el error y, si vuelve a fallar, la tarea
+  falla con un mensaje claro en vez de guardar datos rotos. También atrapa los pronósticos de acciones que traían
+  listas donde iban índices (`TypeError: '<=' not supported`). La prueba dañada (Ciberseguridad) se reparó.
+  `p_sube` del pronóstico pasa a `number` (la IA a veces da decimales y la columna es REAL).
+- 🧮 **Esquema de ejercicios**: `correcta` admite texto en las preguntas abiertas (el prompt pide la respuesta modelo
+  y el esquema exigía un entero).
+- \\ **Lecciones que fallaban con `Invalid \\escape`**: LaTeX fuera de la lista de `proteger_latex` (`\\_`, `\\{`,
+  `\\%`, `\\hbar`…). `parsear_json` hace un segundo intento duplicando toda barra que no inicie un escape JSON válido
+  (`pruebas/unidad_esquema.py`).
+- 🗺️ **Rutas «preparar todo» en orden de prioridad**: se encolaban en orden alfabético (Administración y Biología
+  delante de las áreas en prioridad 3) y al arrancar la cola conservaba el orden viejo. Ahora `rutas_a_preparar`
+  ordena por la prioridad de Ajustes (las metas justo después de las áreas en 3) y `ordenar_rutas` reordena lo que
+  espera, también en el orden del temario.
+- ⏱️ **El tiempo de estudio se atribuía a la vista de destino**: al cambiar de vista, `enrutar()` cambiaba el método
+  antes de enviar lo acumulado, así que los minutos de una lección o un repaso quedaban con el método de la pantalla
+  siguiente (a menudo ninguno). Ahora se envía primero. El tiempo en ⚡ Reto cuenta como estudio (método `reto`).
+- 🔀 **Quiz de las lecciones con opciones barajadas** al mostrarlas: las IA dejan la correcta casi siempre en las
+  primeras posiciones, y eso se podía aprender sin saber el tema.
+- 🔬 «Qué sabe el sistema de ti» y la exportación incluyen las tablas del Reto (`reto`, `reto_respuesta`).
+- 🧹 **Limpiar la cola ya se respeta al reiniciar**: `reanudar()` reconstruía de la base todo lo pendiente y deshacía la limpieza. Ahora el botón deja una marca (`cola_limpiada:<usuario>`) y el siguiente arranque no re-encola el trabajo de esa persona (ni las noticias comunes si el administrador limpió «de todos»). La marca se consume una vez.
 
 ## [1.5.0] - 2026-10-31
 

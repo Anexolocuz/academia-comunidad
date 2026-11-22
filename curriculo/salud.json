@@ -1,0 +1,57 @@
+{
+  "id": "salud",
+  "nombre": "Educación física, salud y bienestar",
+  "icono": "🏃",
+  "grupo": "Salud",
+  "color": "#00b894",
+  "descripcion": "Moverse, alimentarse, dormir y cuidarse con base en la evidencia: del ejercicio básico a la fisiología y la salud pública.",
+  "recursos": [
+    {"t": "OMS — Actividad física", "u": "https://www.who.int/es/news-room/fact-sheets/detail/physical-activity"},
+    {"t": "OpenStax — Anatomy and Physiology 2e", "u": "https://openstax.org/details/books/anatomy-and-physiology-2e"},
+    {"t": "Harvard T.H. Chan — The Nutrition Source", "u": "https://nutritionsource.hsph.harvard.edu/"}
+  ],
+  "modulos": [
+    {"id": "actividad", "t": "Actividad física y salud", "nivel": 1, "pre": [], "temas": [
+      "Beneficios de la actividad física|recomendaciones de la OMS",
+      "Capacidades físicas|fuerza, resistencia, flexibilidad, coordinación",
+      "Calentamiento, técnica y prevención de lesiones",
+      "Sedentarismo y salud",
+      "Medir la actividad|frecuencia cardiaca, pasos, esfuerzo percibido"]},
+    {"id": "nutricion", "t": "Nutrición", "nivel": 1, "pre": [], "temas": [
+      "Macronutrientes y micronutrientes",
+      "Energía|calorías, gasto y balance",
+      "Plato saludable y lectura de etiquetas",
+      "Hidratación",
+      "Mitos y evidencia en nutrición"]},
+    {"id": "primeros_auxilios", "t": "Primeros auxilios y prevención", "nivel": 2, "pre": ["actividad"], "temas": [
+      "Evaluación de la escena y llamada de emergencia",
+      "Reanimación cardiopulmonar y DEA|conceptos básicos",
+      "Atragantamiento, hemorragias y quemaduras",
+      "Lesiones deportivas comunes",
+      "Prevención de accidentes en el hogar y el trabajo"]},
+    {"id": "entrenamiento", "t": "Entrenamiento deportivo", "nivel": 2, "pre": ["actividad", "biologia.fisiologia"], "temas": [
+      "Principios del entrenamiento|sobrecarga, progresión, especificidad",
+      "Entrenamiento de fuerza e hipertrofia",
+      "Entrenamiento de resistencia aeróbica",
+      "Planificación y periodización",
+      "Recuperación, sueño y sobreentrenamiento"]},
+    {"id": "fisiologia_ejercicio", "t": "Fisiología del ejercicio", "nivel": 3, "pre": ["entrenamiento", "biologia.energia"], "temas": [
+      "Sistemas energéticos|fosfágenos, glucólisis, oxidación",
+      "Respuesta cardiovascular y respiratoria al ejercicio",
+      "Adaptaciones musculares|fibras y señalización",
+      "Composición corporal y metabolismo",
+      "Ejercicio en el calor, la altitud y otras condiciones"]},
+    {"id": "salud_publica", "t": "Salud pública y epidemiología", "nivel": 4, "pre": ["nutricion", "matematicas.probabilidad"], "temas": [
+      "Determinantes sociales de la salud",
+      "Epidemiología básica|incidencia, prevalencia, riesgo",
+      "Enfermedades no transmisibles y factores de riesgo",
+      "Cómo leer un estudio de salud|tipos de estudio y sesgos",
+      "Sistemas de salud y prevención"]},
+    {"id": "horizonte", "t": "Horizonte: salud y tecnología", "nivel": 5, "pre": ["fisiologia_ejercicio", "salud_publica"], "temas": [
+      "Dispositivos vestibles y salud digital",
+      "Medicina de precisión y nutrición personalizada",
+      "Ejercicio como medicina|evidencia reciente",
+      "Longevidad y envejecimiento saludable",
+      "IA en salud|oportunidades y riesgos"]}
+  ]
+}

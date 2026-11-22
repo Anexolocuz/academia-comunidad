@@ -25,11 +25,16 @@ app/
                  formato recomendado, ruta rápida (tabla leccion_rapida), «¿lo entendiste?» por parte
                  (parte_estado), reexplicaciones (reexplicacion), diagnóstico (kv diag:<u>:<tema>), horizonte,
                  ubicación (inferir_requisitos) y aprendizaje externo (kv externo:<u>)
+  indice.py      🧠 Índice y ⚡ Reto: banco (preguntas de opción de las lecciones propias), Elo sobre 3PL con piso/techo,
+                 ± por información de Fisher, reto (tabla reto) y respuestas crudas (reto_respuesta) que se reproducen
   dominio.py     programa de dominio por meta: plazo (kv programa:<u>:<oid>), frontera viva (tabla frontera_meta,
                  versiones; ciencia.frontera = revisiones/citados/arXiv), lectura guiada (lectura_paper) y aportes (aporte)
   revision.py    rutas vivas: revisar(ctx, usuario, perfil, area) con mercado/frontera → aplicar() agrega temas y
                  módulos upd<N> (catálogo: capa propia en ruta_extra que curriculo.areas(usuario) mezcla; propias:
                  area_extra); registro en kv revision:<u>:<area>
+  recomendaciones.py 📚 lecturas y 📰 noticias de una ruta o lección (GET /api/recomendaciones?area=|tema=): sin IA;
+                 lecturas = `lecturas` del módulo + fuentes de OTRAS lecciones verificadas (modelos claude-*/gemini-*)
+                 + recursos del área; noticias = noticias.ranking del mes con impacto ≥ 3 en el área (regla de perfiles)
   verificacion.py fiabilidad(url), buscar_fuentes() agresiva, comparar() afirmaciones↔fuentes, verificar_leccion/
                  verificar_texto (tabla verificacion); noticias.fuentes_de y lecciones._fuentes_* la usan
   lectura.py     sesiones de lectura medidas (tabla `lectura`): velocidad por idioma y fórmulas, lecturas
@@ -133,7 +138,7 @@ Cabeceras `nosniff`, `SAMEORIGIN`, `no-referrer` en `end_headers()`.
 
 `GET /api/hoy · /api/mapa · /api/tema?id= · /api/noticia?id= · /api/ciencia?ref=|q= · /api/leccion/anterior?tema= · /api/repaso · /api/analitica · /api/niveles · /api/largo_plazo ·
 /api/reporte · /api/reporte.md · /api/exportar · /api/noticias?periodo= · /api/config`
-`POST /api/leccion · /api/lecciones/profundizar · /api/noticia/profundo {id, que: explicacion|comparacion} · /api/mercado {area} · /api/visto · /api/resultado · /api/repaso · /api/entrega · /api/corregir · /api/tutor ·
+`POST /api/leccion {tema, forzar | comparar}` (comparar = `lecciones.actualizar_leccion`: fuentes nuevas → qué partes cambian → reescribe solo esas; registro en kv `comparacion_leccion:<u>:<tema>`, el `modelo` del autor no cambia) · /api/lecciones/profundizar · /api/noticia/profundo {id, que: explicacion|comparacion} · /api/mercado {area} · /api/visto · /api/resultado · /api/repaso · /api/entrega · /api/corregir · /api/tutor ·
 /api/objetivos · /api/area/nueva · /api/chequeo/crear · /api/pulso · /api/hoy/extra · /api/config`
 Las tareas de IA devuelven `{trabajo}`; se consulta con `GET /api/trabajo?id=`.
 
@@ -146,8 +151,8 @@ Programa de dominio: `GET /api/dominio?objetivo=` · `POST /api/programa {objeti
 `/api/aporte {objetivo, texto}`; `POST /api/objetivos` acepta `semanas` y encola la frontera detrás del plan; la
 actualización diaria renueva 1 frontera vencida (30 días) por persona; `curriculo.refs_con_plazo` da ×3 en `recomendar`.
 
-Rutas vivas: `GET /api/ruta/estado?area=|objetivo=` · `POST /api/ruta/preparar {area|objetivo}` (prioridad 2, kv
-`preparar_ruta:<u>`) · `POST /api/ruta/actualizar {area|objetivo}` (tarea `ruta` = `actualizar_ruta`: mercado o
+Rutas vivas: `GET /api/ruta/estado?area=|objetivo=` (incluye `preparacion`: módulos y temas con lección lista y lo que falta por módulo, vía `_modulos_ruta`) · `POST /api/ruta/preparar {area|objetivo}` (prioridad 2, kv
+`preparar_ruta:<u>`) · `POST /api/ruta/actualizar {area|objetivo, forzar}` (sin `forzar`, `revision.comparar` contrasta la evidencia y la ruta con la revisión anterior (`evidencia_lineas`, `huella_ruta`) y no llama a la IA si nada cambió; con `forzar`, mercado/frontera de nuevo y revisión completa) (tarea `ruta` = `actualizar_ruta`: mercado o
 frontera → `revision.revisar` → lecciones de lo nuevo); la actualización diaria llama `rutas_vivas(u)`.
 
 Innovación: `POST /api/ramas {objetivo}` (dominio.mapear_ramas; plan.ramas) · `POST /api/ideas {objetivo, enfoque}`
@@ -171,6 +176,18 @@ Integración con agentes (Hermes): `GET /api/hermes/resumen` (markdown), `GET /a
 Telegram), `GET /api/hermes/repaso?n=` y `POST /api/hermes/repaso {id, nota}` (repaso por chat), `GET /api/hermes/buscar_tema?q=`,
 `POST /api/hermes/tarjetas`, `POST /api/hermes/nota`, `GET /api/hermes/acciones` (lista vigilada en texto) y
 `GET /api/hermes/alertas` (solo alertas no avisadas hoy; vacío = nada).
+Evaluar (2026-11-18): `GET /api/hermes/examen?tema=&n=` (preguntas con clave auditada; las abiertas traen su respuesta
+modelo), `GET /api/hermes/material?tema=` (lo esencial de la lección, tarjetas, preguntas con clave auditada, erratas,
+verificación e historial de la persona: qué opción equivocada eligió y con qué seguridad; tope ~10 000 caracteres, sin IA),
+`GET /api/hermes/auditoria?tema=` (veredictos y preguntas sin revisar) y `POST /api/hermes/auditoria` (`{autor, veredictos:
+[{tema, pregunta, opciones, veredicto, real?, nota}]}`; veredictos `ok · matiz · ambigua · clave_mal · sin_correcta ·
+mal_planteada · errata`). Tabla `auditoria_pregunta` (`app/auditoria.py`): el Reto y el examen aplican la clave corregida o
+descartan la pregunta; nada recalifica resultados ya guardados.
+
+Cola (2026-11-18): `fondo_a_la_vez` (1 por defecto) limita las tareas de fondo simultáneas; los demás slots quedan para lo
+que una persona espera en pantalla. `/api/cola` trae `eta_inicio`/`eta_fin` por tarea (segundos desde ahora), `eta_mias` y
+`eta_todo`, con `ia.estimar()` sobre la mediana real de cada tipo (`trabajo_hecho.inicio`, 7 días) o `DUR_DEFECTO`. Una
+lección a medias se retoma desde la parte siguiente (`lecciones._retomar_partes`), conservando su versión, plan y fuentes.
 
 ## Probar sin tocar tus datos
 

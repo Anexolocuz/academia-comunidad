@@ -190,6 +190,115 @@ class Vigia(unittest.TestCase):
         self.assertTrue(err)
 
 
+class MarcadoresColaYRutas(unittest.TestCase):
+    def test_marcador_ruta_terminada_evita_revision_diaria(self):
+        import revision
+        ahora = 1_800_000_000.0
+        base.kv_set(f"revision:{U}:ciberseguridad", {"fecha": ahora - 32 * 3600, "resumen": "ok", "agregados": []})
+        # Con pendiente=True y dias=1 (> 23 h) sí toca revisar
+        m_pend = revision.marcador(U, "ciberseguridad", 1, pendiente=True, ahora=ahora)
+        self.assertTrue(m_pend["puede_actualizar"])
+        # Con pendiente=False (área ya 100 % lista) respeta DIAS_TERMINADA=30
+        m_fin = revision.marcador(U, "ciberseguridad", 1, pendiente=False, ahora=ahora)
+        self.assertFalse(m_fin["puede_actualizar"])
+        self.assertTrue(m_fin["terminada"])
+        self.assertGreater(m_fin["puede_actualizar_desde"], ahora)
+        revision.marcar_preparada(U, "ciberseguridad", cuando=ahora - 10)
+        self.assertEqual(revision.marcador(U, "ciberseguridad", 1, pendiente=False, ahora=ahora)["preparada_en"],
+                         ahora - 10)
+
+    def test_depurar_preparar_ruta_y_modelo_verificado(self):
+        import servidor
+        self.assertTrue(servidor._modelo_verificado("gemini-4-hydrogen-high"))
+        self.assertTrue(servidor._modelo_verificado("claude-opus-5-5"))
+        self.assertFalse(servidor._modelo_verificado("modelo-local-test"))
+
+        ahora = time.time()
+        ejecutar("""INSERT OR REPLACE INTO perfil(usuario,datos,creado,actualizado) VALUES(?,?,?,?)""",
+                 (U, '{"dia_maxima": true, "pesos": {"matematicas": 2}}', ahora, ahora))
+        tid_fin = "matematicas.aritmetica.0"
+        ejecutar("""INSERT OR REPLACE INTO leccion(usuario,tema,contenido,ejercicios,fuentes,modelo,creado,version,completa)
+                    VALUES(?,?,?,?,?,?,?,?,1)""",
+                 (U, tid_fin, "## 🎯 Objetivos\n...", '{"quiz":[],"tarjetas":[]}', "[]", "claude-opus-5-5",
+                  ahora - 100, 3))
+        mk = servidor.marcador_leccion(U, tid_fin, maxima=True, ahora=ahora)
+        self.assertTrue((mk["lista"], mk["verificada_origen"], not mk["puede_preparar"], not mk["puede_actualizar"]))
+
+        orig_temas = servidor._temas_ruta
+        servidor._temas_ruta = lambda u, a: [tid_fin] if a == "matematicas" else []
+        try:
+            base.kv_set(f"preparar_ruta:{U}", ["matematicas", "no_existe"])
+            quedan = servidor._depurar_preparar_ruta(U)
+            self.assertEqual(quedan, [])
+            self.assertIsNotNone(base.kv_get(f"ruta_marcador:{U}:matematicas")["preparada_en"])
+        finally:
+            servidor._temas_ruta = orig_temas
+
+    def test_ruta_estado_cuenta_modulos_y_temas_preparados(self):
+        import curriculo as cur
+        import servidor
+        cur.cargar()
+        ahora = time.time()
+        ejecutar("INSERT OR REPLACE INTO perfil(usuario,datos,creado,actualizado) VALUES(?,?,?,?)",
+                 (U, '{"dia_maxima": true}', ahora, ahora))
+        for tid in ("prep.a.0", "prep.a.1", "prep.b.0"):   # listos: todo el módulo A y uno de B
+            ejecutar("""INSERT OR REPLACE INTO leccion(usuario,tema,contenido,ejercicios,fuentes,modelo,creado,version,completa)
+                        VALUES(?,?,?,?,?,?,?,?,1)""",
+                     (U, tid, "## 🎯 Objetivos\n...", '{"quiz":[],"tarjetas":[]}', "[]", "claude-opus-5-5", ahora, 3))
+        mods = [{"t": "A", "nivel": 1, "area": "", "temas": [{"id": "prep.a.0", "t": "a0"}, {"id": "prep.a.1", "t": "a1"}]},
+                {"t": "B", "nivel": 2, "area": "", "temas": [{"id": "prep.b.0", "t": "b0"}, {"id": "prep.b.1", "t": "b1"}]},
+                {"t": "C (dominado)", "nivel": 3, "area": "", "temas": []}]
+        orig = servidor._ruta_area, servidor._modulos_ruta
+        servidor._ruta_area = lambda u, d: "prep"
+        servidor._modulos_ruta = lambda u, a: mods
+        try:
+            self.assertEqual(servidor._temas_ruta(U, "prep"), ["prep.a.0", "prep.a.1", "prep.b.0", "prep.b.1"])
+            p = servidor.r_ruta_estado(U, {"area": "prep"}, {}, None)["preparacion"]
+            self.assertEqual((p["modulos"], p["modulos_listos"], p["temas"], p["temas_listos"]), (2, 1, 4, 3))
+            self.assertEqual([t["id"] for t in p["detalle"][1]["faltan"]], ["prep.b.1"])
+            self.assertEqual(p["detalle"][0]["faltan"], [])
+        finally:
+            servidor._ruta_area, servidor._modulos_ruta = orig
+
+    def test_modulos_ruta_coincide_con_temas_de_un_area_real(self):
+        import curriculo as cur
+        import servidor
+        cur.cargar()
+        area = next(iter(cur.areas(U)))
+        mods = servidor._modulos_ruta(U, area)
+        self.assertEqual(len(mods), len(cur.areas(U)[area]["modulos"]))
+        self.assertEqual(servidor._temas_ruta(U, area), [t["id"] for m in mods for t in m["temas"]])
+
+    def test_rutas_vivas_en_reinicio_omite_terminadas_y_reanudar_salta_verificadas(self):
+        import curriculo as cur
+        import ia
+        import servidor
+        cur.cargar()
+        ahora = time.time()
+        ejecutar("INSERT OR REPLACE INTO perfil(usuario,datos,creado,actualizado) VALUES(?,?,?,?)",
+                 (U, '{"dia_maxima": true, "pesos": {"ciberseguridad": 3}}', ahora, ahora))
+        tid_ext = "ciberseguridad.fundamentos.0"
+        ejecutar("""INSERT OR REPLACE INTO leccion(usuario,tema,contenido,ejercicios,fuentes,modelo,creado,version,completa)
+                    VALUES(?,?,?,?,?,?,?,?,1)""",
+                 (U, tid_ext, "## 🎯 Objetivos\n...", '{"quiz":[],"tarjetas":[]}', "[]", "gemini-4-hydrogen-high",
+                  ahora - 60, 3))
+        base.kv_set(f"revision:{U}:ciberseguridad", {"fecha": ahora - 32 * 3600, "resumen": "ok", "agregados": []})
+        orig_temas = servidor._temas_ruta
+        servidor._temas_ruta = lambda u, a: [tid_ext] if a == "ciberseguridad" else []
+        try:
+            ia.cola.vaciar(lambda t: True, fallidos=True)
+            servidor.rutas_vivas(U, {"dia_maxima": True, "pesos": {"ciberseguridad": 3}}, en_reinicio=True)
+            self.assertFalse(any(x.tipo == "ruta" and x.etiqueta == "ciberseguridad" for x in ia.cola.lista()))
+            # Verificar que _modelo_verificado excluye externas de verificacion automatica en reanudar
+            qs = base.filas("""SELECT l.tema, l.modelo FROM leccion l LEFT JOIN verificacion v ON v.usuario=l.usuario
+                               AND v.clave='tema:' || l.tema WHERE l.usuario=? AND l.completa!=0 AND l.creado>?
+                               AND v.clave IS NULL""", (U, ahora - 3 * 86400))
+            self.assertNotIn(tid_ext, [x["tema"] for x in qs if not servidor._modelo_verificado(x["modelo"])])
+        finally:
+            ia.cola.vaciar(lambda t: True, fallidos=True)
+            servidor._temas_ruta = orig_temas
+
+
 if __name__ == "__main__":
     r = unittest.main(exit=False, verbosity=2).result
     sys.exit(0 if r.wasSuccessful() else 1)

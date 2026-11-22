@@ -1,0 +1,1307 @@
+[
+  {
+    "id": "p_depuracion_android_con_a",
+    "nombre": "Depuración Android con ADB",
+    "icono": "🤖",
+    "grupo": "Ingenierías",
+    "color": "#00a8a8",
+    "descripcion": "Dominio profesional de la interfaz de depuración de Android, desde la administración de sistemas y gestión de aplicaciones hasta la ingeniería inversa y el control de bajo nivel.",
+    "recursos": [
+      {
+        "t": "ADB — documentación oficial de Android",
+        "u": "https://developer.android.com/tools/adb"
+      },
+      {
+        "t": "Depuración inalámbrica y emparejamiento",
+        "u": "https://developer.android.com/tools/adb#connect-to-a-device-over-wi-fi"
+      },
+      {
+        "t": "Protocolo ADB por dentro (AOSP)",
+        "u": "https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/docs/dev/"
+      },
+      {
+        "t": "Perfetto — trazas de sistema",
+        "u": "https://perfetto.dev/docs/"
+      },
+      {
+        "t": "scrcpy — ver y controlar el celular desde el PC",
+        "u": "https://github.com/Genymobile/scrcpy"
+      },
+      {
+        "t": "OWASP MASTG — seguridad de apps móviles",
+        "u": "https://mas.owasp.org/MASTG/"
+      }
+    ],
+    "modulos": [
+      {
+        "id": "adb_fundamentos",
+        "t": "Fundamentos de ADB",
+        "nivel": 1,
+        "pre": [
+          "ciberseguridad.linux",
+          "sistemas.arquitectura"
+        ],
+        "temas": [
+          "Arquitectura ADB|Modelo cliente-servidor y el daemon adbd",
+          "Entorno de desarrollo|Configuración de platform-tools en Linux, Windows y macOS",
+          "Seguridad de conexión|Claves RSA, autorización de dispositivos y gestión de permisos",
+          "Comandos esenciales|Uso de devices, shell, install, push y pull",
+          "La shell de Android|Exploración de Toybox, jerarquía de archivos y usuarios",
+          "Uso de ADB en entornos móviles (Termux)|Ejecución de comandos ADB desde el propio dispositivo para entornos de desarrollo locales.",
+          "Recuperación de acceso remoto|Activación de opciones de desarrollador y depuración mediante periféricos externos o comandos en dispositivos con pantalla dañada"
+        ]
+      },
+      {
+        "id": "adb_conexion_fisica",
+        "t": "Depuración por Cable",
+        "nivel": 1,
+        "pre": [
+          "adb_fundamentos"
+        ],
+        "temas": [
+          "Protocolos de transferencia|Diferencias entre MTP, PTP y ADB",
+          "Gestión de hardware en Linux|Reglas udev, grupos plugdev y permisos de puerto",
+          "Diagnóstico de hardware|Identificación de cables solo de carga y estados offline/unauthorized",
+          "Multi-dispositivo|Gestión de múltiples equipos mediante -s y transport_id",
+          "Drivers y compatibilidad|Configuración de drivers en Windows y macOS",
+          "Gestión de conectividad inalámbrica nativa|Diagnóstico y control de dispositivos sin dependencia de un PC intermedio"
+        ]
+      },
+      {
+        "id": "adb_wireless",
+        "t": "Depuración Inalámbrica",
+        "nivel": 2,
+        "pre": [
+          "adb_conexion_fisica",
+          "ciberseguridad.redes"
+        ],
+        "temas": [
+          "Evolución del protocolo|De adb tcpip 5555 al Wireless Debugging de Android 11+",
+          "Emparejamiento seguro|Uso de códigos de pairing, QR y TLS",
+          "Descubrimiento de red|mDNS, Avahi-browse y gestión de puertos dinámicos",
+          "Conectividad remota|Depuración a través de VPN y redes Tailscale",
+          "Seguridad inalámbrica|Riesgos de puertos abiertos en redes compartidas",
+          "Configuración mDNS|Implementación de ADB Wi-Fi 2.0 mediante descubrimiento de servicios mDNS",
+          "Seguridad mediante llaves RSA|Implementación y gestión de estándares críticos de autenticación para evitar conexiones abiertas",
+          "Stacks de red optimizados en Rust|Transición de mDNS/Bonjour hacia protocolos inalámbricos ligeros y eficientes"
+        ]
+      },
+      {
+        "id": "adb_gestion_sistema",
+        "t": "Gestión del Sistema y Control",
+        "nivel": 2,
+        "pre": [
+          "adb_wireless",
+          "sistemas.so"
+        ],
+        "temas": [
+          "Gestión de paquetes (pm)|Listado, desinstalación --user 0 y restauración install-existing",
+          "Control de Bloatware|Deshabilitación de apps de sistema y limpieza de cachés",
+          "Administración de permisos|Uso de pm grant/revoke y appops para control granular",
+          "Telemetría del sistema|Análisis de dumpsys para batería, espacio y uso de datos",
+          "Control remoto|Implementación de scrcpy para control de interfaz"
+        ]
+      },
+      {
+        "id": "adb_depuracion_apps",
+        "t": "Depuración de Aplicaciones",
+        "nivel": 3,
+        "pre": [
+          "adb_gestion_sistema",
+          "sistemas.ingsoft",
+          "sistemas.web"
+        ],
+        "temas": [
+          "Análisis de Logs|Filtros avanzados de logcat, búferes y niveles de severidad",
+          "Diagnóstico de fallos|Interpretación de bugreports, ANR y tombstones",
+          "Profiling de recursos|Uso de dumpsys activity, meminfo y gfxinfo",
+          "Depuración de código|Conexión con JDWP y depurador de Android Studio",
+          "Ecosistemas híbridos|Depuración de Flutter (DevTools) y WebViews (Chrome Inspect)",
+          "Análisis de logs (logcat) con asistencia de IA|Uso de modelos de lenguaje para la interpretación rápida de trazas de error y patrones de fallo.",
+          "Configuración de símbolos de depuración en Gradle/NDK|Permite la interpretación de trazas de código nativo (C/C++) mediante la carga de archivos de símbolos, esencial para la ingeniería de sistemas de alto rendimiento."
+        ]
+      },
+      {
+        "id": "adb_automatizacion",
+        "t": "Automatización y Pruebas",
+        "nivel": 3,
+        "pre": [
+          "adb_depuracion_apps",
+          "sistemas.programacion"
+        ],
+        "temas": [
+          "Scripting avanzado|Automatización de tareas con Bash y Python",
+          "Interacción de UI|Simulación de inputs y dumps de jerarquía de vistas",
+          "Testing de interfaz|Uso de uiautomator, Espresso y Appium",
+          "Pruebas de estrés|Implementación de Monkey para inyección de eventos aleatorios",
+          "Device Farms|Gestión de granjas de dispositivos para pruebas masivas",
+          "Diseño de infraestructuras de Device Farms masivas|Orquestación de flotas de dispositivos y emuladores en la nube."
+        ]
+      },
+      {
+        "id": "adb_rendimiento",
+        "t": "Análisis de Rendimiento",
+        "nivel": 3,
+        "pre": [
+          "adb_depuracion_apps",
+          "matematicas.analisis_senales"
+        ],
+        "temas": [
+          "Trazado de sistema|Uso profesional de Perfetto y System Tracing",
+          "Profiling de CPU|Análisis con simpleperf y Android Studio Profiler",
+          "Análisis de energía|Battery Historian y medición de consumo real",
+          "Optimización de ejecución|Detección de cuellos de botella con StrictMode",
+          "Métricas de arranque|Medición de tiempos de inicio de aplicaciones"
+        ]
+      },
+      {
+        "id": "adb_seguridad_analisis",
+        "t": "Seguridad y Análisis Ético",
+        "nivel": 4,
+        "pre": [
+          "adb_rendimiento",
+          "ciberseguridad.pentest",
+          "ciberseguridad.malware"
+        ],
+        "temas": [
+          "Vectores de ataque|ADB como puerta de entrada y riesgos de depuración activa",
+          "Hardening del dispositivo|Revocación de autorizaciones y gestión de sandbox",
+          "Seguridad de fabricante|Análisis de Samsung Knox y protección de integridad",
+          "Ingeniería inversa|Uso de jadx, apktool y análisis de manifiestos",
+          "Análisis dinámico|Instrumentación con Frida y objection en entornos controlados",
+          "Implementación de estrategias de hardening de sistema|Configuración de políticas de seguridad para mitigar ataques vía ADB."
+        ]
+      },
+      {
+        "id": "adb_bajo_nivel",
+        "t": "Bajo Nivel y Bootloader",
+        "nivel": 4,
+        "pre": [
+          "adb_seguridad_analisis",
+          "sistemas.arquitectura",
+          "ciberseguridad.ot"
+        ],
+        "temas": [
+          "Protocolos de arranque|Modos Fastboot, Bootloader y Recovery",
+          "Gestión de particiones|Estrategias A/B y particiones dinámicas",
+          "Sideloading|Instalación de actualizaciones mediante adb sideload",
+          "Modificación de firmware|Desbloqueo de bootloader y riesgos de garantía (Knox)",
+          "Rooting y Kernel|Implementación de Magisk y comprensión del protocolo ADB interno"
+        ]
+      },
+      {
+        "id": "adb_horizonte",
+        "t": "Horizonte: El Futuro de ADB",
+        "nivel": 5,
+        "pre": [
+          "adb_bajo_nivel",
+          "sistemas.ia",
+          "tecnologia.horizonte"
+        ],
+        "temas": [
+          "Android 15/16|Novedades en seguridad y nuevas capacidades de depuración",
+          "IA en el desarrollo|Integración de Gemini en Android Studio para debugging",
+          "Virtualización|Depuración en entornos AVF (Android Virtualization Framework) y pKVM",
+          "Agentes de IA|Control de dispositivos mediante agentes autónomos (Claude Code/Agentic workflows)",
+          "Computación de escritorio|Evolución del modo escritorio y la interfaz remota"
+        ]
+      },
+      {
+        "id": "upd1",
+        "t": "🆕 p_depuracion_android_con_a.adb_forense_digital",
+        "nivel": 4,
+        "pre": [
+          "p_depuracion_android_con_a.adb_seguridad_analisis",
+          "p_depuracion_android_con_a.adb_bajo_nivel"
+        ],
+        "temas": [
+          "Peritaje informático forense en dispositivos móviles|Extracción de artefactos y preservación de evidencia mediante ADB.",
+          "Análisis de volcado de memoria (Memory Dump)|Captura de estados de memoria para análisis post-mortem.",
+          "Recuperación de datos y logs eliminados|Técnicas de recuperación en sistemas de archivos Android."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "p_estadistica",
+    "nombre": "Estadística para Ingeniería y Finanzas",
+    "icono": "📊",
+    "grupo": "Ciencias básicas",
+    "color": "#00a8a8",
+    "descripcion": "Trayectoria de alto rigor desde la descripción de datos hasta la inferencia bayesiana y el aprendizaje estadístico avanzado, diseñada para la toma de decisiones en ingeniería y mercados financieros.",
+    "recursos": [],
+    "modulos": [
+      {
+        "id": "estadistica_descriptiva",
+        "t": "Fundamentos de Análisis de Datos",
+        "nivel": 1,
+        "pre": [
+          "matematicas.aritmetica",
+          "matematicas.funciones"
+        ],
+        "temas": [
+          "Tipos de variables|Nominales, ordinales, discretas y continuas",
+          "Medidas de tendencia central|Media, mediana y moda con rigor matemático",
+          "Medidas de dispersión|Varianza, desviación estándar y coeficiente de variación",
+          "Visualización de datos|Histogramas, diagramas de caja y dispersión",
+          "Análisis de frecuencias|Distribuciones de frecuencia y tablas de contingencia",
+          "Uso de herramientas de IA para asistencia en codificación y limpieza de datos|Integración de LLMs y agentes para la generación de scripts de limpieza y preprocesamiento eficiente.",
+          "Curación de datasets mediante agentes de IA|Uso de agentes para limpieza, normalización y detección de anomalías automatizada.",
+          "Visualización de datos en herramientas de BI (Tableau/Power BI)|Conexión de descriptivos con dashboards para toma de decisiones financieras y de ingeniería."
+        ]
+      },
+      {
+        "id": "estadistica_probabilidad",
+        "t": "Teoría de la Probabilidad",
+        "nivel": 1,
+        "pre": [
+          "estadistica_descriptiva",
+          "matematicas.probabilidad",
+          "matematicas.calculo2"
+        ],
+        "temas": [
+          "Espacios muestrales|Eventos, axiomas de Kolmogorov y probabilidad clásica",
+          "Probabilidad condicional|Teorema de Bayes y probabilidad total",
+          "Variables aleatorias|Funciones de densidad, masa y distribución acumulada",
+          "Distribuciones discretas|Binomial, Poisson y Geométrica",
+          "Distribuciones continuas|Normal, Exponencial y Uniforme",
+          "Interpretación de distribuciones para control de procesos|Uso de distribuciones para monitorear la estabilidad de sistemas mecánicos y de software."
+        ]
+      },
+      {
+        "id": "estadistica_inferencial",
+        "t": "Inferencia Estadística Clásica",
+        "nivel": 2,
+        "pre": [
+          "estadistica_probabilidad",
+          "matematicas.calculo3"
+        ],
+        "temas": [
+          "Muestreo|Técnicas de muestreo aleatorio y sesgo de selección",
+          "Estimación por intervalos|Intervalos de confianza para medias y proporciones",
+          "Pruebas de hipótesis|Error tipo I y II, p-valor y potencia estadística",
+          "Pruebas paramétricas|t-Student, ANOVA y pruebas Z",
+          "Pruebas no paramétricas|Chi-cuadrado y Wilcoxon",
+          "Gestión de bases de datos SQL|Extracción, filtrado y manipulación de datos estructurados para análisis."
+        ]
+      },
+      {
+        "id": "estadistica_modelado",
+        "t": "Modelos de Regresión y Correlación",
+        "nivel": 2,
+        "pre": [
+          "estadistica_inferencial",
+          "matematicas.algebra_lineal",
+          "matematicas.optimizacion"
+        ],
+        "temas": [
+          "Correlación|Coeficiente de Pearson y Spearman",
+          "Regresión lineal simple|Modelado de relaciones lineales y mínimos cuadrados",
+          "Regresión múltiple|Interacciones y efectos principales",
+          "Diagnóstico de modelos|Residuos, heterocedasticidad y multicolinealidad",
+          "Modelos logísticos|Regresión para variables categóricas"
+        ]
+      },
+      {
+        "id": "estadistica_multivariante",
+        "t": "Análisis Multivariante Avanzado",
+        "nivel": 3,
+        "pre": [
+          "estadistica_modelado",
+          "matematicas.avanzada"
+        ],
+        "temas": [
+          "Reducción de dimensionalidad|Análisis de Componentes Principales (PCA)",
+          "Análisis Factorial|Identificación de variables latentes",
+          "Clustering|K-means, jerárquico y modelos de mezcla gaussiana",
+          "Análisis Discriminante|Clasificación de observaciones",
+          "Análisis de Conglomerados|Segmentación de poblaciones"
+        ]
+      },
+      {
+        "id": "estadistica_series_tempor",
+        "t": "Análisis de Series Temporales",
+        "nivel": 3,
+        "pre": [
+          "estadistica_modelado",
+          "matematicas.analisis_senales",
+          "matematicas.edo"
+        ],
+        "temas": [
+          "Componentes de la serie|Tendencia, estacionalidad y ruido",
+          "Modelos ARMA/ARIMA|Autoregresión y medias móviles",
+          "Suavizado exponencial|Métodos de Holt-Winters",
+          "Volatilidad en finanzas|Modelos ARCH y GARCH",
+          "Pronóstico de demanda|Aplicación en ingeniería de operaciones",
+          "Backtesting de estrategias|Validación de modelos de series temporales mediante simulación de escenarios históricos y competitivos"
+        ]
+      },
+      {
+        "id": "estadistica_bayesiana",
+        "t": "Inferencia Bayesiana",
+        "nivel": 3,
+        "pre": [
+          "estadistica_probabilidad",
+          "matematicas.avanzada"
+        ],
+        "temas": [
+          "Filosofía Bayesiana|Prior, verosimilitud y posterior",
+          "Distribuciones Conjugadas|Facilitando el cálculo analítico",
+          "Métodos MCMC|Simulación de Monte Carlo por Cadenas de Markov",
+          "Inferencia de parámetros|Estimación bayesiana vs frecuentista",
+          "Modelos Jerárquicos|Estructuras de datos anidadas"
+        ]
+      },
+      {
+        "id": "estadistica_computacional",
+        "t": "Estadística Computacional y Simulación",
+        "nivel": 4,
+        "pre": [
+          "estadistica_bayesiana",
+          "estadistica_series_tempor",
+          "sistemas.ia",
+          "matematicas.numericos"
+        ],
+        "temas": [
+          "Bootstrapping|Re-muestreo para estimación de incertidumbre",
+          "Simulación de Monte Carlo|Modelado de sistemas complejos",
+          "Algoritmos de optimización estocástica|Búsqueda en espacios de alta dimensión",
+          "Programación estadística|Implementación de algoritmos en R/Python",
+          "Validación cruzada|Evaluación de robustez de modelos"
+        ]
+      },
+      {
+        "id": "estadistica_machine_learn",
+        "t": "Aprendizaje Estadístico (Statistical Learning)",
+        "nivel": 4,
+        "pre": [
+          "estadistica_multivariante",
+          "estadistica_computacional",
+          "sistemas.ia"
+        ],
+        "temas": [
+          "Teoría del aprendizaje|Riesgo empírico y regularización (Lasso/Ridge)",
+          "Métodos de ensamble|Bagging, Boosting y Random Forests",
+          "Kernel Methods|Support Vector Machines (SVM)",
+          "Redes Neuronales desde la estadística|Modelos lineales generalizados extendidos",
+          "Curva ROC y AUC|Métricas de rendimiento en clasificación"
+        ]
+      },
+      {
+        "id": "estadistica_finanzas_ries",
+        "t": "Estadística para Riesgo Financiero",
+        "nivel": 4,
+        "pre": [
+          "estadistica_series_tempor",
+          "finanzas.mercados",
+          "finanzas.matematica_fin"
+        ],
+        "temas": [
+          "Valor en Riesgo (VaR)|Estimación de pérdidas máximas",
+          "Expected Shortfall|Medición de riesgo en la cola",
+          "Modelado de activos|Cálculo estocástico aplicado a precios",
+          "Copulas|Modelado de dependencia entre activos",
+          "Pruebas de estrés|Simulación de escenarios extremos"
+        ]
+      },
+      {
+        "id": "estadistica_frontera",
+        "t": "Frontera: Estadística de Alta Dimensión y Causalidad",
+        "nivel": 5,
+        "pre": [
+          "estadistica_machine_learn",
+          "estadistica_bayesiana",
+          "matematicas.horizonte"
+        ],
+        "temas": [
+          "Inferencia Causal|Gráficos acíclicos dirigidos (DAGs) y do-calculus",
+          "Estadística de alta dimensión|Problemas $p \\text{ >> } n$",
+          "Deep Learning Estadístico|Interpretabilidad de modelos negros",
+          "Estadística en tiempo real|Procesamiento de flujos de datos (Streaming)",
+          "Ética de algoritmos|Sesgos estadísticos y equidad algorítmica",
+          "Interpretación de modelos de caja negra|Técnicas de explicabilidad (XAI) para entender modelos complejos desde una base estadística.",
+          "Diseño de modelos de inferencia causal|Metodologías para establecer relaciones de causa y efecto más allá de la correlación estadística"
+        ]
+      },
+      {
+        "id": "upd1",
+        "t": "🆕 Ética y Gobernanza de la IA",
+        "nivel": 4,
+        "pre": [
+          "p_estadistica.estadistica_machine_learn",
+          "p_estadistica.estadistica_frontera"
+        ],
+        "temas": [
+          "Auditoría de modelos de IA y detección de sesgos|Detección estadística de disparidades y sesgos algorítmicos.",
+          "Gobernanza de datos y ética corporativa|Marcos regulatorios y gestión de la integridad de datos a nivel organizacional.",
+          "Responsabilidad algorítmica|Implicaciones legales y éticas de las decisiones automatizadas."
+        ]
+      },
+      {
+        "id": "upd2",
+        "t": "🆕 p_estadistica.mlops_despliegue",
+        "nivel": 4,
+        "pre": [
+          "p_estadistica.estadistica_machine_learn",
+          "p_estadistica.estadistica_computacional"
+        ],
+        "temas": [
+          "Pipelines de CI/CD para modelos estadísticos|Integración de modelos en flujos de desarrollo continuo.",
+          "Monitoreo de modelos en producción|Detección de drift (deriva) de datos y degradación de precisión.",
+          "Despliegue de modelos (Model Serving)|Exposición de modelos mediante APIs y contenedores.",
+          "Versionado de datos y modelos|Control de cambios en datasets y artefactos de entrenamiento."
+        ]
+      },
+      {
+        "id": "upd3",
+        "t": "🆕 Estadística para Sistemas Autónomos y Control",
+        "nivel": 5,
+        "pre": [
+          "p_estadistica.estadistica_probabilidad",
+          "p_estadistica.estadistica_frontera"
+        ],
+        "temas": [
+          "Percepción estadística|Modelado de incertidumbre en sensores para sistemas ADAS/EV",
+          "Control estocástico|Integración de sistemas de percepción y control estadístico",
+          "Fusión de sensores|Modelado probabilístico para la integración de datos de múltiples fuentes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "p_ia_y_automatizacion",
+    "nombre": "IA y Automatización",
+    "icono": "🤖",
+    "grupo": "Ingenierías",
+    "color": "#00a8a8",
+    "descripcion": "Currículo de élite diseñado para la convergencia entre la inteligencia artificial de software y la automatización de sistemas físicos (mecatrónica).",
+    "recursos": [],
+    "modulos": [
+      {
+        "id": "ia_fundamentos_matematico",
+        "t": "Fundamentos Matemáticos para la IA",
+        "nivel": 1,
+        "pre": [
+          "matematicas.algebra",
+          "matematicas.funciones"
+        ],
+        "temas": [
+          "Álgebra Lineal Computacional|Matrices, espacios vectoriales y transformaciones para datos",
+          "Cálculo Multivariable|Gradientes y derivadas parciales para optimización",
+          "Probabilidad Básica|Distribuciones y variables aleatorias",
+          "Lógica Matemática|Fundamentos de algoritmos y razonamiento"
+        ]
+      },
+      {
+        "id": "ia_programacion_inteligia",
+        "t": "Programación y Estructuras para IA",
+        "nivel": 1,
+        "pre": [
+          "ia_fundamentos_matematico",
+          "sistemas.programacion",
+          "sistemas.estructuras"
+        ],
+        "temas": [
+          "Python para Ciencia de Datos|Sintaxis avanzada y manejo de librerías numéricas",
+          "Algoritmos de Búsqueda|Implementación de búsqueda en grafos y espacios de estados",
+          "Estructuras de Datos Eficientes|Optimización de memoria para grandes volúmenes de datos",
+          "Computación Numérica|Resolución de problemas mediante aproximaciones computacionales",
+          "Automatización de flujos de trabajo (Workflows) con scripts|Implementación de scripts para la automatización de tareas repetitivas y procesos de ingeniería.",
+          "Implementación de workflows de automatización inteligente|Orquestación de procesos mediante la integración de scripts y agentes de IA.",
+          "Implementación de workflows con nodos de IA|Uso de herramientas de automatización visual como n8n y Make para integrar modelos de IA en procesos operativos.",
+          "Uso de asistentes de IA para diagnóstico de fallos técnicos|Aplicación de modelos de lenguaje y herramientas de IA para la resolución de problemas y diagnósticos en sistemas de ingeniería"
+        ]
+      },
+      {
+        "id": "ia_percepcion_sensores",
+        "t": "Percepción y Sistemas de Captura",
+        "nivel": 2,
+        "pre": [
+          "ia_programacion_inteligia",
+          "mecatronica.sensores",
+          "matematicas.analisis_senales"
+        ],
+        "temas": [
+          "Procesamiento de Señales|Filtrado y transformación de señales de sensores",
+          "Visión Artificial Básica|Procesamiento de imágenes y detección de bordes",
+          "Fusión de Sensores|Integración de datos de IMU, LIDAR y cámaras",
+          "Sistemas Embebidos para IA|Despliegue de modelos en hardware limitado",
+          "Mantenimiento de sensores e instrumentación industrial|Técnicas de diagnóstico, calibración y mantenimiento preventivo de hardware de captura de datos.",
+          "Integración de visión artificial en líneas de producción|Implementación práctica de sistemas de visión para control de calidad y monitoreo en entornos industriales"
+        ]
+      },
+      {
+        "id": "ia_aprendizaje_clasico",
+        "t": "Aprendizaje Automático Clásico",
+        "nivel": 2,
+        "pre": [
+          "ia_fundamentos_matematico",
+          "ia_programacion_inteligia",
+          "p_estadistica.estadistica_inferencial",
+          "p_estadistica.estadistica_modelado"
+        ],
+        "temas": [
+          "Regresión y Clasificación|Modelos lineales, logísticos y árboles de decisión",
+          "Aprendizaje No Supervisado|Clustering y reducción de dimensionalidad",
+          "Optimización de Hiperparámetros|Técnicas de validación y regularización",
+          "Evaluación de Modelos|Métricas de error, precisión y recall",
+          "Procesamiento y limpieza de datos (Data Wrangling)|Técnicas de limpieza, normalización y preparación de datasets para entrenamiento local.",
+          "Mantenimiento predictivo basado en modelos de aprendizaje profundo|Uso de series temporales y modelos de aprendizaje para predecir fallos en maquinaria."
+        ]
+      },
+      {
+        "id": "ia_control_automatizacion",
+        "t": "Control y Automatización de Sistemas",
+        "nivel": 3,
+        "pre": [
+          "ia_percepcion_sensores",
+          "mecatronica.control",
+          "mecatronica.automatizacion"
+        ],
+        "temas": [
+          "Control PID y Clásico|Estabilidad y respuesta de sistemas físicos",
+          "Control Moderno en Espacio de Estados|Modelado matricial de sistemas dinámicos",
+          "Automatización Industrial|Protocolos de comunicación y PLCs",
+          "Sistemas de Lazo Cerrado|Integración de IA en bucles de control",
+          "Sintonización de lazos PID en entornos industriales|Métodos prácticos de ajuste de parámetros para control de procesos reales."
+        ]
+      },
+      {
+        "id": "ia_deep_learning",
+        "t": "Aprendizaje Profundo (Deep Learning)",
+        "nivel": 3,
+        "pre": [
+          "ia_aprendizaje_clasico",
+          "sistemas.ia",
+          "matematicas.optimizacion"
+        ],
+        "temas": [
+          "Redes Neuronales Artificiales|Arquitecturas de perceptrones multicapa",
+          "Redes Convolucionales (CNN)|Procesamiento avanzado de visión",
+          "Redes Recurrentes (RNN/LSTM)|Modelado de secuencias y series temporales",
+          "Backpropagation y Gradiente Descendente|Matemáticas del entrenamiento profundo"
+        ]
+      },
+      {
+        "id": "ia_robotica_autonoma",
+        "t": "Robótica Autónoma y Navegación",
+        "nivel": 3,
+        "pre": [
+          "ia_control_automatizacion",
+          "ia_deep_learning",
+          "mecatronica.robotica",
+          "mecatronica.vision"
+        ],
+        "temas": [
+          "Cinemática y Dinámica de Robots|Movimiento de manipuladores y móviles",
+          "SLAM (Localización y Mapeo Simultáneos)|Navegación en entornos desconocidos",
+          "Planificación de Trayectorias|Algoritmos de movimiento óptimo",
+          "Aprendizaje por Refuerzo (RL)|Entrenamiento de agentes mediante recompensa"
+        ]
+      },
+      {
+        "id": "ia_sistemas_distribuidos_",
+        "t": "IA Distribuida y Edge Computing",
+        "nivel": 4,
+        "pre": [
+          "ia_deep_learning",
+          "sistemas.distribuidos",
+          "ciberseguridad.nube"
+        ],
+        "temas": [
+          "MLOps|Ciclo de vida y despliegue de modelos en producción",
+          "Edge AI|Inferencia de alta velocidad en dispositivos locales",
+          "Aprendizaje Federado|Entrenamiento de modelos con privacidad de datos",
+          "Computación en la Nube para IA|Escalabilidad de clusters de entrenamiento"
+        ]
+      },
+      {
+        "id": "ia_ia_generativa",
+        "t": "IA Generativa y Modelos de Lenguaje",
+        "nivel": 4,
+        "pre": [
+          "ia_deep_learning",
+          "sistemas.ia"
+        ],
+        "temas": [
+          "Arquitecturas Transformer|Mecanismos de atención y modelos de lenguaje",
+          "Modelos de Difusión|Generación de imágenes y contenido sintético",
+          "LLMs (Large Language Models)|Ajuste fino (Fine-tuning) y RAG",
+          "Ética de la IA Generativa|Sesgos, derechos de autor y veracidad",
+          "Arquitecturas de Agentes de IA|Diseño de sistemas donde los LLMs actúan como motores de razonamiento para ejecutar tareas autónomas.",
+          "Verificación y contraste de resultados generados por IA|Técnicas de validación de outputs para mitigar alucinaciones en entornos de ingeniería.",
+          "Desarrollo y despliegue de agentes de IA autónomos|Orquestación de agentes para la ejecución de tareas complejas.",
+          "Uso de IA generativa para asistencia técnica|Aplicación de LLMs para resolución de problemas de ingeniería y soporte técnico.",
+          "Desarrollo de subagentes de IA|Diseño y coordinación de arquitecturas donde agentes especializados colaboran para resolver tareas complejas",
+          "Orquestación de agentes de IA|Diseño de sistemas que coordinan múltiples agentes para tareas complejas.",
+          "Protocolos de contraste para validación|Métodos sistemáticos para verificar la veracidad de salidas generativas mediante comparación."
+        ]
+      },
+      {
+        "id": "ia_control_avanzado_ia",
+        "t": "Control Inteligente y Robótica Avanzada",
+        "nivel": 4,
+        "pre": [
+          "ia_robotica_autonoma",
+          "ia_control_automatizacion",
+          "mecatronica.control_avanzado",
+          "mecatronica.diseno"
+        ],
+        "temas": [
+          "Control Predictivo basado en Modelo (MPC)|Optimización en tiempo real",
+          "Robótica Blanda (Soft Robotics)|Control de materiales deformables",
+          "Enjambres de Robots (Swarm Robotics)|Coordinación multi-agente",
+          "Gemelos Digitales (Digital Twins)|Simulación de alta fidelidad para control",
+          "Diseño de enjambres de robots para logística|Coordinación de múltiples agentes robóticos en entornos de distribución y almacenes.",
+          "Gestión de Gemelos Digitales para simulación|Creación y sincronización de modelos virtuales con activos físicos."
+        ]
+      },
+      {
+        "id": "ia_frontera_autonomos",
+        "t": "Sistemas Autónomos de Frontera",
+        "nivel": 5,
+        "pre": [
+          "ia_sistemas_distribuidos_",
+          "ia_ia_generativa",
+          "ia_control_avanzado_ia",
+          "fisica.cuantica",
+          "etica.digital"
+        ],
+        "temas": [
+          "IA Cuántica|Algoritmos de aprendizaje en computación cuántica",
+          "Cognición Artificial|Modelado de procesos mentales superiores",
+          "Sistemas de Decisión Ética|Integración de filosofía en la toma de decisiones autónomas",
+          "Autonomía Total en Entornos No Estructurados|Frontera de la robótica general",
+          "Gobernanza de IA y cumplimiento regulatorio|Marcos legales, éticos y de cumplimiento para el despliegue de sistemas autónomos a escala global.",
+          "Arquitectura de sistemas de decisión ética y autónoma|Diseño de marcos de decisión para sistemas que operan sin supervisión humana directa."
+        ]
+      },
+      {
+        "id": "upd1",
+        "t": "🆕 Ciberseguridad Industrial y OT",
+        "nivel": 4,
+        "pre": [
+          "p_ia_y_automatizacion.ia_percepcion_sensores",
+          "p_ia_y_automatizacion.ia_control_automatizacion"
+        ],
+        "temas": [
+          "Seguridad en redes industriales (OT)|Protección de protocolos de comunicación en entornos de manufactura.",
+          "Aseguramiento de la ciberseguridad en sistemas de control|Mitigación de ataques en lazos de control y sensores.",
+          "Gobernanza de datos y cumplimiento regulatorio|Gestión de la integridad y privacidad de datos en la industria.",
+          "Seguridad en redes industriales (OT/ICS)|Protección de infraestructuras críticas y protocolos de comunicación industrial."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "p_ingenieria_electrica",
+    "nombre": "Ingeniería Eléctrica",
+    "icono": "⚡",
+    "grupo": "Ingenierías",
+    "color": "#00a8a8",
+    "descripcion": "Formación integral desde la física de la carga hasta la gestión de redes inteligentes y sistemas de potencia de alta tensión.",
+    "recursos": [
+      {
+        "t": "Curso gratuito en Análisis de Sistemas Eléctricos y Transición ...",
+        "u": "https://electricayelectronica.uniandes.edu.co/es/noticias/curso-gratuito-analisis-sistemas-electricos-y-transicion-energetica"
+      }
+    ],
+    "modulos": [
+      {
+        "id": "elec_fundamentos",
+        "t": "Fundamentos de la Electricidad",
+        "nivel": 1,
+        "pre": [
+          "fisica.mediciones",
+          "matematicas.algebra"
+        ],
+        "temas": [
+          "Carga y Corriente|Naturaleza física de la carga eléctrica",
+          "Circuitos de Corriente Continua|Leyes de Kirchhoff y Ohm",
+          "Potencia Eléctrica|Conceptos de potencia activa, reactiva y aparente",
+          "Magnetismo Básico|Campos magnéticos y ley de Biot-Savart",
+          "Protocolos de seguridad eléctrica (LOTO)|Procedimientos de bloqueo y etiquetado para intervención segura de sistemas energizados.",
+          "Conectividad básica de sensores IoT en campo|Integración de sensores y protocolos de comunicación básica para recolección de datos en entornos eléctricos.",
+          "Configuración de gateways para comunicación nube-campo|Interconexión de hardware de campo con servicios cloud mediante protocolos de transporte.",
+          "Interpretación de esquemas eléctricos y planos CAD|Lectura técnica, simbología normalizada y diseño asistido por computadora",
+          "Configuración de termostatos inteligentes y sistemas HVAC|Ajuste, parametrización y puesta en marcha de termostatos digitales inteligentes y sistemas de climatización HVAC para optimización del consumo energético y confort."
+        ]
+      },
+      {
+        "id": "elec_analisis_circuitos",
+        "t": "Análisis de Circuitos de CA",
+        "nivel": 2,
+        "pre": [
+          "elec_fundamentos",
+          "matematicas.calculo2",
+          "matematicas.algebra_lineal"
+        ],
+        "temas": [
+          "Fasores y Fasores|Representación compleja de señales senoidales",
+          "Impedancia y Admitancia|Análisis en el dominio de la frecuencia",
+          "Teoremas de Redes|Thévenin, Norton y Superposición en CA",
+          "Respuesta Transitoria|Circuitos RL, RC y RLC",
+          "Programación de PLCs y redes industriales (Modbus/Ethernet/IP)|Lógica de control basada en hardware industrial y protocolos de comunicación de red.",
+          "Configuración de sistemas de monitoreo de variables|Implementación de sistemas de adquisición de datos (DAQ) para supervisión de parámetros eléctricos."
+        ]
+      },
+      {
+        "id": "elec_electromagnetismo_av",
+        "t": "Electromagnetismo Avanzado",
+        "nivel": 2,
+        "pre": [
+          "elec_analisis_circuitos",
+          "fisica.electromagnetismo",
+          "matematicas.calculo3"
+        ],
+        "temas": [
+          "Ecuaciones de Maxwell|Formulaciones integral y diferencial",
+          "Ondas Electromagnéticas|Propagación en medios lineales",
+          "Guías de Onda|Modos de propagación y parámetros de dispersión",
+          "Líneas de Transmisión|Efectos de onda estacionaria y parámetros de Smith"
+        ]
+      },
+      {
+        "id": "elec_maquinas_electricas",
+        "t": "Máquinas Eléctricas y Conversión",
+        "nivel": 3,
+        "pre": [
+          "elec_electromagnetismo_av",
+          "mecatronica.potencia",
+          "fisica.moderna"
+        ],
+        "temas": [
+          "Transformadores|Modelado de circuitos equivalentes y eficiencia",
+          "Máquinas de Corriente Continua|Control de velocidad y torque",
+          "Máquinas de Inducción|Motores asíncronos y comportamiento dinámico",
+          "Máquinas Síncronas|Generadores y motores de imanes permanentes",
+          "Mantenimiento predictivo basado en vibraciones|Análisis espectral de vibraciones, detección de fallas mecánicas y diagnóstico de máquinas"
+        ]
+      },
+      {
+        "id": "elec_sistemas_potencia",
+        "t": "Sistemas de Potencia y Redes",
+        "nivel": 3,
+        "pre": [
+          "elec_maquinas_electricas",
+          "matematicas.edo",
+          "matematicas.analisis_senales"
+        ],
+        "temas": [
+          "Flujos de Potencia|Métodos de Newton-Raphson y Gauss-Seidel",
+          "Análisis de Fallas|Cortocircuitos simétricos y asimétricos",
+          "Estabilidad de Sistemas|Estabilidad de ángulo y voltaje",
+          "Protecciones Eléctricas|Relés, interruptores y coordinación de protecciones"
+        ]
+      },
+      {
+        "id": "elec_electronica_potencia",
+        "t": "Electrónica de Potencia",
+        "nivel": 3,
+        "pre": [
+          "elec_analisis_circuitos",
+          "mecatronica.potencia",
+          "matematicas.numericos"
+        ],
+        "temas": [
+          "Dispositivos de Conmutación|Diodos, MOSFETs, IGBTs",
+          "Convertidores DC-DC|Buck, Boost y Buck-Boost",
+          "Convertidores AC-DC y DC-AC|Rectificadores e Inversores",
+          "Control de Conmutación|PWM y técnicas de modulación"
+        ]
+      },
+      {
+        "id": "elec_control_sistemas",
+        "t": "Control de Sistemas Eléctricos",
+        "nivel": 4,
+        "pre": [
+          "elec_sistemas_potencia",
+          "elec_electronica_potencia",
+          "mecatronica.control",
+          "matematicas.optimizacion"
+        ],
+        "temas": [
+          "Control Moderno|Espacio de estados y observabilidad",
+          "Control de Motores|Control vectorial y control directo de torque",
+          "Estabilidad de Lyapunov|Análisis de estabilidad no lineal",
+          "Control Robusto|Manejo de incertidumbres en parámetros eléctricos"
+        ]
+      },
+      {
+        "id": "elec_smart_grids",
+        "t": "Redes Inteligentes y Energías Renovables",
+        "nivel": 4,
+        "pre": [
+          "elec_sistemas_potencia",
+          "sistemas.ia",
+          "administracion.operaciones"
+        ],
+        "temas": [
+          "Integración de Renovables|Solar fotovoltaica y eólica en la red",
+          "Smart Grids|Medición inteligente y comunicación bidireccional",
+          "Almacenamiento de Energía|Sistemas de baterías y supercapacitores",
+          "Microredes|Gestión de carga y control de isla",
+          "Estabilidad de redes con alta penetración de electrónica de potencia|Análisis de la inercia sintética y la dinámica de sistemas con inversores dominantes.",
+          "Gestión de la estabilidad de microredes|Control y coordinación de recursos energéticos distribuidos (DER) en entornos de red aislados o interconectados.",
+          "Integración de sistemas BESS|Sistemas de Almacenamiento de Energía mediante Baterías (Battery Energy Storage Systems)"
+        ]
+      },
+      {
+        "id": "elec_procesamiento_senals",
+        "t": "Procesamiento Digital de Señales Eléctricas",
+        "nivel": 4,
+        "pre": [
+          "elec_analisis_circuitos",
+          "matematicas.analisis_senales",
+          "sistemas.programacion"
+        ],
+        "temas": [
+          "Muestreo y Cuantificación|Teorema de Nyquist-Shannon",
+          "Filtros Digitales IIR y FIR|Diseño en el dominio Z",
+          "Transformada Rápida de Fourier|Implementación computacional",
+          "Análisis Espectral|Detección de armónicos en la red",
+          "Análisis de datos eléctricos con Python|Uso de librerías (Pandas, NumPy, SciPy) para el procesamiento de series temporales de datos eléctricos.",
+          "Modelos de IA para predicción de demanda|Aplicación de Machine Learning para la estimación de carga y estabilidad de red.",
+          "Gestión de activos basada en datos|Uso de series temporales y modelos estadísticos para la transición de mantenimiento preventivo a predictivo."
+        ]
+      },
+      {
+        "id": "elec_alta_tension",
+        "t": "Ingeniería de Alta Tensión",
+        "nivel": 5,
+        "pre": [
+          "elec_sistemas_potencia",
+          "elec_electromagnetismo_av",
+          "fisica.cuantica",
+          "quimica.materiales"
+        ],
+        "temas": [
+          "Descargas Eléctricas|Efecto corona y ruptura dieléctrica",
+          "Aislamiento de Alta Tensión|Materiales sólidos, líquidos y gaseosos",
+          "Subestaciones de Potencia|Diseño y configuración de equipos",
+          "Transmisión de Energía|Líneas de extra alta tensión (EHV)"
+        ]
+      },
+      {
+        "id": "elec_energia_futuro",
+        "t": "Frontera: Energía y Sistemas Autónomos",
+        "nivel": 5,
+        "pre": [
+          "elec_smart_grids",
+          "elec_control_sistemas",
+          "sistemas.ia",
+          "finanzas.mercados"
+        ],
+        "temas": [
+          "Transmisión HVDC|Corriente continua de alta tensión",
+          "Internet de la Energía (IoE)|Descentralización y blockchain en redes",
+          "Fusión Nuclear|Fundamentos de generación de energía extrema",
+          "Optimización de Mercados Eléctricos|Trading de energía con IA",
+          "Optimización económica de mercados eléctricos|Modelado matemático de despacho económico y gestión de mercados de energía."
+        ]
+      },
+      {
+        "id": "upd1",
+        "t": "🆕 Ciberseguridad en Sistemas de Control Industrial (OT)",
+        "nivel": 4,
+        "pre": [
+          "p_ingenieria_electrica.elec_control_sistemas",
+          "p_ingenieria_electrica.elec_smart_grids"
+        ],
+        "temas": [
+          "Seguridad en protocolos industriales (Modbus/DNP3/IEC 61850)|Vulnerabilidades y mitigación en comunicaciones de red eléctrica.",
+          "Arquitectura de defensa en entornos ICS/SCADA|Segmentación de redes y perímetros de seguridad industrial.",
+          "Detección de intrusiones en sistemas de potencia|Monitoreo de anomalías en el tráfico de datos de control."
+        ]
+      }
+    ]
+  },
+  {
+    "id": "p_ingenieria_robotica",
+    "nombre": "Ingeniería Robótica",
+    "icono": "🤖",
+    "grupo": "Ingenierías",
+    "color": "#00a8a8",
+    "descripcion": "Currículo integral que fusiona la computación de alto nivel, la mecánica de precisión y la inteligencia autónoma para la creación de sistemas físicos inteligentes.",
+    "recursos": [],
+    "modulos": [
+      {
+        "id": "robotica_fundamentos",
+        "t": "Fundamentos de Robótica y Sistemas Físicos",
+        "nivel": 1,
+        "pre": [
+          "matematicas.algebra",
+          "matematicas.geometria"
+        ],
+        "temas": [
+          "Cinemática básica|Estudio de movimiento sin fuerzas",
+          "Sistemas de coordenadas|Representación de posición en el espacio",
+          "Electrónica básica|Componentes y leyes de circuitos",
+          "Programación de bajo nivel|Control de hardware mediante código",
+          "Mecánica de sólidos|Propiedades de materiales para estructuras",
+          "Interpretación de planos CAD|Lectura y diseño de modelos tridimensionales y ensamblajes mecánicos.",
+          "Esquemas eléctricos|Interpretación de diagramas de circuitos y conexiones de hardware."
+        ]
+      },
+      {
+        "id": "robotica_sensores_actuado",
+        "t": "Percepción y Acción Mecatrónica",
+        "nivel": 2,
+        "pre": [
+          "robotica_fundamentos",
+          "mecatronica.sensores",
+          "mecatronica.digital"
+        ],
+        "temas": [
+          "Transducción|Conversión de magnitudes físicas a señales",
+          "Actuadores eléctricos|Motores DC, paso a paso y servomotores",
+          "Procesamiento de señales|Filtrado de ruido en sensores",
+          "Microcontroladores|Arquitectura y gestión de interrupciones",
+          "Lógica de control|Implementación de decisiones en tiempo real",
+          "Protocolos de comunicación industrial|Implementación y configuración de buses de datos como CAN bus, EtherCAT y Modbus para la integración de sistemas mecatrónicos."
+        ]
+      },
+      {
+        "id": "robotica_dinamica_control",
+        "t": "Dinámica y Control de Sistemas",
+        "nivel": 2,
+        "pre": [
+          "robotica_sensores_actuado",
+          "fisica.mecanica",
+          "mecatronica.control"
+        ],
+        "temas": [
+          "Modelado dinámico|Ecuaciones de Euler-Lagrange",
+          "Control PID|Regulación de error en sistemas físicos",
+          "Estabilidad de sistemas|Criterios de Lyapunov y estabilidad",
+          "Sistemas de lazo cerrado|Retroalimentación y compensación",
+          "Respuesta temporal|Transitorios y estado estacionario",
+          "Sintonización de lazos PID|Ajuste de parámetros Kp, Ki, Kd para optimizar la respuesta del sistema."
+        ]
+      },
+      {
+        "id": "robotica_arquitectura_sw",
+        "t": "Arquitectura de Software Robótico",
+        "nivel": 3,
+        "pre": [
+          "robotica_dinamica_control",
+          "sistemas.so",
+          "sistemas.poo"
+        ],
+        "temas": [
+          "Middleware robótico|Comunicación entre procesos (ROS/ROS2)",
+          "Sistemas de tiempo real|Determinismo en la ejecución",
+          "Arquitecturas distribuidas|Nodos y tópicos de comunicación",
+          "Gestión de memoria en sistemas embebidos|Optimización de recursos",
+          "Abstracción de hardware|Capas de control de dispositivos",
+          "Despliegue de servicios en contenedores (Docker/Edge)|Gestión de entornos aislados para software robótico."
+        ]
+      },
+      {
+        "id": "robotica_vision_percepc",
+        "t": "Visión Artificial y Percepción Espacial",
+        "nivel": 3,
+        "pre": [
+          "robotica_arquitectura_sw",
+          "mecatronica.vision",
+          "matematicas.analisis_senales"
+        ],
+        "temas": [
+          "Procesamiento de imágenes|Filtros, bordes y segmentación",
+          "Geometría epipolar|Reconstrucción 3D a partir de cámaras",
+          "Detección de objetos|Algoritmos de reconocimiento visual",
+          "SLAM|Localización y mapeo simultáneos",
+          "Odometría visual|Estimación de movimiento por visión",
+          "Visión semántica y modelos de lenguaje visual (VLM)|Interpretación de escenas basada en conceptos semánticos más allá de la detección de cajas.",
+          "Gestión de modelos de percepción en Edge AI|Despliegue y optimización de modelos de visión semántica y VLM directamente en hardware de borde con recursos limitados."
+        ]
+      },
+      {
+        "id": "robotica_planificacion_mo",
+        "t": "Planificación de Movimiento y Navegación",
+        "nivel": 3,
+        "pre": [
+          "robotica_vision_percepc",
+          "matematicas.optimizacion",
+          "mecatronica.mecanismos"
+        ],
+        "temas": [
+          "Espacios de configuración|Representación de grados de libertad",
+          "Algoritmos de búsqueda|A*, RRT y planificación de trayectorias",
+          "Evitación de obstáculos|Navegación reactiva y predictiva",
+          "Cinemática inversa|Cálculo de ángulos para posiciones finales",
+          "Optimización de trayectorias|Minimización de energía y tiempo"
+        ]
+      },
+      {
+        "id": "robotica_ia_autonoma",
+        "t": "Inteligencia Artificial para Robótica",
+        "nivel": 4,
+        "pre": [
+          "robotica_planificacion_mo",
+          "sistemas.ia",
+          "matematicas.probabilidad"
+        ],
+        "temas": [
+          "Aprendizaje por refuerzo|Agentes que aprenden por ensayo-error",
+          "Redes neuronales profundas|Percepción avanzada",
+          "Modelos generativos|Simulación de entornos para entrenamiento",
+          "Sistemas multi-agente|Coordinación de enjambres",
+          "Toma de decisiones autónoma|Razonamiento bajo incertidumbre",
+          "Implementación de Sim-to-Real|Transferencia de políticas aprendidas en simulación al mundo físico.",
+          "Foundation Models para percepción|Uso de modelos pre-entrenados de gran escala en robótica.",
+          "Edge AI|Gestión y despliegue de modelos de IA en hardware embebido con recursos limitados.",
+          "Diseño de arquitecturas para robótica humanoide|Modelado de equilibrio dinámico, control de locomoción y coordinación de extremidades en sistemas antropomórficos.",
+          "Optimización de sistemas multi-agente y enjambres|Coordinación de flotas y algoritmos de consenso para enjambres autónomos (N5)."
+        ]
+      },
+      {
+        "id": "robotica_bio_hibrida",
+        "t": "Robótica Bio-inspirada y Bio-híbrida",
+        "nivel": 4,
+        "pre": [
+          "robotica_ia_autonoma",
+          "biologia.neuro",
+          "biologia.bioingenieria"
+        ],
+        "temas": [
+          "Mimetismo biológico|Diseño basado en sistemas naturales",
+          "Interfaces cerebro-máquina|Control neural de prótesis",
+          "Soft Robotics|Actuadores de materiales deformables",
+          "Robótica de insectos|Mecanismos de locomoción minúscula",
+          "Neuro-robótica|Integración de modelos biológicos en control"
+        ]
+      },
+      {
+        "id": "robotica_seguridad_ot",
+        "t": "Seguridad y Resiliencia en Sistemas Robóticos",
+        "nivel": 4,
+        "pre": [
+          "robotica_ia_autonoma",
+          "ciberseguridad.ot",
+          "etica.digital"
+        ],
+        "temas": [
+          "Ciberseguridad industrial|Protección de flotas robóticas",
+          "Seguridad funcional|Normativas ISO para robots colaborativos",
+          "Resiliencia de sistemas|Recuperación ante fallos de hardware",
+          "Ética de la autonomía|Responsabilidad en decisiones de IA",
+          "Ataques de inyección de sensores|Defensa contra spoofing",
+          "Marcos de gobernanza para autonomía crítica|Definición de reglas y marcos legales/éticos para sistemas autónomos."
+        ]
+      },
+      {
+        "id": "robotica_frontera_sw_hw",
+        "t": "Frontera: Integración de Sistemas Cognitivo-Físicos",
+        "nivel": 5,
+        "pre": [
+          "robotica_bio_hibrida",
+          "robotica_seguridad_ot",
+          "sistemas.horizonte",
+          "fisica.cuantica"
+        ],
+        "temas": [
+          "Computación cuántica aplicada|Optimización de trayectorias masivas",
+          "Nanobots|Robótica a escala molecular",
+          "Sistemas de conciencia artificial|Frontera de la IA general",
+          "Robótica espacial|Sistemas autónomos en entornos extremos",
+          "Simbiosis humano-robot|Integración física y cognitiva total"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "p_neurociencia",
+    "nombre": "Neurociencia",
+    "icono": "🧠",
+    "grupo": "Ciencias básicas",
+    "color": "#00a8a8",
+    "descripcion": "Programa integral de neurociencia diseñado para la convergencia entre biología, ingeniería de sistemas, mecatrónica y computación cognitiva.",
+    "recursos": [
+      {
+        "t": "Curso de NEUROCIENCIA, curso abierto, curso en línea, curso...",
+        "u": "https://cursos.aiu.edu/NEUROCIENCIA.html"
+      },
+      {
+        "t": "15 Neurociencia Curso Degree Programs Abroad | educations.com",
+        "u": "https://www.educations.es/cursos/neurociencia"
+      },
+      {
+        "t": "Neuroscience Courses | Harvard University",
+        "u": "https://pll.harvard.edu/subject/neuroscience"
+      },
+      {
+        "t": "Curso: Neurociencia | UP | Universidad de Palermo",
+        "u": "https://www.palermo.edu/cursos/psicologia/neurociencia.html"
+      }
+    ],
+    "modulos": [
+      {
+        "id": "neuro_fundamentos",
+        "t": "Fundamentos de Neurobiología",
+        "nivel": 1,
+        "pre": [
+          "biologia.celula",
+          "quimica.materia"
+        ],
+        "temas": [
+          "Arquitectura Neuronal|Estructura y función de la neurona y la glía",
+          "Potencial de Acción|Dinámica de membranas y canales iónicos",
+          "Sinapsis Química y Eléctrica|Mecanismos de transmisión de señales",
+          "Neurotransmisión|Ciclo de vida de los neurotransmisores",
+          "Neuroanatomía Básica|Organización macroscópica del sistema nervioso",
+          "Mantenimiento y calibración de instrumental de electrofisiología|Protocolos de calibración y mantenimiento preventivo de equipos de registro neuronal."
+        ]
+      },
+      {
+        "id": "neuro_sistemas_sensorial",
+        "t": "Sistemas Sensoriales y Percepción",
+        "nivel": 2,
+        "pre": [
+          "neuro_fundamentos",
+          "fisica.ondas",
+          "mecatronica.sensores"
+        ],
+        "temas": [
+          "Transducción Sensorial|Conversión de energía física en señales eléctricas",
+          "Sistemas Visuales|Procesamiento de la luz y vías ópticas",
+          "Sistemas Auditivos|Mecánica de la audición y procesamiento coclear",
+          "Somatosensación|Percepción táctil, propiocepción y nocicepción",
+          "Integración Perceptiva|Cómo el cerebro construye la realidad"
+        ]
+      },
+      {
+        "id": "neuro_computacion_cognit",
+        "t": "Neurociencia Cognitiva y Computacional",
+        "nivel": 2,
+        "pre": [
+          "neuro_fundamentos",
+          "matematicas.calculo1",
+          "sistemas.programacion"
+        ],
+        "temas": [
+          "Atención y Conciencia|Mecanismos de filtrado de información",
+          "Memoria y Aprendizaje|Modelos biológicos de consolidación",
+          "Lenguaje y Cognición|Bases neurobiológicas de la comunicación",
+          "Modelado de Neuronas|Implementación de modelos matemáticos (Hodgkin-Huxley)",
+          "Redes Neuronales Biológicas|Topología y conectividad funcional",
+          "Neuroeducación y procesos de aprendizaje|Aplicación de principios neurocientíficos para optimizar entornos y métodos de aprendizaje"
+        ]
+      },
+      {
+        "id": "neuro_neurofarmaco",
+        "t": "Neurofarmacología y Química Cerebral",
+        "nivel": 3,
+        "pre": [
+          "neuro_fundamentos",
+          "quimica.organica",
+          "biologia.fisiologia"
+        ],
+        "temas": [
+          "Farmacodinámica|Interacción ligando-receptor",
+          "Sistemas de Modulación|Dopamina, serotonina y glutamato",
+          "Neurotoxicidad|Efectos de sustancias en la homeostasis",
+          "Diseño de Fármacos|Enfoques moleculares para trastornos neurológicos",
+          "Eje Neuroendocrino|Interacción cerebro-hormonas"
+        ]
+      },
+      {
+        "id": "neuro_neuroingenieria",
+        "t": "Neuroingeniería y BCI",
+        "nivel": 3,
+        "pre": [
+          "neuro_computacion_cognit",
+          "mecatronica.control",
+          "sistemas.ia"
+        ],
+        "temas": [
+          "Interfaces Cerebro-Computador (BCI)|Extracción de señales EEG/ECoG",
+          "Neuroprótesis|Control de actuadores mediante intención neural",
+          "Estimulación Eléctrica|Deep Brain Stimulation (DBS) y técnicas no invasivas",
+          "Procesamiento de Señales Neurales|Filtrado y decodificación de ritmos cerebrales",
+          "Neurofeedback|Regulación de estados mentales mediante bucles de control",
+          "Programación de sistemas de control para neuroprótesis|Implementación de lazos de control aplicados a dispositivos de asistencia motora.",
+          "Desarrollo de algoritmos de neurofeedback|Creación de bucles de retroalimentación basados en señales electrofisiológicas.",
+          "Protocolos de Bioseguridad y Calidad Regulatoria|Gestión de estándares de seguridad y normativas para el uso de dispositivos neurotecnológicos."
+        ]
+      },
+      {
+        "id": "neuro_neurociencia_avanz",
+        "t": "Neurociencia de Sistemas Avanzada",
+        "nivel": 4,
+        "pre": [
+          "neuro_neuroingenieria",
+          "neuro_neurofarmaco",
+          "matematicas.edo",
+          "matematicas.analisis_senales"
+        ],
+        "temas": [
+          "Dinámica de Redes Complejas|Oscilaciones y sincronía neuronal",
+          "Codificación de Información|Teoría de la información aplicada al cerebro",
+          "Neuroplasticidad Dirigida|Mecanismos de reconfiguración sináptica",
+          "Neuroimagen Avanzada|fMRI, PET y técnicas de alta resolución",
+          "Conectómica|Mapeo de la arquitectura de redes a gran escala",
+          "Modelado de dinámica de redes complejas|Uso de teoría de grafos y sistemas dinámicos para entender la conectómica.",
+          "Estadística Computacional aplicada a Neuroimagen|Uso de métodos estadísticos avanzados para procesar y validar datos de neuroimágenes.",
+          "Deep Learning aplicado a Neuroimagen|Uso de redes neuronales profundas para el análisis automático de datos estructurales y funcionales",
+          "Lectura crítica de literatura científica técnica|Metodologías para el análisis y comprensión de papers de alto impacto en neurociencia.",
+          "Escritura de informes técnicos y artículos científicos|Normativas, estructura y redacción de resultados de investigación técnica."
+        ]
+      },
+      {
+        "id": "neuro_neuroetica_filo",
+        "t": "Neuroética y Filosofía de la Mente",
+        "nivel": 4,
+        "pre": [
+          "neuro_neurociencia_avanz",
+          "etica.digital",
+          "filosofia.mente"
+        ],
+        "temas": [
+          "Libre Albedrío y Neurociencia|Implicaciones de la causalidad neuronal",
+          "Identidad y Personalidad|El cerebro como sustrato del 'yo'",
+          "Ética de la Mejora Cognitiva|Neuroenhancement y equidad social",
+          "Privacidad Mental|Seguridad de datos neuronales",
+          "IA y Conciencia Artificial|Comparativa entre redes biológicas y sintéticas"
+        ]
+      },
+      {
+        "id": "neuro_neurocomputacion_ia",
+        "t": "Neurocomputación e Inteligencia Artificial",
+        "nivel": 4,
+        "pre": [
+          "neuro_computacion_cognit",
+          "sistemas.ia",
+          "p_ia_y_automatizacion.ia_deep_learning"
+        ],
+        "temas": [
+          "Arquitecturas Bio-inspiradas|Redes spiking y computación neuromórfica",
+          "Aprendizaje por Refuerzo Biológico|Dopamina y optimización de políticas",
+          "Algoritmos de Plasticidad|Implementación de STDP en software",
+          "Hardware Neuromórfico|Chips diseñados para emular neuronas",
+          "Modelos de Lenguaje y Cognición|Simulación de procesos semánticos",
+          "Arquitecturas de hardware neuromórfico|Diseño de circuitos integrados que emulan la eficiencia de las redes biológicas.",
+          "Aprendizaje por refuerzo biológico en agentes de IA|Traducción de mecanismos de dopamina y recompensa a algoritmos de aprendizaje."
+        ]
+      },
+      {
+        "id": "neuro_frontera_hibrida",
+        "t": "Sistemas Cognitivo-Físicos de Frontera",
+        "nivel": 5,
+        "pre": [
+          "neuro_neuroingenieria",
+          "neuro_neurocomputacion_ia",
+          "p_ingenieria_robotica.robotica_bio_hibrida",
+          "mecatronica.horizonte"
+        ],
+        "temas": [
+          "Robótica Bio-híbrida|Integración de tejido vivo y hardware",
+          "Sistemas de Control de Lazo Cerrado Cerebro-Máquina|Control de alta fidelidad",
+          "Neuro-Sistemas Autónomos|IA con principios de homeostasis biológica",
+          "Ciber-Neuroprotección|Seguridad en implantes neuronales",
+          "Estado del Arte en Neurotecnología|Tendencias de la próxima década"
+        ]
+      }
+    ]
+  }
+]

@@ -36,7 +36,8 @@ DEFECTO = {
                                                   # (p. ej. el de Hermes si el servidor los deja convivir)
     "searx_url": "http://127.0.0.1:8888",         # SearXNG (búsqueda web); vacío = sin búsqueda
     "aigate_url": "",                             # opcional: http://<pc>:9137/state (no molestar si se juega)
-    "trabajos_paralelos": 1,                      # tareas a la vez en el servidor de IA (= llama-server --parallel N)
+    "trabajos_paralelos": 1,                      # tareas a la vez en el servidor de IA (= llama-server --parallel N; 0 = carril local en pausa)
+    "fondo_a_la_vez": 1,                          # de esas, cuántas de fondo (lecciones, noticias); el resto, para lo que pides tú. 0 = sin límite
     "nube_proveedor2": "", "nube_modelo2": "", "nube_modelo2_respaldo": "", "nube_url2": "",   # API de reserva (opcional)
     "nube_reintento_mensual_dias": 15,            # cada cuántos días reintenta un modelo cuyo límite es mensual
     "trabajos_nube": 0,                           # tareas a la vez en la API de la nube (0 = sin carril propio); va APARTE de las locales

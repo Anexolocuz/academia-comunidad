@@ -1,0 +1,64 @@
+{
+  "id": "economia",
+  "nombre": "Economía",
+  "icono": "📈",
+  "grupo": "Ciencias sociales",
+  "color": "#27ae60",
+  "descripcion": "Más allá de la introducción de Finanzas: microeconomía, macroeconomía, desarrollo, economía colombiana y métodos empíricos, hasta la frontera.",
+  "recursos": [
+    {"t": "CORE Econ — economía para un mundo cambiante (libre)", "u": "https://www.core-econ.org/"},
+    {"t": "OpenStax — Principles of Economics", "u": "https://openstax.org/details/books/principles-economics-3e"},
+    {"t": "Our World in Data", "u": "https://ourworldindata.org/"},
+    {"t": "MIT OpenCourseWare", "u": "https://ocw.mit.edu/"}
+  ],
+  "modulos": [
+    {"id": "pensamiento", "t": "Pensamiento económico y método", "nivel": 1, "pre": ["finanzas.economia"], "temas": [
+      "Escasez, costo de oportunidad e incentivos",
+      "Modelos económicos|supuestos y límites",
+      "Economía positiva y normativa",
+      "Historia del pensamiento económico|Smith, Marx, Keynes, Hayek",
+      "Cómo leer datos económicos|tasas, índices, precios constantes"]},
+    {"id": "micro", "t": "Microeconomía", "nivel": 2, "pre": ["pensamiento", "matematicas.calculo1"], "temas": [
+      "Teoría del consumidor|utilidad y restricción presupuestaria",
+      "Teoría de la producción y costos",
+      "Equilibrio y eficiencia de mercados|excedentes",
+      "Fallas de mercado|externalidades y bienes públicos",
+      "Teoría de juegos|estrategias y equilibrio de Nash"]},
+    {"id": "macro", "t": "Macroeconomía", "nivel": 2, "pre": ["pensamiento"], "temas": [
+      "Cuentas nacionales y ciclo económico",
+      "Crecimiento económico|modelo de Solow",
+      "Mercado laboral y desempleo",
+      "Inflación y política monetaria|regla de Taylor",
+      "Economía abierta|tipo de cambio y balanza de pagos"]},
+    {"id": "colombia", "t": "Economía colombiana", "nivel": 3, "pre": ["macro"], "temas": [
+      "Estructura productiva de Colombia",
+      "Banco de la República e inflación objetivo",
+      "Comercio exterior y dependencia de materias primas",
+      "Informalidad, pobreza y desigualdad",
+      "Política fiscal y reforma tributaria"]},
+    {"id": "desarrollo", "t": "Economía del desarrollo e instituciones", "nivel": 3, "pre": ["macro", "micro"], "temas": [
+      "Teorías del desarrollo",
+      "Instituciones y crecimiento",
+      "Capital humano y educación",
+      "Evaluación de programas sociales|ensayos controlados",
+      "Economía ambiental y de los recursos naturales"]},
+    {"id": "econometria", "t": "Econometría", "nivel": 4, "pre": ["micro", "matematicas.probabilidad"], "temas": [
+      "Regresión lineal y sus supuestos",
+      "Variables instrumentales y endogeneidad",
+      "Datos de panel",
+      "Diferencias en diferencias y regresión discontinua",
+      "Series de tiempo|estacionariedad y pronóstico"]},
+    {"id": "comportamiento", "t": "Economía del comportamiento y experimental", "nivel": 4, "pre": ["micro", "psicologia.cognicion"], "temas": [
+      "Racionalidad limitada y heurísticas",
+      "Teoría prospectiva|aversión a la pérdida",
+      "Preferencias sociales|equidad, reciprocidad",
+      "Diseño de experimentos económicos",
+      "Arquitectura de decisiones y políticas"]},
+    {"id": "horizonte", "t": "Horizonte económico", "nivel": 5, "pre": ["econometria", "comportamiento"], "temas": [
+      "Economía de la IA y la automatización",
+      "Economía digital y plataformas",
+      "Transición energética y economía del clima",
+      "Aprendizaje automático en economía empírica",
+      "Debates económicos actuales|deuda, desigualdad, desglobalización"]}
+  ]
+}

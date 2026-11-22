@@ -21,24 +21,36 @@
 <header class="barra">
   <button class="marca" data-ir="hoy" aria-label="Inicio"><span class="logo">🎓</span><span class="nombre-app">Academia</span></button>
   <div class="estado-ia" id="estadoIA" title="Qué está haciendo la IA (toca para ver la cola)" data-ir="cola" role="button"></div>
-  <nav class="atajos">
+  <nav class="atajos" aria-label="Accesos y menús">
     <button data-ir="cola" title="Cola de la IA y recursos" aria-label="Cola de la IA">⏳</button>
-    <button data-ir="objetivos" title="Objetivos" aria-label="Objetivos">🎯</button>
-    <button data-ir="acciones" title="Acciones bajo vigilancia: precios, alertas, noticias y pronóstico" aria-label="Acciones">💹</button>
-    <button class="extra" data-ir="tablero" title="Tablero: tus metas con fecha estimada y tus tendencias" aria-label="Tablero">📊</button>
-    <button class="extra" data-ir="metricas" title="Qué sabe el sistema de ti: tus métricas y de dónde salen" aria-label="Qué sabe el sistema de ti">🔬</button>
-    <button class="extra" data-ir="salud" title="Salud: qué falla y de dónde partimos" aria-label="Salud">🩺</button>
-    <button class="extra" data-ir="verificar" title="Verificar una afirmación con fuentes" aria-label="Verificar">🔎</button>
-    <button class="extra" data-ir="horizonte" title="Tu horizonte: cuánto falta y dónde enfocarte" aria-label="Horizonte">🔭</button>
-    <button class="extra" data-ir="progreso" title="Cómo aprendes" aria-label="Cómo aprendes">📈</button>
-    <button class="extra" data-ir="chequeo" title="Chequeo semanal" aria-label="Chequeo semanal">🧪</button>
-    <button class="extra" data-ir="pruebas" title="Mis pruebas de nivel (se retoman donde ibas)" aria-label="Mis pruebas">📝</button>
+    <button data-ir="objetivos" title="Objetivos y metas" aria-label="Objetivos">🎯</button>
+    <button data-ir="acciones" title="Acciones bajo vigilancia" aria-label="Acciones">💹</button>
+    <div class="menu-desp">
+      <button type="button" class="menu-btn" data-menu="analisis" aria-expanded="false" aria-haspopup="true" title="Análisis y progreso">📊 <span class="etq-txt">Análisis</span> ▾</button>
+      <div class="menu-panel" data-panel="analisis" hidden>
+        <button data-ir="tablero">📊 Tablero y fechas</button>
+        <button data-ir="progreso">📈 Cómo aprendes</button>
+        <button data-ir="horizonte">🔭 Tu horizonte</button>
+        <button data-ir="metricas">🔬 Qué sabe el sistema</button>
+        <button data-ir="salud">🩺 Salud del sistema</button>
+        <button data-ir="reporte">📄 Reporte y datos</button>
+      </div>
+    </div>
+    <div class="menu-desp">
+      <button type="button" class="menu-btn" data-menu="herramientas" aria-expanded="false" aria-haspopup="true" title="Herramientas de estudio">🧰 <span class="etq-txt">Más</span> ▾</button>
+      <div class="menu-panel" data-panel="herramientas" hidden>
+        <button data-ir="verificar">🔎 Verificar afirmación</button>
+        <button data-ir="chequeo">🧪 Chequeo semanal</button>
+        <button data-ir="pruebas">📝 Mis pruebas de nivel</button>
+        <button data-ir="tareas">📋 Mis tareas de práctica</button>
+      </div>
+    </div>
     <button data-ir="ajustes" title="Ajustes" aria-label="Ajustes">⚙️</button>
-    <button id="masAtajos" title="Más: verificar, horizonte, cómo aprendes, chequeo, pruebas" aria-label="Más opciones">⋯</button>
   </nav>
 </header>
 <nav class="menu" id="menu">
   <button data-ir="hoy"><span>☀️</span><b>Hoy</b></button>
+  <button data-ir="reto"><span>⚡</span><b>Reto</b></button>
   <button data-ir="ruta"><span>🗺️</span><b>Ruta</b></button>
   <button data-ir="repasar"><span>🔁</span><b>Repasar</b><i class="globo" id="globoRepaso" hidden></i></button>
   <button data-ir="cuaderno"><span>✍️</span><b>Cuaderno</b></button>
@@ -57,5 +69,6 @@
 <script src="metricas.js"></script>
 <script src="eventos.js"></script>
 <script src="nube.js"></script>
+<script src="indice.js"></script>
 </body>
 </html>

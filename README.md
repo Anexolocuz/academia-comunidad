@@ -14,7 +14,7 @@
 
 ---
 
-Rutas de aprendizaje de 20 áreas (~940 temas, y las que crees tú) escritas **a fondo, por partes** por una IA que
+Rutas de aprendizaje de 33 áreas (1535 temas, y las que crees tú) escritas **a fondo, por partes** por una IA que
 corre en tu PC, con fuentes web y **documentos científicos reales** (OpenAlex). Quizzes, técnica Feynman, ejercicios
 con entrega por foto o a mano, **repetición espaciada (FSRS)**, cuaderno para lápiz (S Pen, Apple Pencil), tutor,
 metas con ruta completa de requisitos, noticias de tus áreas **comparadas entre medios**, chequeo semanal, panel de
@@ -30,6 +30,9 @@ metas con ruta completa de requisitos, noticias de tus áreas **comparadas entre
 - 🧭 **Se adapta a ti de verdad** — ruta rápida de 10-15 min por lección, paso a paso con «¿lo entendiste?» y
   reexplicación de otra forma, diagnóstico antes de leer, refuerzo de lo que se te olvida, ritmo real y horizonte
   de cuánto te falta para cada nivel.
+- 🧠 **Un Índice, no una racha** — un número tipo CI (100, pasos de 15) medido contra los niveles del currículo que
+  sube o baja con lo que sabes responder sin mirar. ⚡ **Reto** de 10 preguntas (~5 min) de tus lecciones, cerca de tu
+  nivel y con tiempo; lo fallado vuelve como tarjeta y enlaza su lección. Récord personal y «vs. tú hace 30 días».
 - 🔒 **Privada de verdad** — sin nube, sin cuentas, sin telemetría. Cerrada a la red por defecto.
 - 🪄 **Se configura sola** — un botón escanea tu PC (con tu permiso, sí/no), te dice qué puedes usar y cómo, y aplica
   la mejor configuración. El escaneo se borra solo a las 24 h.
@@ -59,6 +62,10 @@ metas con ruta completa de requisitos, noticias de tus áreas **comparadas entre
 Antes, una IA: [Ollama](https://ollama.com/download) + `ollama pull gemma3:4b` (o deja que Docker la incluya).
 Se abre en **http://127.0.0.1:8092** → ⚙️ Ajustes → 🪄 **Escanear mi PC**.
 
+### 📚 Contenidos ya preparados (apartado independiente)
+
+Si prefieres estudiar de inmediato sin esperar a que tu IA genere las primeras lecciones, revisa el apartado independiente [`contenidos/`](contenidos/README.md): incluye rutas ampliadas, 6 áreas propias adicionales y cientos de lecciones ya preparadas listas para importar con `python3 contenidos/importar.py` (opcional, no altera `datos/` al instalar).
+
 | Necesitas | Mínimo | Recomendado |
 |---|---|---|
 | PC | 8 GB de RAM, Python 3.10+ | 16-32 GB de RAM o tarjeta gráfica de 8 GB+ |
@@ -71,6 +78,7 @@ Se abre en **http://127.0.0.1:8092** → ⚙️ Ajustes → 🪄 **Escanear mi P
 | Para qué existe (razón, misión, visión, límites) | — | [Propósito](docs/PROPOSITO.md) · [Plan de mejoras](docs/PLAN_MEJORAS.md) |
 | API de IA opcional | [Fácil](docs/facil/API_IA.md) | [Completo](docs/API_IA.md) |
 | Modo corto y avisos | [Fácil](docs/facil/AVISOS_Y_MODO_CORTO.md) | [Completo](docs/AVISOS_Y_MODO_CORTO.md) |
+| 🧠 Índice y ⚡ Reto | [Fácil](docs/facil/INDICE.md) | [Completo](docs/INDICE.md) |
 | Salud, alarma y línea base | [Fácil](docs/facil/SALUD.md) | [Completo](docs/SALUD.md) |
 | Eventos y métricas («Qué sabe el sistema de ti») | [Fácil](docs/facil/METRICAS.md) | [Completo](docs/METRICAS.md) |
 | Banco de pruebas de la IA (medir modelos) | — | [Completo](docs/MEDICION.md) |

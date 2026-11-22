@@ -41,6 +41,12 @@
       "Alineación de IA y seguridad de sistemas avanzados",
       "Neuroderechos y neurotecnología",
       "Ética de la mejora genética",
-      "Debates actuales"]}
+      "Debates actuales"]},
+    {"id": "profesional_avanzada", "t": "Ética en la práctica profesional", "nivel": 4, "pre": ["ingenieria", "digital"], "temas": [
+      "Toma de decisiones éticas en equipos|marcos y casos",
+      "Ética de datos y privacidad en productos",
+      "Responsabilidad y rendición de cuentas de sistemas automatizados",
+      "Comités de ética y evaluación de impacto",
+      "Denuncia de irregularidades|cuándo y cómo"]}
   ]
 }
